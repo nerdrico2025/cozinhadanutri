@@ -1,0 +1,56 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
+  line-height: 1.5;
+  font-weight: 400;
+
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
+}
+
+/* ── Carrossel — fundos ──────────────────────────────────────────────────── */
+.slide-bg-receitas {
+  background: linear-gradient(135deg, #16a34a 0%, #15803d 100%);
+}
+
+.slide-bg-rotulo {
+  background: linear-gradient(135deg, #0369a1 0%, #0284c7 100%);
+}
+
+.slide-bg-anvisa {
+  background: linear-gradient(135deg, #f49100 0%, #e07800 100%);
+}
+
+/* ── Carrossel — padrão overlay ─────────────────────────────────────────── */
+.carousel-pattern {
+  background-image: radial-gradient(circle, rgba(255,255,255,0.3) 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+
+/* ── Carrossel — animação de entrada ────────────────────────────────────── */
+@keyframes fadeSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.fade-slide-in {
+  animation: fadeSlideIn 0.4s ease forwards;
+}
+

@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="Sistema completo para precificação, ficha técnica e rotulagem nutricional de receitas para pequenas empresas de alimentação." />
+    <meta name="keywords" content="precificação, receitas, rotulagem nutricional, ficha técnica, ANVISA, TACO, marmitaria, restaurante" />
+    <meta name="author" content="Cozinha da Nutri" />
+    <meta name="theme-color" content="#16a34a" />
+    
+    <!-- PWA -->
+    <link rel="manifest" href="/manifest.json" />
+    <meta name="application-name" content="Cozinha da Nutri" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="CozinhaNutri" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    
+    <!-- Icons -->
+    <link rel="icon" type="image/png" href="/favicon.png" />
+    <link rel="apple-touch-icon" href="/favicon.png" />
+    
+    <!-- Preconnect para performance -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+    
+    <title>Cozinha da Nutri - Precificação e Rotulagem Nutricional</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+    
+    <!-- Service Worker para PWA (somente em producao) -->
+    <script>
+      if ('serviceWorker' in navigator && location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('/sw.js')
+            .then((registration) => {
+              console.log('SW registrado com sucesso: ', registration);
+            })
+            .catch((registrationError) => {
+              console.log('Falha ao registrar SW: ', registrationError);
+            });
+        });
+      }
+    </script>
+  </body>
+</html>
