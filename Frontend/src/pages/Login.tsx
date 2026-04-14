@@ -48,27 +48,62 @@ interface LoginProps {
   onEsqueciSenha?: () => void;
 }
 
-const slides = [
+interface SlideImage {
+  src: string;
+  alt: string;
+  style: React.CSSProperties;
+}
+
+interface Slide {
+  key: string;
+  bgClass: string;
+  images: SlideImage[];
+  title: string;
+  description: string;
+}
+
+const slides: Slide[] = [
   {
     key: 'receitas',
     bgClass: 'slide-bg-receitas',
-    image: '/marmita.svg',
+    images: [
+      { src: '/login_img1.svg', alt: 'Receita principal', style: { width: 340, height: 340, borderRadius: '20px', transform: 'translate(-16px, 32px) rotate(-12deg)', zIndex: 1 } },
+      { src: '/login_img2.svg', alt: 'Rótulo',            style: { width: 230, height: 230, borderRadius: '20px', transform: 'translate(140px, -130px) rotate(10deg)', zIndex: 2 } },
+      { src: '/login_img3.svg', alt: 'Anvisa',            style: { width: 185, height: 185, borderRadius: '20px', transform: 'translate(-138px, -125px) rotate(6deg)', zIndex: 3 } },
+    ],
     title: 'Crie Receitas Incríveis',
     description: 'Monte e gerencie receitas com cálculo nutricional automático baseado na tabela TACO.',
   },
   {
     key: 'rotulo',
     bgClass: 'slide-bg-rotulo',
-    image: '/rotulo.svg',
+    images: [
+      { src: '/login_img4.svg', alt: 'Rótulo principal',  style: { width: 340, height: 340, borderRadius: '20px', transform: 'translate(16px, 28px) rotate(8deg)',    zIndex: 1 } },
+      { src: '/login_img5.svg', alt: 'Receita',           style: { width: 220, height: 220, borderRadius: '20px', transform: 'translate(-148px, -125px) rotate(-14deg)', zIndex: 2 } },
+      { src: '/login_img7.svg', alt: 'Anvisa',            style: { width: 192, height: 192, borderRadius: '20px', transform: 'translate(138px, -138px) rotate(-8deg)', zIndex: 3 } },
+    ],
     title: 'Rótulo Nutricional',
     description: 'Gere rótulos nutricionais completos em conformidade com as normas da ANVISA.',
   },
   {
     key: 'anvisa',
     bgClass: 'slide-bg-anvisa',
-    image: '/anvisa.svg',
+    images: [
+      { src: '/login_img8.svg', alt: 'Anvisa principal',  style: { width: 340, height: 340, borderRadius: '20px', transform: 'translate(0px, 26px) rotate(-6deg)', zIndex: 1 } },
+    ],
     title: 'Conformidade ANVISA',
     description: 'Todos os dados seguem os padrões exigidos pela Agência Nacional de Vigilância Sanitária.',
+  },
+  {
+    key: 'precificacao',
+    bgClass: 'slide-bg-precificacao',
+    images: [
+      { src: '/login_img9.svg',  alt: 'Precificação principal', style: { width: 340, height: 340, borderRadius: '20px', transform: 'translate(-12px, 30px) rotate(-8deg)',  zIndex: 1 } },
+      { src: '/login_img10.svg', alt: 'Custo',                  style: { width: 220, height: 220, borderRadius: '20px', transform: 'translate(140px, -132px) rotate(12deg)', zIndex: 2 } },
+      { src: '/login_img11.svg', alt: 'Lucro',                  style: { width: 192, height: 192, borderRadius: '20px', transform: 'translate(-135px, -130px) rotate(-9deg)', zIndex: 3 } },
+    ],
+    title: 'Precificação Inteligente',
+    description: 'Calcule automaticamente o custo de produção e defina preços com margem de lucro ideal para o seu negócio.',
   },
 ];
 
@@ -94,20 +129,39 @@ function Carousel() {
 
   return (
     <div className={`relative flex flex-col items-center justify-center h-full w-full overflow-hidden select-none transition-all duration-500 ${slide.bgClass}`}>
-      {/* Overlay pattern */}
-      <div className="absolute inset-0 opacity-10 carousel-pattern" />
+      {/* Blobs decorativos de fundo */}
+      <div className="carousel-blob-bg-1" />
+      <div className="carousel-blob-bg-2" />
+      <div className="carousel-blob-bg-3" />
 
-      {/* Image — fills entire carousel */}
-      <div key={slide.key} className="fade-slide-in absolute inset-0 flex items-center justify-center overflow-hidden">
-        <img src={slide.image} alt={slide.title} className="w-full h-full object-cover scale-110 drop-shadow-2xl" />
-        {/* Gray overlay for caption readability */}
-        <div className="absolute inset-0 bg-black/40" />
-      </div>
+      {/* Conteúdo principal */}
+      <div key={slide.key} className="fade-slide-in relative z-10 flex flex-col items-center justify-center gap-7 px-10">
+        {/* Blob arredondado com trio de imagens desalinhadas */}
+        <div className="carousel-blob-main" style={{ position: 'relative', overflow: 'visible' }}>
+          {slide.images.map((img) => (
+            <div
+              key={img.src}
+              style={{
+                position: 'absolute',
+                overflow: 'hidden',
+                filter: 'drop-shadow(0 6px 14px rgba(0,0,0,0.25))',
+                ...img.style,
+              }}
+            >
+              <img
+                src={img.src}
+                alt={img.alt}
+                style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+              />
+            </div>
+          ))}
+        </div>
 
-      {/* Caption — overlaid at the bottom */}
-      <div className="absolute bottom-16 left-0 right-0 z-10 text-center px-8">
-        <h2 className="text-white text-2xl font-bold mb-1 drop-shadow-lg">{slide.title}</h2>
-        <p className="text-white/90 text-sm leading-relaxed drop-shadow">{slide.description}</p>
+        {/* Caption */}
+        <div className="text-center px-6 py-4 rounded-2xl" style={{ background: 'rgba(0,0,0,0.22)', backdropFilter: 'blur(6px)' }}>
+          <h2 className="text-white text-3xl font-extrabold mb-2 drop-shadow-lg tracking-tight">{slide.title}</h2>
+          <p className="text-white text-base font-medium leading-relaxed drop-shadow">{slide.description}</p>
+        </div>
       </div>
 
       {/* Arrows */}

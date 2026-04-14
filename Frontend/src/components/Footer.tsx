@@ -114,7 +114,7 @@ export function Footer({ onNavegar }: FooterProps) {
             className="flex items-center gap-2 text-sm text-teal-100 hover:text-white transition"
           >
             <MessageCircle size={15} className="shrink-0 text-teal-400" />
-            WhatsApp: (11) 99999-9999
+            WhatsApp: (21) 99924-0792
           </a>
           <a
             href="https://www.instagram.com/_cozinhadanutri/"
