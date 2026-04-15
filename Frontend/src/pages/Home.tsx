@@ -40,12 +40,12 @@ const heroImages = [
     alt: "Ingredientes frescos para preparo de receitas",
   },
   {
-    src: "https://images.unsplash.com/photo-1490645935967-10de6ba17061?auto=format&fit=crop&w=800&q=80",
+    src: "https://img.freepik.com/fotos-gratis/graficos-de-vista-superior-e-alimentos-organicos-em-caixas-de-almoco_23-2148515965.jpg",
     alt: "Planejamento nutricional com alimentos saudáveis",
   },
   {
-    src: "https://images.unsplash.com/photo-1512621776951-a57141f2eefd?auto=format&fit=crop&w=800&q=80",
-    alt: "Prato balanceado com nutrição completa",
+    src: "https://blogdadativa.home.blog/wp-content/uploads/2020/06/eea76ef0-9042-0137-f2ad-6231c35b6685-minified.jpg",
+    alt: "Rótulo Nutricional",
   },
 ];
 
@@ -67,7 +67,11 @@ const diferenciais = [
   },
 ];
 
-export function Home(): JSX.Element {
+type HomeProps = {
+  onIrParaRegister?: () => void;
+};
+
+export function Home({ onIrParaRegister }: HomeProps): JSX.Element {
   const [currentImage, setCurrentImage] = useState(0);
 
   useEffect(() => {
@@ -96,6 +100,9 @@ export function Home(): JSX.Element {
             com a legislação de rotulagem.
           </p>
         </div>
+
+
+        
         <div className="relative rounded-lg overflow-hidden border border-gray-200 h-56 sm:h-64 lg:h-72 group">
           {heroImages.map((img, i) => (
             <img
@@ -138,6 +145,17 @@ export function Home(): JSX.Element {
             ))}
           </div>
         </div>
+      </div>
+
+      {/* CTA */}
+      <div className="flex justify-center -mt-8">
+        <button
+          onClick={onIrParaRegister}
+          style={{ backgroundColor: '#f49100' }}
+          className="hover:brightness-90 active:brightness-75 text-white text-sm font-semibold px-6 py-3 rounded-lg transition-all"
+        >
+          Experimente gratuitamente
+        </button>
       </div>
 
       {/* Funcionalidades */}

@@ -97,7 +97,7 @@ function App() {
   const renderTela = () => {
     switch (telaAtiva) {
       case 'home':
-        return <Home />;
+        return <Home onIrParaRegister={() => setTelaAtiva('register')} />;
       case 'login':
         return (
           <Login
