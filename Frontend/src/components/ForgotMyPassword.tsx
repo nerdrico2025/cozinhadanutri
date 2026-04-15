@@ -133,19 +133,25 @@ function PainelDireito({ etapa }: { etapa: Etapa }) {
   const idxAtual = ordemEtapas.indexOf(etapa);
   return (
     <div className="relative hidden md:flex md:w-1/2 flex-col items-center justify-center overflow-hidden select-none slide-bg-anvisa">
-      <div className="absolute inset-0 opacity-10 carousel-pattern" />
+      {/* Blobs decorativos de fundo — mesma identidade do carrossel de Login */}
+      <div className="carousel-blob-bg-1" />
+      <div className="carousel-blob-bg-2" />
+      <div className="carousel-blob-bg-3" />
+
       <div className="relative z-10 flex flex-col items-center px-10 gap-8 w-full text-center">
-{/*         <img src="/logo.svg" alt="Cozinha da Nutri" className="h-20 drop-shadow-lg" /> */}
-        <p className="text-white font-bold text-xl">Recuperação de Senha</p>
-        <div className="flex flex-col gap-4 w-full max-w-xs">
+        <p className="fade-slide-in text-white font-bold text-xl drop-shadow">Recuperação de Senha</p>
+        <div className="fade-slide-in flex flex-col gap-4 w-full max-w-xs">
           {passos.map(({ num, titulo, desc, etapa: etapaPasso }) => {
             const idxPasso = ordemEtapas.indexOf(etapaPasso);
-            const ativo    = idxPasso === idxAtual;
+            const ativo     = idxPasso === idxAtual;
             const concluido = idxPasso < idxAtual;
             return (
               <div
                 key={num}
-                className={`rounded-2xl p-4 flex items-start gap-3 text-left transition-all ${ativo ? 'bg-white/25 backdrop-blur-sm' : 'bg-white/10'}`}
+                className={`rounded-2xl p-4 flex items-start gap-3 text-left transition-all border ${
+                  ativo ? 'bg-white/25 backdrop-blur-sm border-white/30' : 'bg-white/10 border-white/10'
+                }`}
+                style={{ boxShadow: ativo ? '0 4px 20px rgba(0,0,0,0.15)' : undefined }}
               >
                 <div
                   className={`rounded-full w-7 h-7 flex items-center justify-center shrink-0 text-xs font-bold transition-all ${

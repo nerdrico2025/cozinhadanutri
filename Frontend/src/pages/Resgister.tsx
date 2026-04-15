@@ -8,8 +8,8 @@ import ReCAPTCHA from 'react-google-recaptcha';
 // ── Segurança ─────────────────────────────────────────────────────────────────
 // eslint-disable-next-line no-control-regex
 const CONTROL_CHARS_RE = /[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g;
-const HTML_TAGS_RE     = /<[^>]*>/g;
-const INJECT_CHARS_RE  = /['";\\<>(){}[\]`]/;
+const HTML_TAGS_RE = /<[^>]*>/g;
+const INJECT_CHARS_RE = /['";\\<>(){}[\]`]/;
 
 /** Remove caracteres de controle e tags HTML */
 function sanitizeTexto(v: string): string {
@@ -36,7 +36,14 @@ const schemaPJ = z
       .refine((v) => !INJECT_CHARS_RE.test(v), 'Nome contém caracteres inválidos')
       .transform(sanitizeTexto),
     cnpj: z.string().regex(/^\d{2}\.\d{3}\.\d{3}\/\d{4}-\d{2}$/, 'CNPJ inválido (00.000.000/0000-00)'),
-    inscricaoEstadual: z.string().max(14, 'IE deve ter no máximo 14 dígitos').regex(/^\d{0,14}$/, 'IE deve conter apenas números').transform(sanitizeTexto).optional(),
+    inscricaoEstadual: z
+      .string()
+      .min(1, 'Campo obrigatório')
+      .refine(
+        (v) => /^isento$/i.test(v.trim()) || /^\d{1,14}$/.test(v.trim()),
+        'Informe "Isento" ou o número da IE (até 14 dígitos)'
+      )
+      .transform((v) => sanitizeTexto(v).toLowerCase()),
     telefone: z.string().regex(/^\(\d{2}\)\s\d{4,5}-\d{4}$/, 'Telefone inválido'),
     email: z
       .string()
@@ -78,7 +85,7 @@ function Field({ label, error, children }: { label: string; error?: string; chil
   );
 }
 
-function SenhaInput({ reg, placeholder, hasError }: { reg: object; placeholder: string; hasError?: boolean }) {
+function SenhaInput({ reg, placeholder, hasError, required }: { reg: object; placeholder: string; hasError?: boolean; required?: boolean }) {
   const [mostrar, setMostrar] = useState(false);
   return (
     <div className="relative">
@@ -88,6 +95,7 @@ function SenhaInput({ reg, placeholder, hasError }: { reg: object; placeholder: 
         placeholder={placeholder}
         maxLength={128}
         spellCheck={false}
+        required={required}
         className={`${inputCls(hasError)} pr-10`}
       />
       <button
@@ -104,23 +112,31 @@ function SenhaInput({ reg, placeholder, hasError }: { reg: object; placeholder: 
 
 // ── Painel decorativo direito ─────────────────────────────────────────────────
 const beneficios = [
-  { icon: Sparkles,        titulo: 'Simples de Usar',                   desc: 'Interface intuitiva — sem treinamentos. Comece a usar no primeiro acesso.' },
-  { icon: Zap,             titulo: 'Resultados em Segundos',            desc: 'Cálculos nutricionais e rótulos gerados instantaneamente, sem espera.' },
-  { icon: PiggyBank,       titulo: 'Economize Tempo e Dinheiro',         desc: 'Elimine planilhas manuais e reduza horas de trabalho com automação inteligente.' },
-  { icon: UtensilsCrossed, titulo: 'Receitas com Cálculo Nutricional',   desc: 'Monte receitas completas com dados validados da tabela TACO.' },
-  { icon: Tags,            titulo: 'Rótulos Prontos para ANVISA',        desc: 'Gere rótulos nutricionais conforme a legislação vigente, com um clique.' },
-  { icon: Clock,           titulo: 'Disponível 24h por Dia',            desc: 'Acesse de qualquer lugar e a qualquer hora, no computador ou celular.' },
-  { icon: ShieldCheck,     titulo: 'Dados Seguros',                     desc: 'Suas informações são protegidas com criptografia e nunca compartilhadas.' },
+  { icon: Sparkles, titulo: 'Simples de Usar', desc: 'Interface intuitiva — sem treinamentos. Comece a usar no primeiro acesso.' },
+  { icon: Zap, titulo: 'Resultados em Segundos', desc: 'Cálculos nutricionais e rótulos gerados instantaneamente, sem espera.' },
+  { icon: PiggyBank, titulo: 'Economize Tempo e Dinheiro', desc: 'Elimine planilhas manuais e reduza horas de trabalho com automação inteligente.' },
+  { icon: UtensilsCrossed, titulo: 'Receitas com Cálculo Nutricional', desc: 'Monte receitas completas com dados validados da tabela TACO.' },
+  { icon: Tags, titulo: 'Rótulos Prontos para ANVISA', desc: 'Gere rótulos nutricionais conforme a legislação vigente, com um clique.' },
+  { icon: Clock, titulo: 'Disponível 24h por Dia', desc: 'Acesse de qualquer lugar e a qualquer hora, no computador ou celular.' },
+  { icon: ShieldCheck, titulo: 'Dados Seguros', desc: 'Suas informações são protegidas com criptografia e nunca compartilhadas.' },
 ];
 
 function PainelDireito() {
   return (
     <div className="relative hidden md:flex md:w-1/2 flex-col items-center justify-center overflow-hidden select-none slide-bg-receitas">
-      <div className="absolute inset-0 opacity-10 carousel-pattern" />
-      <div className="relative z-10 flex flex-col items-center px-10 gap-8 w-full text-center">
-{/*         <img src="/logo_white.svg" alt="Cozinha da Nutri" className="h-20 drop-shadow-lg" /> */}        <div className="flex flex-col gap-5 w-full max-w-xs">
+      {/* Blobs decorativos de fundo — mesma identidade do carrossel de Login */}
+      <div className="carousel-blob-bg-1" />
+      <div className="carousel-blob-bg-2" />
+      <div className="carousel-blob-bg-3" />
+
+      <div className="relative z-10 flex flex-col items-center px-10 gap-6 w-full text-center overflow-y-auto py-8">
+        <div className="fade-slide-in flex flex-col gap-4 w-full max-w-xs">
           {beneficios.map(({ icon: Icon, titulo, desc }) => (
-            <div key={titulo} className="bg-white/15 backdrop-blur-sm rounded-2xl p-4 flex items-start gap-3 text-left">
+            <div
+              key={titulo}
+              className="bg-white/15 backdrop-blur-sm rounded-2xl p-4 flex items-start gap-3 text-left border border-white/20"
+              style={{ boxShadow: '0 4px 20px rgba(0,0,0,0.12)' }}
+            >
               <div className="bg-white/20 rounded-xl p-2 shrink-0">
                 <Icon size={20} className="text-white" />
               </div>
@@ -154,36 +170,42 @@ function FormPessoaJuridica({ onCadastrar, onVerTermos }: { onCadastrar: (data: 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4" noValidate>
       <Field label="Razão Social" error={errors.nomeEmpresarial?.message}>
-        <input {...register('nomeEmpresarial')} placeholder="Empresa Ltda." maxLength={200} className={inputCls(!!errors.nomeEmpresarial)} />
+        <input {...register('nomeEmpresarial')} placeholder="Empresa Ltda." maxLength={200} required className={inputCls(!!errors.nomeEmpresarial)} />
       </Field>
       <Field label="Nome Fantasia" error={errors.nomeFantasia?.message}>
-        <input {...register('nomeFantasia')} placeholder="Cozinha da Nutri" maxLength={150} className={inputCls(!!errors.nomeFantasia)} />
+        <input {...register('nomeFantasia')} placeholder="Cozinha da Nutri" maxLength={150} required className={inputCls(!!errors.nomeFantasia)} />
       </Field>
       <Field label="CNPJ" error={errors.cnpj?.message}>
-        <input {...register('cnpj')} onChange={(e) => setValue('cnpj', maskCNPJ(e.target.value), { shouldValidate: true })} placeholder="00.000.000/0000-00" maxLength={18} className={inputCls(!!errors.cnpj)} />
+        <input {...register('cnpj')} onChange={(e) => setValue('cnpj', maskCNPJ(e.target.value), { shouldValidate: true })} placeholder="00.000.000/0000-00" maxLength={18} required className={inputCls(!!errors.cnpj)} />
       </Field>
       <Field label="Inscrição Estadual" error={errors.inscricaoEstadual?.message}>
         <input
           {...register('inscricaoEstadual')}
-          onChange={(e) => setValue('inscricaoEstadual', e.target.value.replace(/\D/g, '').slice(0, 14), { shouldValidate: true })}
-          placeholder="Isento ou número da IE (até 14 dígitos)"
+          onChange={(e) => {
+            const v = e.target.value;
+            // Se for apenas dígitos, limita a 14; caso contrário permite (ex.: "Isento")
+            const normalizado = /^\d+$/.test(v) ? v.slice(0, 14) : v;
+            setValue('inscricaoEstadual', normalizado, { shouldValidate: true });
+          }}
+          placeholder='"Isento" ou número da IE (até 14 dígitos)'
           maxLength={14}
-          inputMode="numeric"
+          inputMode="text"
+          required
           className={inputCls(!!errors.inscricaoEstadual)}
         />
       </Field>
       <Field label="Telefone" error={errors.telefone?.message}>
-        <input {...register('telefone')} onChange={(e) => setValue('telefone', maskTelefone(e.target.value), { shouldValidate: true })} placeholder="(00) 00000-0000" maxLength={15} className={inputCls(!!errors.telefone)} />
+        <input {...register('telefone')} onChange={(e) => setValue('telefone', maskTelefone(e.target.value), { shouldValidate: true })} placeholder="(00) 00000-0000" maxLength={15} required className={inputCls(!!errors.telefone)} />
       </Field>
       <Field label="E-mail" error={errors.email?.message}>
-        <input {...register('email')} type="email" inputMode="email" placeholder="contato@empresa.com" maxLength={254} className={inputCls(!!errors.email)} />
+        <input {...register('email')} type="email" inputMode="email" placeholder="contato@empresa.com" maxLength={254} required className={inputCls(!!errors.email)} />
       </Field>
       <div className="grid grid-cols-2 gap-4">
         <Field label="Senha" error={errors.senha?.message}>
-          <SenhaInput reg={register('senha')} placeholder="Mínimo 8 caracteres" hasError={!!errors.senha} />
+          <SenhaInput reg={register('senha')} placeholder="Mínimo 8 caracteres" hasError={!!errors.senha} required />
         </Field>
         <Field label="Confirmar Senha" error={errors.confirmarSenha?.message}>
-          <SenhaInput reg={register('confirmarSenha')} placeholder="Repita a senha" hasError={!!errors.confirmarSenha} />
+          <SenhaInput reg={register('confirmarSenha')} placeholder="Repita a senha" hasError={!!errors.confirmarSenha} required />
         </Field>
       </div>
       <div className="flex items-start gap-2.5">
@@ -251,16 +273,25 @@ export function Register({ onJaTemConta, onCadastroSucesso, onVerTermos }: Regis
             <div className="text-center mb-6">
               <img src="/logo.svg" alt="Cozinha da Nutri" className="h-14 mx-auto mb-2" />
               <p className="text-sm text-gray-500">Crie sua conta gratuitamente</p>
+
+              <p className="text-center text-sm text-gray-500 mt-5">
+                Já possui uma conta?{' '}
+                <button type="button" onClick={onJaTemConta} className="bg-transparent border-0 cursor-pointer text-brand font-semibold text-sm p-0">
+                  Clique aqui
+                </button>
+              </p>
+
+
             </div>
 
             <FormPessoaJuridica onCadastrar={handleCadastrar} onVerTermos={onVerTermos} />
 
-            <p className="text-center text-sm text-gray-500 mt-5">
+           {/*  <p className="text-center text-sm text-gray-500 mt-5">
               Já possui uma conta?{' '}
               <button type="button" onClick={onJaTemConta} className="bg-transparent border-0 cursor-pointer text-brand font-semibold text-sm p-0">
                 Clique aqui
               </button>
-            </p>
+            </p> */}
 
           </div>
         </div>
