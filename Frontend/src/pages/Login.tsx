@@ -135,6 +135,7 @@ function Carousel() {
       <div className="carousel-blob-bg-3" />
 
       {/* Conteúdo principal */}
+      <div className="carousel-content-wrapper">
       <div key={slide.key} className="fade-slide-in relative z-10 flex flex-col items-center justify-center gap-7 px-10">
         {/* Blob arredondado com trio de imagens desalinhadas */}
         <div className="carousel-blob-main" style={{ position: 'relative', overflow: 'visible' }}>
@@ -162,6 +163,7 @@ function Carousel() {
           <h2 className="text-white text-3xl font-extrabold mb-2 drop-shadow-lg tracking-tight">{slide.title}</h2>
           <p className="text-white text-base font-medium leading-relaxed drop-shadow">{slide.description}</p>
         </div>
+      </div>
       </div>
 
       {/* Arrows */}
