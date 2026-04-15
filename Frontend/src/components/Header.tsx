@@ -5,7 +5,6 @@ import {
   UserPlus,
   LogOut,
   LayoutDashboard,
-  CreditCard,
   HelpCircle,
   ShieldCheck,
   Headphones,
@@ -25,6 +24,7 @@ type TelaAtiva =
   | 'login'
   | 'register'
   | 'esqueci-senha'
+  | 'perfil'
 /*   | 'planos' */
   | 'faq'
   | 'suporte'
@@ -126,9 +126,12 @@ export function Header({
             </>
           ) : (
             <>
-              <span className="text-sm text-gray-700">
+              <button
+                onClick={() => onNavegar('perfil')}
+                className="text-sm text-gray-700 hover:text-brand transition cursor-pointer bg-transparent border-0 p-0 focus:outline-none"
+              >
                 Olá, <strong>{usuario.nome.split(' ')[0]}</strong>
-              </span>
+              </button>
               <button
                 onClick={onSair}
                 className="flex items-center gap-2 px-3 py-2 text-sm text-gray-600 hover:text-red-600 hover:bg-red-50 rounded-lg transition focus:outline-none"
@@ -190,7 +193,12 @@ export function Header({
 
           {usuario && (
             <div className="border-t border-gray-100 mt-2 pt-3 px-4">
-              <p className="text-sm text-gray-500">Olá, <strong className="text-gray-800">{usuario.nome.split(' ')[0]}</strong></p>
+              <button
+                onClick={() => { onNavegar('perfil'); setMenuAberto(false); }}
+                className="text-sm text-gray-500 hover:text-brand transition cursor-pointer bg-transparent border-0 p-0 focus:outline-none"
+              >
+                Olá, <strong className="text-gray-800">{usuario.nome.split(' ')[0]}</strong>
+              </button>
             </div>
           )}
         </div>

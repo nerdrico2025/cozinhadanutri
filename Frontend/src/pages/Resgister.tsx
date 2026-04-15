@@ -35,7 +35,7 @@ const schemaPJ = z
       .max(150, 'Nome muito longo')
       .refine((v) => !INJECT_CHARS_RE.test(v), 'Nome contém caracteres inválidos')
       .transform(sanitizeTexto),
-    cnpj: z.string().regex(/^\d{2}\.\d{3}\.\d{3}\/\d{4}-\d{2}$/, 'CNPJ inválido (00.000.000/0000-00)'),
+    cnpj: z.string().regex(/^[A-Z0-9]{2}\.[A-Z0-9]{3}\.[A-Z0-9]{3}\/[A-Z0-9]{4}-\d{2}$/i, 'CNPJ inválido (AA.AAA.AAA/AAAA-00)'),
     inscricaoEstadual: z
       .string()
       .min(1, 'Campo obrigatório')
@@ -60,11 +60,12 @@ const schemaPJ = z
 type FormPJ = z.infer<typeof schemaPJ>;
 
 function maskCNPJ(v: string) {
-  return v.replace(/\D/g, '').slice(0, 14)
-    .replace(/(\d{2})(\d)/, '$1.$2')
-    .replace(/(\d{3})(\d)/, '$1.$2')
-    .replace(/(\d{3})(\d)/, '$1/$2')
-    .replace(/(\d{4})(\d{1,2})$/, '$1-$2');
+  const raw = v.replace(/[^A-Za-z0-9]/g, '').slice(0, 14).toUpperCase();
+  if (raw.length <= 2)  return raw;
+  if (raw.length <= 5)  return `${raw.slice(0, 2)}.${raw.slice(2)}`;
+  if (raw.length <= 8)  return `${raw.slice(0, 2)}.${raw.slice(2, 5)}.${raw.slice(5)}`;
+  if (raw.length <= 12) return `${raw.slice(0, 2)}.${raw.slice(2, 5)}.${raw.slice(5, 8)}/${raw.slice(8)}`;
+  return `${raw.slice(0, 2)}.${raw.slice(2, 5)}.${raw.slice(5, 8)}/${raw.slice(8, 12)}-${raw.slice(12)}`;
 }
 function maskTelefone(v: string) {
   const d = v.replace(/\D/g, '').slice(0, 11);
@@ -176,7 +177,7 @@ function FormPessoaJuridica({ onCadastrar, onVerTermos }: { onCadastrar: (data: 
         <input {...register('nomeFantasia')} placeholder="Cozinha da Nutri" maxLength={150} required className={inputCls(!!errors.nomeFantasia)} />
       </Field>
       <Field label="CNPJ" error={errors.cnpj?.message}>
-        <input {...register('cnpj')} onChange={(e) => setValue('cnpj', maskCNPJ(e.target.value), { shouldValidate: true })} placeholder="00.000.000/0000-00" maxLength={18} required className={inputCls(!!errors.cnpj)} />
+        <input {...register('cnpj')} onChange={(e) => setValue('cnpj', maskCNPJ(e.target.value), { shouldValidate: true })} placeholder="AA.AAA.AAA/AAAA-00" maxLength={18} required className={inputCls(!!errors.cnpj)} />
       </Field>
       <Field label="Inscrição Estadual" error={errors.inscricaoEstadual?.message}>
         <input

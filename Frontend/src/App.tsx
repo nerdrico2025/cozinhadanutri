@@ -4,6 +4,7 @@ import { ForgotMyPassword } from './components/ForgotMyPassword';
 import { Home } from './pages/Home';
 import { Login } from './pages/Login';
 import { Register } from './pages/Resgister';
+import { Profile } from './pages/config_profile';
 import { UsuarioLogado } from './types';
 import {Footer} from './components/Footer';
 import './App.css';
@@ -18,6 +19,7 @@ type TelaAtiva =
   | 'login'
   | 'register'
   | 'esqueci-senha'
+  | 'perfil'
   | 'planos'
   | 'faq'
   | 'suporte'
@@ -27,7 +29,7 @@ type TelaAtiva =
 
 
 const validTelas: TelaAtiva[] = [
-  'home', 'login', 'register', 'esqueci-senha',
+  'home', 'login', 'register', 'esqueci-senha', 'perfil',
   'dashboard', 'receitas', 'criar-receita', 'cadastro-ingrediente',
   'lista-ingredientes', 'planos', 'faq', 'suporte', 'termos', 'pagamento', 'adm',
 ];
@@ -120,6 +122,24 @@ function App() {
         );
       case 'esqueci-senha':
         return <ForgotMyPassword onVoltar={() => setTelaAtiva('login')} />;
+      case 'perfil':
+        return (
+          <Profile
+            dadosIniciais={usuario ? {
+              nomeEmpresarial: usuario.nome,
+              nomeFantasia:    usuario.nome,
+              cnpj:            '',
+              inscricaoEstadual: '',
+              telefone:        '',
+              email:           usuario.email,
+            } : undefined}
+            onSalvar={async (_dados) => {
+              // TODO: integrar com serviço de atualização de perfil
+              return true;
+            }}
+            onVoltar={() => setTelaAtiva('home')}
+          />
+        );
       default:
         return <Home />;
     }
