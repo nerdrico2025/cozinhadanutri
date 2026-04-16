@@ -5,7 +5,7 @@ from django.db import models
 # lista do banco de dados do alimento, cada campo é um nutriente, e o valor é a quantidade do nutriente presente em 100g do alimento
 
 class Alimento(models.Model):
-    número = models.IntegerField(unique=True)
+    numero = models.IntegerField(unique=True)
     descricao = models.CharField(max_length=255)
     
     umidade = models.DecimalField(max_digits=10, decimal_places=4, null=True, blank=True)
