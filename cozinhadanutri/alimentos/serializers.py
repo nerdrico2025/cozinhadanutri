@@ -61,70 +61,15 @@ class AlimentoSerializer(serializers.ModelSerializer):
         campos = [
             'umidade',
             'energia_kcal',
-            'energia_kj',
             'proteina',
             'lipideos',
-            'colesterol',
             'carboidrato',
             'fibra_alimentar',
-            'cinzas',
-            'calcio',
-            'magnesio',
-            'manganes',
-            'fosforo',
-            'ferro',
             'sodio',
-            'potassio',
-            'cobre',
-            'zinco',
-            'retinol',
-            're',
-            'rae',
-            'tiamina',
-            'riboflavina',
-            'piridoxina',
-            'niacina',
-            'vitamina_c',
             'saturados',
-            'monoinsaturados',
-            'poliinsaturados',
-            'AG12_0',
-            'AG14_0',
-            'AG16_0',
-            'AG18_0',
-            'AG20_0',
-            'AG22_0',
-            'AG24_0',
-            'AG14_1',
-            'AG16_1',
-            'AG18_1',
-            'AG20_1',
-            'AG18_2_n6',
-            'AG18_3_n3',
-            'AG20_4',
-            'AG20_5',
-            'AG22_5',
-            'AG22_6',
             'AG18_1t',
             'AG18_2t',
-            'triptofano',
-            'treonina',
-            'isoleucina',
-            'leucina',
-            'lisina',
-            'metionina',
-            'cistina',
-            'fenilalanina',
-            'tirosina',
-            'valina',
-            'arginina',
-            'histidina',
-            'alanina',
-            'ac_aspartico',
-            'ac_glutamico',
-            'glicina',
-            'prolina',
-            'serina',
+
         ]
 
         for campo in campos:
@@ -132,13 +77,10 @@ class AlimentoSerializer(serializers.ModelSerializer):
                 data[campo] = self.validar_campo_negativo(campo, data[campo])
 
         energia_kcal = data.get('energia_kcal')
-        energia_kj = data.get('energia_kj')
 
         if energia_kcal is None:
             raise serializers.ValidationError("O campo 'energia_kcal' não deve ser vazio.")
 
-        if energia_kj is None:
-            raise serializers.ValidationError("O campo 'energia_kj' não deve ser vazio.")
                         
         return data
         
