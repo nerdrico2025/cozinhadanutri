@@ -1,4 +1,4 @@
-import { Mail, MessageCircle, BookOpen, ShieldCheck, FileText, HelpCircle } from 'lucide-react';
+import { Mail, MessageCircle, ShieldCheck, HelpCircle, BookOpen } from 'lucide-react';
 
 type TelaAtiva =
   | 'home' | 'dashboard' | 'receitas' | 'criar-receita'
@@ -58,9 +58,8 @@ export function Footer({ onNavegar }: FooterProps) {
           <p className="text-xs font-bold uppercase tracking-widest text-teal-300">Sistema</p>
           {[
             { label: 'Início', tela: 'home' as TelaAtiva },
-            { label: 'Receitas', tela: 'receitas' as TelaAtiva },
             { label: 'Planos e Preços', tela: 'planos' as TelaAtiva },
-            { label: 'Painel', tela: 'dashboard' as TelaAtiva },
+            { label: 'Suporte', tela: 'suporte' as TelaAtiva },
           ].map((l) => (
             <button
               key={l.tela}
@@ -78,10 +77,7 @@ export function Footer({ onNavegar }: FooterProps) {
         <div className="flex flex-col gap-3">
           <p className="text-xs font-bold uppercase tracking-widest text-teal-300">Suporte</p>
           {[
-            { label: 'Central de Ajuda', tela: 'suporte' as TelaAtiva, Icon: HelpCircle },
-            { label: 'FAQ', tela: 'faq' as TelaAtiva, Icon: BookOpen },
-            { label: 'Termos de Uso', tela: 'termos' as TelaAtiva, Icon: FileText },
-          ].map((l) => {
+            { label: 'Central de Ajuda', tela: 'suporte' as TelaAtiva, Icon: HelpCircle },            { label: 'Perguntas e Respostas', tela: 'faq' as TelaAtiva, Icon: BookOpen },          ].map((l) => {
             const Icon = l.Icon;
             return (
               <button

@@ -5,11 +5,12 @@ import {
   UserPlus,
   LogOut,
   LayoutDashboard,
-  HelpCircle,
   ShieldCheck,
   Headphones,
+  HelpCircle,
   Menu,
   X,
+  CreditCard,
 } from 'lucide-react';
 import { UsuarioLogado } from '../types';
 import { LucideIcon } from 'lucide-react';
@@ -25,7 +26,7 @@ type TelaAtiva =
   | 'register'
   | 'esqueci-senha'
   | 'perfil'
-/*   | 'planos' */
+  | 'planos'
   | 'faq'
   | 'suporte'
   | 'termos'
@@ -99,8 +100,8 @@ export function Header({
         <nav className="hidden md:flex items-center gap-1">
           {navItem('home', 'Início', Home)}
           {usuario && navItem('dashboard', 'Dashboard', LayoutDashboard)}
-{/*           {navItem('planos', 'Planos', CreditCard)} */}
-          {navItem('faq', 'FAQ', HelpCircle)}
+          {navItem('planos', 'Planos', CreditCard)}
+          {navItem('faq', 'Perguntas e Respostas', HelpCircle)}
           {navItem('suporte', 'Suporte', Headphones)}
           {usuario?.role === 'admin' && navItem('adm', 'Admin', ShieldCheck)}
         </nav>
@@ -111,14 +112,14 @@ export function Header({
             <>
               <button
                 onClick={() => onNavegar('login')}
-                className="flex items-center gap-2 px-3 py-2 text-sm text-gray-600 hover:text-gray-900 focus:outline-none"
+                className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition focus:outline-none"
               >
                 <LogIn size={16} />
                 Login
               </button>
               <button
                 onClick={() => onNavegar('register')}
-                className="flex items-center gap-2 px-3 py-2 text-sm font-semibold text-brand hover:text-brand/80 transition focus:outline-none"
+                className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition focus:outline-none"
               >
                 <UserPlus size={16} />
                 Cadastro
@@ -169,8 +170,8 @@ export function Header({
         <div className="md:hidden border-t border-gray-200 bg-white px-3 pb-4 pt-2 flex flex-col gap-0.5">
           {navItemMobile('home', 'Início', Home)}
           {usuario && navItemMobile('dashboard', 'Dashboard', LayoutDashboard)}
-         {/*  {navItemMobile('planos', 'Planos', CreditCard)} */}
-          {navItemMobile('faq', 'FAQ', HelpCircle)}
+          {navItemMobile('planos', 'Planos', CreditCard)}
+          {navItemMobile('faq', 'Perguntas e Respostas', HelpCircle)}
           {navItemMobile('suporte', 'Suporte', Headphones)}
           {usuario?.role === 'admin' && navItemMobile('adm', 'Admin', ShieldCheck)}
 
@@ -178,13 +179,13 @@ export function Header({
             <div className="border-t border-gray-100 mt-2 pt-2 flex flex-col gap-0.5">
               <button
                 onClick={() => { onNavegar('login'); setMenuAberto(false); }}
-                className="flex items-center gap-3 w-full px-4 py-3 text-sm text-gray-600 hover:bg-gray-100 rounded-lg focus:outline-none"
+                className="flex items-center gap-3 w-full px-4 py-3 text-sm font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg focus:outline-none"
               >
                 <LogIn size={18} /> Login
               </button>
               <button
                 onClick={() => { onNavegar('register'); setMenuAberto(false); }}
-                className="flex items-center gap-3 w-full px-4 py-3 text-sm font-semibold text-brand hover:bg-gray-100 rounded-lg focus:outline-none"
+                className="flex items-center gap-3 w-full px-4 py-3 text-sm font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg focus:outline-none"
               >
                 <UserPlus size={18} /> Cadastro
               </button>

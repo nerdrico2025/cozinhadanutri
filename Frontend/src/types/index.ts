@@ -1,10 +1,21 @@
 export type Unidade = 'g' | 'kg' | 'ml' | 'l' | 'unidade';
 
+export interface Ingrediente {
+  id: string;
+  tacoId?: number;
+  nome: string;
+  unidade: Unidade;
+  preco: number;
+  dadosNutricionais: DadosNutricionais;
+  createdAt?: Date;
+}
+
 export interface UsuarioLogado {
   id: string;
   nome: string;
   email: string;
   role: 'admin' | 'user';
+  planoAtual?: 'gratis' | 'profissional' | 'empresarial';
 }
 
 export interface DadosNutricionais {

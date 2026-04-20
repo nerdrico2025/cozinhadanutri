@@ -5,7 +5,17 @@ import { Home } from './pages/Home';
 import { Login } from './pages/Login';
 import { Register } from './pages/Resgister';
 import { Profile } from './pages/config_profile';
-import { UsuarioLogado } from './types';
+import { Planos } from './pages/Plans';
+import { Payments } from './pages/Payments';
+import { Support } from './pages/Support';
+import { FAQ } from './pages/FAQ';
+import { Dashboard } from './pages/Dashboard';
+import { CriarReceita } from './components/CreateRecipe';
+import { ListaReceitas } from './components/RecipeList';
+import { CadastroIngrediente } from './components/IngredientRegistration';
+import { ListaIngredientes } from './components/IngredientsList';
+import { RotuloNutricional } from './components/NutritionalLabel';
+import { UsuarioLogado, Receita, Ingrediente } from './types';
 import {Footer} from './components/Footer';
 import './App.css';
 
@@ -42,6 +52,12 @@ const getTelaFromHash = (): TelaAtiva => {
 function App() {
   const [telaAtiva, setTelaAtivaState] = useState<TelaAtiva>(getTelaFromHash);
   const [usuario, setUsuario] = useState<UsuarioLogado | null>(null);
+  const [planoPreSelecionado, setPlanoPreSelecionado] = useState<'profissional' | 'empresarial' | undefined>(undefined);
+  const [receitas, setReceitas] = useState<Receita[]>([]);
+  const [ingredientes, setIngredientes] = useState<Ingrediente[]>([]);
+  const [receitaEmEdicao, setReceitaEmEdicao] = useState<Receita | undefined>(undefined);
+  const [receitaParaRotulo, setReceitaParaRotulo] = useState<Receita | null>(null);
+  const [ingredienteEmEdicao, setIngredienteEmEdicao] = useState<Ingrediente | undefined>(undefined);
 
   const setTelaAtiva = (tela: TelaAtiva) => {
     window.history.pushState({ tela }, '', `#${tela}`);
@@ -69,7 +85,7 @@ function App() {
       role: 'user',
     };
     setUsuario(usuarioMock);
-    setTelaAtiva('home');
+    setTelaAtiva('dashboard');
     return true;
   };
 
@@ -86,10 +102,43 @@ function App() {
       role: 'user',
     };
     setUsuario(usuarioMock);
-    setTelaAtiva('home');
+    setTelaAtiva('dashboard');
   };
 
 
+
+  const handleAssinarPlano = (planoId: 'profissional' | 'empresarial') => {
+    setPlanoPreSelecionado(planoId);
+    setTelaAtiva('pagamento');
+  };
+
+  const handleSalvarReceita = (receita: Receita) => {
+    setReceitas((prev) =>
+      prev.some((r) => r.id === receita.id)
+        ? prev.map((r) => (r.id === receita.id ? receita : r))
+        : [...prev, receita]
+    );
+    setReceitaEmEdicao(undefined);
+    setTelaAtiva('receitas');
+  };
+
+  const handleRemoverReceita = (id: string) => {
+    setReceitas((prev) => prev.filter((r) => r.id !== id));
+  };
+
+  const handleSalvarIngrediente = (ingrediente: Ingrediente) => {
+    setIngredientes((prev) =>
+      prev.some((i) => i.id === ingrediente.id)
+        ? prev.map((i) => (i.id === ingrediente.id ? ingrediente : i))
+        : [...prev, ingrediente]
+    );
+    setIngredienteEmEdicao(undefined);
+    setTelaAtiva('lista-ingredientes');
+  };
+
+  const handleRemoverIngrediente = (id: string) => {
+    setIngredientes((prev) => prev.filter((i) => i.id !== id));
+  };
 
   const handleSair = () => {
     setUsuario(null);
@@ -100,6 +149,53 @@ function App() {
     switch (telaAtiva) {
       case 'home':
         return <Home onIrParaRegister={() => setTelaAtiva('register')} />;
+      case 'dashboard':
+        return (
+          <Dashboard
+            onNavegar={setTelaAtiva}
+            receitas={receitas}
+            totalIngredientes={ingredientes.length}
+          />
+        );
+      case 'criar-receita':
+        return (
+          <CriarReceita
+            receitaInicial={receitaEmEdicao}
+            onSalvar={handleSalvarReceita}
+            onCancelar={() => {
+              setReceitaEmEdicao(undefined);
+              setTelaAtiva('receitas');
+            }}
+          />
+        );
+      case 'receitas':
+        return (
+          <ListaReceitas
+            receitas={receitas}
+            onEditar={(r) => { setReceitaEmEdicao(r); setTelaAtiva('criar-receita'); }}
+            onRemover={handleRemoverReceita}
+            onGerarRotulo={(r) => setReceitaParaRotulo(r)}
+          />
+        );
+      case 'cadastro-ingrediente':
+        return (
+          <CadastroIngrediente
+            ingredienteInicial={ingredienteEmEdicao}
+            onSalvar={handleSalvarIngrediente}
+            onCancelar={() => {
+              setIngredienteEmEdicao(undefined);
+              setTelaAtiva('lista-ingredientes');
+            }}
+          />
+        );
+      case 'lista-ingredientes':
+        return (
+          <ListaIngredientes
+            ingredientes={ingredientes}
+            onEditar={(i) => { setIngredienteEmEdicao(i); setTelaAtiva('cadastro-ingrediente'); }}
+            onRemover={handleRemoverIngrediente}
+          />
+        );
       case 'login':
         return (
           <Login
@@ -140,6 +236,21 @@ function App() {
             onVoltar={() => setTelaAtiva('home')}
           />
         );
+      case 'planos':
+        return <Planos onNavegar={setTelaAtiva} onAssinarPlano={handleAssinarPlano} usuario={usuario} />;
+      case 'suporte':
+        return <Support />;
+      case 'faq':
+        return <FAQ onNavegar={setTelaAtiva} />;
+      case 'pagamento':
+        return (
+          <Payments
+            usuario={usuario}
+            planoPreSelecionado={planoPreSelecionado}
+            onVoltar={() => setTelaAtiva('planos')}
+            onLogin={() => setTelaAtiva('login')}
+          />
+        );
       default:
         return <Home />;
     }
@@ -152,6 +263,13 @@ function App() {
         {renderTela()}
       </main>
       <Footer onNavegar={setTelaAtiva} />
+      {receitaParaRotulo && (
+        <RotuloNutricional
+          receita={receitaParaRotulo}
+          onFechar={() => setReceitaParaRotulo(null)}
+          onImprimir={() => window.print()}
+        />
+      )}
     </div>
   );
 }
