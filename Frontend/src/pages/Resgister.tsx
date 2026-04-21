@@ -132,6 +132,13 @@ function PainelDireito() {
 
       <div className="relative z-10 flex flex-col items-center px-10 gap-6 w-full text-center overflow-y-auto py-8">
         <div className="fade-slide-in flex flex-col gap-4 w-full max-w-xs">
+
+          <div className="mb-2 text-center w-full">
+          <p className="text-white/60 text-[10px] font-bold uppercase tracking-widest mb-1">Por que usar?</p>
+          <h2 className="text-white text-xl font-bold leading-snug">Tudo que você precisa<br />em um só lugar</h2>
+        </div>
+
+        
           {beneficios.map(({ icon: Icon, titulo, desc }) => (
             <div
               key={titulo}
@@ -170,37 +177,42 @@ function FormPessoaJuridica({ onCadastrar, onVerTermos }: { onCadastrar: (data: 
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4" noValidate>
-      <Field label="Razão Social" error={errors.nomeEmpresarial?.message}>
-        <input {...register('nomeEmpresarial')} placeholder="Empresa Ltda." maxLength={200} required className={inputCls(!!errors.nomeEmpresarial)} />
-      </Field>
-      <Field label="Nome Fantasia" error={errors.nomeFantasia?.message}>
-        <input {...register('nomeFantasia')} placeholder="Cozinha da Nutri" maxLength={150} required className={inputCls(!!errors.nomeFantasia)} />
-      </Field>
-      <Field label="CNPJ" error={errors.cnpj?.message}>
-        <input {...register('cnpj')} onChange={(e) => setValue('cnpj', maskCNPJ(e.target.value), { shouldValidate: true })} placeholder="AA.AAA.AAA/AAAA-00" maxLength={18} required className={inputCls(!!errors.cnpj)} />
-      </Field>
-      <Field label="Inscrição Estadual" error={errors.inscricaoEstadual?.message}>
-        <input
-          {...register('inscricaoEstadual')}
-          onChange={(e) => {
-            const v = e.target.value;
-            // Se for apenas dígitos, limita a 14; caso contrário permite (ex.: "Isento")
-            const normalizado = /^\d+$/.test(v) ? v.slice(0, 14) : v;
-            setValue('inscricaoEstadual', normalizado, { shouldValidate: true });
-          }}
-          placeholder='"Isento" ou número da IE (até 14 dígitos)'
-          maxLength={14}
-          inputMode="text"
-          required
-          className={inputCls(!!errors.inscricaoEstadual)}
-        />
-      </Field>
-      <Field label="Telefone" error={errors.telefone?.message}>
-        <input {...register('telefone')} onChange={(e) => setValue('telefone', maskTelefone(e.target.value), { shouldValidate: true })} placeholder="(00) 00000-0000" maxLength={15} required className={inputCls(!!errors.telefone)} />
-      </Field>
-      <Field label="E-mail" error={errors.email?.message}>
-        <input {...register('email')} type="email" inputMode="email" placeholder="contato@empresa.com" maxLength={254} required className={inputCls(!!errors.email)} />
-      </Field>
+      <div className="grid grid-cols-2 gap-4">
+        <Field label="Razão Social" error={errors.nomeEmpresarial?.message}>
+          <input {...register('nomeEmpresarial')} placeholder="Empresa Ltda." maxLength={200} required className={inputCls(!!errors.nomeEmpresarial)} />
+        </Field>
+        <Field label="Nome Fantasia" error={errors.nomeFantasia?.message}>
+          <input {...register('nomeFantasia')} placeholder="Cozinha da Nutri" maxLength={150} required className={inputCls(!!errors.nomeFantasia)} />
+        </Field>
+      </div>
+      <div className="grid grid-cols-2 gap-4">
+        <Field label="CNPJ" error={errors.cnpj?.message}>
+          <input {...register('cnpj')} onChange={(e) => setValue('cnpj', maskCNPJ(e.target.value), { shouldValidate: true })} placeholder="AA.AAA.AAA/AAAA-00" maxLength={18} required className={inputCls(!!errors.cnpj)} />
+        </Field>
+        <Field label="Inscrição Estadual" error={errors.inscricaoEstadual?.message}>
+          <input
+            {...register('inscricaoEstadual')}
+            onChange={(e) => {
+              const v = e.target.value;
+              const normalizado = /^\d+$/.test(v) ? v.slice(0, 14) : v;
+              setValue('inscricaoEstadual', normalizado, { shouldValidate: true });
+            }}
+            placeholder='"Isento" ou nº da IE'
+            maxLength={14}
+            inputMode="text"
+            required
+            className={inputCls(!!errors.inscricaoEstadual)}
+          />
+        </Field>
+      </div>
+      <div className="grid grid-cols-2 gap-4">
+        <Field label="Telefone" error={errors.telefone?.message}>
+          <input {...register('telefone')} onChange={(e) => setValue('telefone', maskTelefone(e.target.value), { shouldValidate: true })} placeholder="(00) 00000-0000" maxLength={15} required className={inputCls(!!errors.telefone)} />
+        </Field>
+        <Field label="E-mail" error={errors.email?.message}>
+          <input {...register('email')} type="email" inputMode="email" placeholder="contato@empresa.com" maxLength={254} required className={inputCls(!!errors.email)} />
+        </Field>
+      </div>
       <div className="grid grid-cols-2 gap-4">
         <Field label="Senha" error={errors.senha?.message}>
           <SenhaInput reg={register('senha')} placeholder="Mínimo 8 caracteres" hasError={!!errors.senha} required />
@@ -269,7 +281,7 @@ export function Register({ onJaTemConta, onCadastroSucesso, onVerTermos }: Regis
 
         {/* LEFT — Formulário */}
         <div className="flex flex-col justify-center items-center w-full md:w-1/2 bg-gray-100 overflow-y-auto py-8 px-4">
-          <div className="w-full max-w-sm">
+          <div className="w-full max-w-xl">
 
             <div className="text-center mb-6">
               <img src="/logo.svg" alt="Cozinha da Nutri" className="h-14 mx-auto mb-2" />

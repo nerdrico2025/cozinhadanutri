@@ -8,6 +8,8 @@ export default {
     extend: {
       colors: {
         brand: '#16a34a',
+        'brand-orange': '#f49100',
+        'brand-light': '#fff7eb',
       },
       width: {
         '50': '12.5rem',

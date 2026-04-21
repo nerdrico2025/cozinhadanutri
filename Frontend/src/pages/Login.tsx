@@ -277,7 +277,7 @@ export function Login({ onEntrar, onCriarConta, onEsqueciSenha }: LoginProps) {
               <p className="text-center text-sm text-gray-500 mt-5">
               Não possui uma conta?{' '}
               <button type="button" onClick={onCriarConta} className="bg-transparent border-0 cursor-pointer text-brand font-semibold text-sm p-0">
-                Clique aqui
+                Crie gratuitamente
               </button>
             </p>
 

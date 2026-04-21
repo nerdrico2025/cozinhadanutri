@@ -161,7 +161,7 @@ function App() {
             onSalvar={handleSalvarReceita}
             onCancelar={() => {
               setReceitaEmEdicao(undefined);
-              setTelaAtiva('receitas');
+              window.history.back();
             }}
           />
         );
@@ -181,7 +181,7 @@ function App() {
             onSalvar={handleSalvarIngrediente}
             onCancelar={() => {
               setIngredienteEmEdicao(undefined);
-              setTelaAtiva('lista-ingredientes');
+              window.history.back();
             }}
           />
         );
