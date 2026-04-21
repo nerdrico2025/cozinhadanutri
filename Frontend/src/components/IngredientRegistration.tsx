@@ -1,4 +1,4 @@
-﻿import { useState, useRef } from 'react';
+import { useState, useRef } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -10,9 +10,9 @@ import { Unidade, Ingrediente } from '../types';
 import { buscarAlimentos, TacoFood } from '../services/tacoApi';
 
 const ingredienteSchema = z.object({
-  nome: z.string().min(1, 'Nome Ã© obrigatÃ³rio'),
+  nome: z.string().min(1, 'Nome é obrigatório'),
   unidade: z.enum(['g', 'kg', 'ml', 'l', 'unidade']),
-  preco: z.number().min(0.01, 'PreÃ§o deve ser maior que zero'),
+  preco: z.number().min(0.01, 'Preço deve ser maior que zero'),
   calorias: z.number().min(0),
   proteinas: z.number().min(0),
   carboidratos: z.number().min(0),
@@ -76,7 +76,7 @@ export function CadastroIngrediente({ ingredienteInicial, onSalvar, onCancelar }
         setSugestoesTaco(resultados);
         setMostrarSugestoes(resultados.length > 0);
       } catch {
-        setErroApi('NÃ£o foi possÃ­vel buscar na API TACO. Preencha os dados manualmente.');
+        setErroApi('Não foi possível buscar na API TACO. Preencha os dados manualmente.');
         setSugestoesTaco([]); setMostrarSugestoes(false);
       } finally { setCarregando(false); }
     }, 400);
@@ -119,7 +119,7 @@ export function CadastroIngrediente({ ingredienteInicial, onSalvar, onCancelar }
   return (
     <div className="min-h-screen bg-gray-50">
 
-      {/* â”€â”€ Header sticky â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+      {/* ── Header sticky ─────────────────────────────────────────────────── */}
       <div className="sticky top-0 z-30 bg-white border-b border-gray-100 shadow-sm">
         <div className="max-w-3xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between gap-4">
           <div className="flex items-center gap-3">
@@ -162,21 +162,21 @@ export function CadastroIngrediente({ ingredienteInicial, onSalvar, onCancelar }
               }`}
             >
               {salvando ? <Loader2 size={14} className="animate-spin" /> : null}
-              {salvando ? 'Salvandoâ€¦' : 'Salvar Ingrediente'}
+              {salvando ? 'Salvando…' : 'Salvar Ingrediente'}
             </button>
           </div>
         </div>
       </div>
 
-      {/* â”€â”€ Corpo â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+      {/* ── Corpo ─────────────────────────────────────────────────────────── */}
       <div className="max-w-3xl mx-auto px-4 sm:px-6 py-6">
         <form onSubmit={handleSubmit(onSubmit)} noValidate className="flex flex-col gap-5">
 
-          {/* SeÃ§Ã£o 1 â€” IdentificaÃ§Ã£o */}
+          {/* Seção 1 — Identificação */}
           <section className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
             <div className="flex items-center gap-3 px-5 py-4 border-b border-gray-50">
               <span className="w-6 h-6 rounded-full bg-brand text-white text-xs font-bold flex items-center justify-center shrink-0">1</span>
-              <h2 className="text-sm font-semibold text-gray-800">IdentificaÃ§Ã£o</h2>
+              <h2 className="text-sm font-semibold text-gray-800">Identificação</h2>
             </div>
 
             <div className="p-5 flex flex-col gap-4">
@@ -197,7 +197,7 @@ export function CadastroIngrediente({ ingredienteInicial, onSalvar, onCancelar }
                     }}
                     onBlur={() => setTimeout(() => setMostrarSugestoes(false), 200)}
                     onFocus={() => sugestoesTaco.length > 0 && setMostrarSugestoes(true)}
-                    placeholder="Digite para pesquisar na tabela TACOâ€¦"
+                    placeholder="Digite para pesquisar na tabela TACO…"
                     className={`${inputCls(!!errors.nome)} pl-9 pr-8`}
                   />
                   {carregando && (
@@ -230,7 +230,7 @@ export function CadastroIngrediente({ ingredienteInicial, onSalvar, onCancelar }
                 )}
               </div>
 
-              {/* Unidade + PreÃ§o */}
+              {/* Unidade + Preço */}
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">
@@ -251,7 +251,7 @@ export function CadastroIngrediente({ ingredienteInicial, onSalvar, onCancelar }
                 </div>
                 <div>
                   <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">
-                    PreÃ§o por Unidade (R$) <span className="text-red-400">*</span>
+                    Preço por Unidade (R$) <span className="text-red-400">*</span>
                   </label>
                   <div className="relative">
                     <DollarSign size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
@@ -270,7 +270,7 @@ export function CadastroIngrediente({ ingredienteInicial, onSalvar, onCancelar }
             </div>
           </section>
 
-          {/* SeÃ§Ã£o 2 â€” Dados Nutricionais */}
+          {/* Seção 2 — Dados Nutricionais */}
           <section className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
             <div className="flex items-center justify-between px-5 py-4 border-b border-gray-50">
               <div className="flex items-center gap-3">
@@ -291,7 +291,7 @@ export function CadastroIngrediente({ ingredienteInicial, onSalvar, onCancelar }
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                 {([
                   { field: 'calorias',     label: 'Calorias',     unit: 'kcal', Icon: Flame,    color: 'text-brand-orange', bg: 'bg-brand-orange/8' },
-                  { field: 'proteinas',    label: 'ProteÃ­nas',    unit: 'g',    Icon: Beef,     color: 'text-rose-500',     bg: 'bg-rose-50'        },
+                  { field: 'proteinas',    label: 'Proteínas',    unit: 'g',    Icon: Beef,     color: 'text-rose-500',     bg: 'bg-rose-50'        },
                   { field: 'carboidratos', label: 'Carboidratos', unit: 'g',    Icon: Wheat,    color: 'text-amber-500',    bg: 'bg-amber-50'       },
                   { field: 'gorduras',     label: 'Gorduras',     unit: 'g',    Icon: Droplets, color: 'text-sky-500',      bg: 'bg-sky-50'         },
                 ] as const).map(({ field, label, unit, Icon, color, bg }) => (
@@ -324,7 +324,7 @@ export function CadastroIngrediente({ ingredienteInicial, onSalvar, onCancelar }
             </div>
           </section>
 
-          {/* AÃ§Ãµes â€” mobile */}
+          {/* Ações */}
           <div className="flex gap-3 pb-4">
             <button
               type="button"
@@ -341,7 +341,7 @@ export function CadastroIngrediente({ ingredienteInicial, onSalvar, onCancelar }
               }`}
             >
               {salvando ? <Loader2 size={15} className="animate-spin" /> : null}
-              {salvando ? 'Salvandoâ€¦' : 'Salvar Ingrediente'}
+              {salvando ? 'Salvando…' : 'Salvar Ingrediente'}
             </button>
           </div>
         </form>
