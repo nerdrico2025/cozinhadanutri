@@ -4,7 +4,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import {
   Eye, EyeOff, Lock, KeyRound,
-  CheckCircle2, AlertCircle, ShieldCheck, X,
+  CheckCircle2, AlertCircle, ShieldCheck, X, Zap,
 } from 'lucide-react';
 
 // ── Segurança ─────────────────────────────────────────────────────────────────
@@ -90,6 +90,7 @@ export interface ProfileProps {
   /** Recebe os dados do perfil + a senha atual para confirmação; retorne true se ok */
   onSalvar?: (dados: FormProfile, senhaAtual: string) => Promise<boolean> | boolean;
   onVoltar?: () => void;
+  onUpgrade?: () => void;
 }
 
 // ── Helpers visuais ───────────────────────────────────────────────────────────
@@ -238,7 +239,7 @@ function ModalConfirmacao({
 }
 
 // ── Componente principal ──────────────────────────────────────────────────────
-export function Profile({ dadosIniciais, onSalvar, onVoltar }: ProfileProps) {
+export function Profile({ dadosIniciais, onSalvar, onVoltar, onUpgrade }: ProfileProps) {
   const [feedback, setFeedback]       = useState<{ tipo: 'sucesso' | 'erro'; mensagem: string } | null>(null);
   const [pendingData, setPendingData] = useState<FormProfile | null>(null);
   const [erroModal, setErroModal]     = useState<string | null>(null);
@@ -412,6 +413,29 @@ export function Profile({ dadosIniciais, onSalvar, onVoltar }: ProfileProps) {
                 <input value={dadosIniciais?.cnpj ?? ''} readOnly tabIndex={-1} className={inputDisabledCls} />
               </div>
             </section>
+
+            {/* ── Seção: Upgrade de plano ── */}
+            {onUpgrade && (
+              <section className="bg-white rounded-2xl border border-gray-200 p-5 flex items-center justify-between gap-4">
+                <div className="flex items-center gap-3">
+                  <div className="bg-brand/10 rounded-xl p-2.5">
+                    <Zap size={18} className="text-brand" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold text-gray-700">Plano atual</p>
+                    <p className="text-xs text-gray-400 mt-0.5">Faça upgrade para desbloquear mais recursos</p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={onUpgrade}
+                  className="shrink-0 flex items-center gap-1.5 bg-brand text-white text-sm font-semibold px-4 py-2 rounded-lg border-0 cursor-pointer hover:opacity-90 transition-opacity"
+                >
+                  <Zap size={14} />
+                  Fazer upgrade
+                </button>
+              </section>
+            )}
 
             {/* ── Seção: Alterar senha ── */}
             <section className="bg-white rounded-2xl border border-gray-200 p-5 flex flex-col gap-4">

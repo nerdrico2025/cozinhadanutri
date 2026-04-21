@@ -8,7 +8,7 @@ interface UsuarioSessao extends UsuarioLogado {
 }
 
 const usuariosFixos: UsuarioSessao[] = [
-  { id: 'admin', nome: 'Administrador', email: 'admin@cozinhadanutri.com', senha: 'admin123', role: 'admin' },
+  { id: 'admin', nome: 'Administrador', email: 'admin@cozinhadanutri.com', senha: '12345678', role: 'admin' },
 ];
 
 function carregarUsuarios(): UsuarioSessao[] {

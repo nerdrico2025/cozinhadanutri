@@ -60,6 +60,7 @@ export function Footer({ onNavegar }: FooterProps) {
             { label: 'Início', tela: 'home' as TelaAtiva },
             { label: 'Planos e Preços', tela: 'planos' as TelaAtiva },
             { label: 'Suporte', tela: 'suporte' as TelaAtiva },
+            { label: 'Admin', tela: 'login' as TelaAtiva },
           ].map((l) => (
             <button
               key={l.tela}

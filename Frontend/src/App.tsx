@@ -10,12 +10,14 @@ import { Payments } from './pages/Payments';
 import { Support } from './pages/Support';
 import { FAQ } from './pages/FAQ';
 import { Dashboard } from './pages/Dashboard';
+import { Adm } from './pages/Adm';
 import { CriarReceita } from './components/CreateRecipe';
 import { ListaReceitas } from './components/RecipeList';
 import { CadastroIngrediente } from './components/IngredientRegistration';
 import { ListaIngredientes } from './components/IngredientsList';
 import { RotuloNutricional } from './components/NutritionalLabel';
 import { UsuarioLogado, Receita, Ingrediente } from './types';
+import { login } from './services/auth';
 import {Footer} from './components/Footer';
 import './App.css';
 
@@ -77,15 +79,10 @@ function App() {
   }, []);
 
   const handleLogin = async (data: { email: string; senha: string }): Promise<boolean> => {
-    // TODO: integrar com serviço de autenticação
-    const usuarioMock: UsuarioLogado = {
-      id: '1',
-      nome: data.email.split('@')[0],
-      email: data.email,
-      role: 'user',
-    };
-    setUsuario(usuarioMock);
-    setTelaAtiva('dashboard');
+    const logado = login(data.email, data.senha);
+    if (!logado) return false;
+    setUsuario(logado);
+    setTelaAtiva(logado.role === 'admin' ? 'adm' : 'dashboard');
     return true;
   };
 
@@ -234,6 +231,7 @@ function App() {
               return true;
             }}
             onVoltar={() => setTelaAtiva('home')}
+            onUpgrade={() => setTelaAtiva('pagamento')}
           />
         );
       case 'planos':
@@ -251,6 +249,8 @@ function App() {
             onLogin={() => setTelaAtiva('login')}
           />
         );
+      case 'adm':
+        return <Adm />;
       default:
         return <Home />;
     }
