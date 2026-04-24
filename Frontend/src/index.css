@@ -1,0 +1,140 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer components {
+  .card-overlay {
+    background: linear-gradient(
+      160deg,
+      rgba(255, 255, 255, 0.78) 0%,
+      rgba(255, 255, 255, 0.65) 40%,
+      rgba(255, 247, 235, 0.72) 100%
+    );
+  }
+}
+
+:root {
+  font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
+  line-height: 1.5;
+  font-weight: 400;
+
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
+}
+
+/* ── Carrossel — fundos ──────────────────────────────────────────────────── */
+.slide-bg-receitas {
+  background: linear-gradient(135deg, #16a34a 0%, #15803d 100%);
+}
+
+.slide-bg-rotulo {
+  background: linear-gradient(135deg, #0369a1 0%, #0284c7 100%);
+}
+
+.slide-bg-anvisa {
+  background: linear-gradient(135deg, #f49100 0%, #e07800 100%);
+}
+
+.slide-bg-precificacao {
+  background: linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%);
+}
+
+/* ── Carrossel — blobs decorativos de fundo ────────────────────────────── */
+.carousel-blob-bg-1 {
+  position: absolute;
+  width: 340px;
+  height: 340px;
+  border-radius: 62% 38% 46% 54% / 60% 44% 56% 40%;
+  background: rgba(255, 255, 255, 0.09);
+  top: -110px;
+  right: -90px;
+  pointer-events: none;
+}
+
+.carousel-blob-bg-2 {
+  position: absolute;
+  width: 210px;
+  height: 210px;
+  border-radius: 50% 50% 30% 70% / 50% 70% 30% 50%;
+  background: rgba(255, 255, 255, 0.07);
+  bottom: -60px;
+  left: -50px;
+  pointer-events: none;
+}
+
+.carousel-blob-bg-3 {
+  position: absolute;
+  width: 90px;
+  height: 90px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.11);
+  top: 36px;
+  left: 28px;
+  pointer-events: none;
+}
+
+/* ── Carrossel — blob principal (atrás da imagem) ───────────────────────── */
+.carousel-blob-main {
+  width: 560px;
+  height: 560px;
+  border-radius: 40% 60% 55% 45% / 45% 55% 60% 40%;
+  background: rgba(255, 255, 255, 0.18);
+  border: 1.5px solid rgba(255, 255, 255, 0.28);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 8px 40px rgba(0, 0, 0, 0.14), inset 0 1px 0 rgba(255, 255, 255, 0.35);
+  backdrop-filter: blur(2px);
+}
+
+/* ── Carrossel — animação de entrada ────────────────────────────────────── */
+@keyframes fadeSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.fade-slide-in {
+  animation: fadeSlideIn 0.4s ease forwards;
+}
+
+/* ── Carrossel — escala responsiva por altura de viewport ───────────────── */
+.carousel-content-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  transform-origin: center center;
+}
+
+@media (max-height: 820px) {
+  .carousel-content-wrapper {
+    transform: scale(0.88);
+  }
+}
+
+@media (max-height: 720px) {
+  .carousel-content-wrapper {
+    transform: scale(0.76);
+  }
+}
+
+@media (max-height: 620px) {
+  .carousel-content-wrapper {
+    transform: scale(0.65);
+  }
+}
+
