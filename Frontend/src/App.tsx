@@ -21,6 +21,7 @@ import { login } from './services/auth';
 import {Footer} from './components/Footer';
 import './App.css';
 
+
 type TelaAtiva =
   | 'home'
   | 'dashboard'
