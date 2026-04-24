@@ -4,6 +4,13 @@ from django.db import models
 
 # lista do banco de dados do alimento, cada campo é um nutriente, e o valor é a quantidade do nutriente presente em 100g do alimento
 
+UNIDADES = [('g', 'gramas'),
+            ('kg', 'quilograma'),
+            ('ml', 'mililitro'),
+            ('l', 'litro'),
+            ('un', 'unidade'),
+            ]
+
 class Alimento(models.Model):
     numero = models.IntegerField(unique=True)
     descricao = models.CharField(max_length=255)
@@ -20,6 +27,9 @@ class Alimento(models.Model):
 
     AG18_1t = models.DecimalField(max_digits=20, decimal_places=4, null=True, blank=True)
     AG18_2t = models.DecimalField(max_digits=20, decimal_places=4, null=True, blank=True)
+
+    preco = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    unidade_medida = models.CharField(max_length=10, choices=UNIDADES, null=True, blank=True)
 
     criado_em = models.DateTimeField(auto_now_add=True)
     atualizado_em = models.DateTimeField(auto_now=True)
