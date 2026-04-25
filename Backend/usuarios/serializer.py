@@ -7,6 +7,7 @@ class EmpresaSerializer(serializers.ModelSerializer):
     class Meta:
         model = empresa
         fields = ['razao_social', 'nome_fantasia', 'cnpj', 'inscricao_estadual', 'telefone']
+        read_only_fields = ['cnpj']
 
 
 class RegisterSerializer(serializers.ModelSerializer):
@@ -97,8 +98,30 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
 
 
 class UserProfileSerializer(serializers.ModelSerializer):
-    empresa = EmpresaSerializer(read_only=True)
+    empresa = EmpresaSerializer()
 
     class Meta:
         model = User
         fields = ['id', 'username', 'email', 'empresa']
+        
+    def update(self, instance, validated_data):
+        empresa_data = validated_data.pop('empresa', None)
+        
+        instance.username = validated_data.get('username', instance.username)
+        instance.email = validated_data.get('email', instance.email)
+        
+        # Trata atualização de senha se for enviada
+        if 'password' in self.initial_data and self.initial_data['password']:
+            instance.set_password(self.initial_data['password'])
+            
+        instance.save()
+        
+        if empresa_data and instance.empresa:
+            empresa_instance = instance.empresa
+            empresa_instance.razao_social = empresa_data.get('razao_social', empresa_instance.razao_social)
+            empresa_instance.nome_fantasia = empresa_data.get('nome_fantasia', empresa_instance.nome_fantasia)
+            empresa_instance.inscricao_estadual = empresa_data.get('inscricao_estadual', empresa_instance.inscricao_estadual)
+            empresa_instance.telefone = empresa_data.get('telefone', empresa_instance.telefone)
+            empresa_instance.save()
+            
+        return instance

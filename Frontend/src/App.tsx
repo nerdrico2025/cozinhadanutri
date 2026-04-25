@@ -17,7 +17,7 @@ import { CadastroIngrediente } from './components/IngredientRegistration';
 import { ListaIngredientes } from './components/IngredientsList';
 import { RotuloNutricional } from './components/NutritionalLabel';
 import { UsuarioLogado, Receita, Ingrediente } from './types';
-import { login } from './services/auth';
+import { login, registrar, getSessao, encerrarSessao, atualizarPerfil, requestPasswordReset, validateResetCode, resetPassword } from './services/auth';
 import {Footer} from './components/Footer';
 import './App.css';
 
@@ -76,31 +76,46 @@ function App() {
       }
     };
     window.addEventListener('popstate', handlePopState);
+    
+    // Verifica sessão ativa via cookies
+    const checkSession = async () => {
+      const sessao = await getSessao();
+      if (sessao) {
+         setUsuario(sessao);
+      }
+    };
+    checkSession();
+    
     return () => window.removeEventListener('popstate', handlePopState);
   }, []);
 
   const handleLogin = async (data: { email: string; senha: string }): Promise<boolean> => {
-    const logado = login(data.email, data.senha);
+    const logado = await login(data.email, data.senha);
     if (!logado) return false;
     setUsuario(logado);
     setTelaAtiva(logado.role === 'admin' ? 'adm' : 'dashboard');
     return true;
   };
 
-  const handleRegistro = (
-    dados: { email: string; senha: string; nomeCompleto?: string; nomeFantasia?: string },
+  const handleRegistro = async (
+    dados: { email: string; senha: string; nomeEmpresarial?: string; nomeFantasia?: string; cnpj?: string; inscricaoEstadual?: string; telefone?: string },
     tipo: 'pf' | 'pj'
   ) => {
-    void tipo;
-    // TODO: integrar com serviço de registro
-    const usuarioMock: UsuarioLogado = {
-      id: '1',
-      nome: dados.nomeCompleto ?? dados.nomeFantasia ?? dados.email.split('@')[0],
-      email: dados.email,
-      role: 'user',
-    };
-    setUsuario(usuarioMock);
-    setTelaAtiva('dashboard');
+    const response = await registrar(dados, tipo);
+    if (response.sucesso) {
+      // Se o backend nao loga o usuario no registro, podemos redirecionar pro login
+      // setTelaAtiva('login');
+      // Ou logar direto se a api ja setou o cookie:
+      const logado = await getSessao();
+      if (logado) {
+        setUsuario(logado);
+        setTelaAtiva('dashboard');
+      } else {
+        setTelaAtiva('login');
+      }
+    } else {
+      alert(response.erro || "Erro ao registrar");
+    }
   };
 
 
@@ -138,7 +153,8 @@ function App() {
     setIngredientes((prev) => prev.filter((i) => i.id !== id));
   };
 
-  const handleSair = () => {
+  const handleSair = async () => {
+    await encerrarSessao();
     setUsuario(null);
     setTelaAtiva('login');
   };
@@ -215,21 +231,32 @@ function App() {
           />
         );
       case 'esqueci-senha':
-        return <ForgotMyPassword onVoltar={() => setTelaAtiva('login')} />;
+        return (
+          <ForgotMyPassword 
+            onVoltar={() => setTelaAtiva('login')} 
+            onEnviarEmail={requestPasswordReset}
+            onVerificarCodigo={validateResetCode}
+            onRedefinirSenha={resetPassword}
+          />
+        );
       case 'perfil':
         return (
           <Profile
             dadosIniciais={usuario ? {
-              nomeEmpresarial: usuario.nome,
-              nomeFantasia:    usuario.nome,
-              cnpj:            '',
-              inscricaoEstadual: '',
-              telefone:        '',
+              nomeEmpresarial: usuario.empresa?.razao_social || usuario.nome,
+              nomeFantasia:    usuario.empresa?.nome_fantasia || usuario.nome,
+              cnpj:            usuario.empresa?.cnpj || '',
+              inscricaoEstadual: usuario.empresa?.inscricao_estadual || '',
+              telefone:        usuario.empresa?.telefone || '',
               email:           usuario.email,
             } : undefined}
-            onSalvar={async (_dados) => {
-              // TODO: integrar com serviço de atualização de perfil
-              return true;
+            onSalvar={async (dados) => {
+              const sucesso = await atualizarPerfil({ ...dados, cnpj: usuario?.empresa?.cnpj });
+              if (sucesso) {
+                 const novaSessao = await getSessao();
+                 if (novaSessao) setUsuario(novaSessao);
+              }
+              return sucesso;
             }}
             onVoltar={() => setTelaAtiva('home')}
             onUpgrade={() => setTelaAtiva('pagamento')}

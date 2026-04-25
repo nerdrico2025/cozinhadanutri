@@ -1,85 +1,121 @@
+import api from './api';
 import { UsuarioLogado } from '../types';
 
-const STORAGE_KEY = 'cdn_usuarios';
-const SESSION_KEY = 'cdn_sessao';
-
-interface UsuarioSessao extends UsuarioLogado {
-  senha: string;
-}
-
-const usuariosFixos: UsuarioSessao[] = [
-  { id: 'admin', nome: 'Administrador', email: 'admin@cozinhadanutri.com', senha: '12345678', role: 'admin' },
-];
-
-function carregarUsuarios(): UsuarioSessao[] {
+export const login = async (email: string, senha: string): Promise<UsuarioLogado | null> => {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    const salvos: UsuarioSessao[] = raw ? JSON.parse(raw) : [];
-    return [...usuariosFixos, ...salvos];
-  } catch {
-    return [...usuariosFixos];
-  }
-}
-
-function salvarUsuario(novo: UsuarioSessao): void {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    const salvos: UsuarioSessao[] = raw ? JSON.parse(raw) : [];
-    salvos.push(novo);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(salvos));
-  } catch {
-    // se localStorage não estiver disponível, ignora
-  }
-}
-
-export function login(email: string, senha: string): UsuarioLogado | null {
-  const usuarios = carregarUsuarios();
-  const encontrado = usuarios.find((u) => u.email === email && u.senha === senha);
-  if (!encontrado) return null;
-  const { senha: _s1, ...logado } = encontrado;
-  void _s1;
-  try {
-    localStorage.setItem(SESSION_KEY, JSON.stringify(logado));
-  } catch {
-    // ignora
-  }
-  return logado;
-}
-
-export function registrar(
-  dados: { email: string; senha: string; nomeCompleto?: string; nomeFantasia?: string },
-  tipo: 'pf' | 'pj'
-): { sucesso: false; erro: string } | { sucesso: true; usuario: UsuarioLogado } {
-  const usuarios = carregarUsuarios();
-  if (usuarios.some((u) => u.email === dados.email)) {
-    return { sucesso: false, erro: 'Este e-mail já está cadastrado.' };
-  }
-  const nome = tipo === 'pf' ? (dados.nomeCompleto ?? 'Usuário') : (dados.nomeFantasia ?? 'Usuário');
-  const novo: UsuarioSessao = { id: String(Date.now()), nome, email: dados.email, senha: dados.senha, role: 'user' };
-  salvarUsuario(novo);
-  const { senha: _s2, ...logado } = novo;
-  void _s2;
-  try {
-    localStorage.setItem(SESSION_KEY, JSON.stringify(logado));
-  } catch {
-    // ignora
-  }
-  return { sucesso: true, usuario: logado };
-}
-
-export function getSessao(): UsuarioLogado | null {
-  try {
-    const raw = localStorage.getItem(SESSION_KEY);
-    return raw ? (JSON.parse(raw) as UsuarioLogado) : null;
-  } catch {
+    await api.post('/api/login/', { email, password: senha });
+    // Após o login gerar os cookies, buscamos o perfil completo que tem os dados da empresa
+    return await getSessao();
+  } catch (error) {
+    console.error('Erro no login', error);
     return null;
   }
-}
+};
 
-export function encerrarSessao(): void {
+export const registrar = async (
+  dados: { email: string; senha: string; nomeEmpresarial?: string; nomeFantasia?: string; cnpj?: string; inscricaoEstadual?: string; telefone?: string },
+  tipo: 'pf' | 'pj'
+): Promise<{ sucesso: boolean; erro?: string; usuario?: UsuarioLogado }> => {
   try {
-    localStorage.removeItem(SESSION_KEY);
-  } catch {
-    // ignora
+    const payload = {
+      email: dados.email,
+      password: dados.senha,
+      username: dados.email.split('@')[0] + Math.floor(Math.random() * 1000), // Evita duplicação de username baseando-se no email
+      razao_social: dados.nomeEmpresarial || dados.nomeFantasia || 'User',
+      nome_fantasia: dados.nomeFantasia || 'User',
+      cnpj: dados.cnpj || '00.000.000/0000-00', // Mock caso n venha pra evitar erro no DRF caso obrigatório
+      inscricao_estadual: dados.inscricaoEstadual || '',
+      telefone: dados.telefone || ''
+    };
+    
+    const response = await api.post('/api/register/', payload);
+    return { sucesso: true, usuario: response.data };
+  } catch (error: any) {
+    console.error('Erro no registro', error);
+    let msg = 'Erro ao cadastrar';
+    if (error.response?.data) {
+       const errors = Object.values(error.response.data);
+       if (errors.length > 0 && Array.isArray(errors[0])) {
+           msg = errors[0][0] as string;
+       }
+    }
+    return { sucesso: false, erro: msg };
   }
-}
+};
+
+export const getSessao = async (): Promise<UsuarioLogado | null> => {
+  try {
+    const response = await api.get('/api/profile/');
+    const user = response.data;
+    return {
+      id: user.id.toString(),
+      nome: user.empresa?.nome_fantasia || user.username,
+      email: user.email,
+      role: 'user',
+      empresa: user.empresa,
+    };
+  } catch (error) {
+    return null;
+  }
+};
+
+export const encerrarSessao = async (): Promise<void> => {
+  try {
+    await api.post('/api/logout/');
+  } catch (error) {
+    console.error('Erro no logout', error);
+  }
+};
+
+export const atualizarPerfil = async (dados: any): Promise<boolean> => {
+  try {
+    const payload: any = {
+      email: dados.email,
+      username: dados.email.split('@')[0], // username can't be null in DRF
+      empresa: {
+        razao_social: dados.nomeEmpresarial,
+        nome_fantasia: dados.nomeFantasia,
+        inscricao_estadual: dados.inscricaoEstadual,
+        telefone: dados.telefone,
+        cnpj: dados.cnpj || ''
+      }
+    };
+    
+    if (dados.novaSenha) {
+      payload.password = dados.novaSenha;
+    }
+
+    await api.patch('/api/profile/', payload);
+    return true;
+  } catch (error: any) {
+    console.error('Erro ao atualizar perfil:', error.response?.data || error.message);
+    return false;
+  }
+};
+
+export const requestPasswordReset = async (email: string) => {
+  try {
+    await api.post('/api/password-reset/request/', { email });
+    return true;
+  } catch (error) {
+    return false;
+  }
+};
+
+export const validateResetCode = async (email: string, codigo: string) => {
+  try {
+    await api.post('/api/password-reset/validate/', { email, codigo });
+    return true;
+  } catch (error) {
+    return false;
+  }
+};
+
+export const resetPassword = async (email: string, codigo: string, novaSenha: string) => {
+  try {
+    await api.post('/api/password-reset/confirm/', { email, codigo, novaSenha });
+    return true;
+  } catch (error) {
+    return false;
+  }
+};

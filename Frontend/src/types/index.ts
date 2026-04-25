@@ -16,6 +16,13 @@ export interface UsuarioLogado {
   email: string;
   role: 'admin' | 'user';
   planoAtual?: 'gratis' | 'profissional' | 'empresarial';
+  empresa?: {
+    razao_social: string;
+    nome_fantasia: string;
+    cnpj: string;
+    inscricao_estadual: string;
+    telefone: string;
+  };
 }
 
 export interface DadosNutricionais {

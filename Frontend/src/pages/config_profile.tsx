@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -257,6 +257,20 @@ export function Profile({ dadosIniciais, onSalvar, onVoltar, onUpgrade }: Profil
         confirmarSenha:    '',
       },
     });
+
+  useEffect(() => {
+    if (dadosIniciais) {
+      reset({
+        nomeEmpresarial:   dadosIniciais.nomeEmpresarial   ?? '',
+        nomeFantasia:      dadosIniciais.nomeFantasia      ?? '',
+        inscricaoEstadual: dadosIniciais.inscricaoEstadual ?? '',
+        telefone:          dadosIniciais.telefone          ?? '',
+        email:             dadosIniciais.email             ?? '',
+        novaSenha:         '',
+        confirmarSenha:    '',
+      });
+    }
+  }, [dadosIniciais, reset]);
 
   // Primeiro submit: guarda os dados e abre o modal
   const onSubmit = useCallback((data: FormProfile) => {

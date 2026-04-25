@@ -1,197 +1,86 @@
-# Cozinha da Nutri — Frontend
+# 🍽️ Cozinha da Nutri — Frontend
 
-Sistema web completo para nutricionistas e pequenas empresas de alimentação. Permite criar receitas com cálculo nutricional automático, gerar rótulos em conformidade com a ANVISA e gerenciar fichas técnicas de produtos.
+Sistema web completo para nutricionistas e pequenas empresas de alimentação. Permite criar receitas com cálculo nutricional automático, gerenciar perfis empresariais e controle de acesso com autenticação forte.
 
 ---
 
-## Tecnologias
+## 🚀 Tecnologias
 
 | Camada | Tecnologia | Versão |
 |---|---|---|
 | Framework UI | React | 18.3.1 |
 | Build tool | Vite | 5.4.10 |
-| Linguagem | TypeScript | 5.6.2 |
+| HTTP Client | Axios (com Interceptors) | 1.15.x |
 | Estilização | Tailwind CSS | 3.4 |
 | Formulários | React Hook Form | 7.x |
 | Validação | Zod | 4.x |
 | Ícones | Lucide React | 1.x |
-| CAPTCHA | React Google ReCAPTCHA | 3.x |
-| PWA | vite-plugin-pwa + Workbox | 1.x / 7.x |
+| Segurança | React Google ReCAPTCHA | 3.x |
 
 ---
 
-## Estrutura do Projeto
+## ⚙️ Instalação e Execução
 
-```
-Frontend/
-├── public/
-│   ├── manifest.json        # Manifesto PWA
-│   ├── favicon.png
-│   ├── logo.svg
-│   ├── logo_white.svg
-│   ├── marmita.svg
-│   ├── rotulo.svg
-│   └── anvisa.svg
-├── src/
-│   ├── components/
-│   │   ├── Header.tsx       # Navegação principal
-│   │   ├── Footer.tsx       # Rodapé com links e informações LGPD
-│   │   └── ForgotMyPassword.tsx  # Fluxo completo de recuperação de senha
-│   ├── pages/
-│   │   ├── Home.tsx         # Página inicial / landing
-│   │   ├── Login.tsx        # Tela de login com carousel
-│   │   └── Resgister.tsx    # Cadastro de empresa (Pessoa Jurídica)
-│   ├── types/
-│   │   └── index.ts         # Tipos compartilhados (UsuarioLogado, Receita, etc.)
-│   ├── declarations.d.ts    # Declarações de módulos (ReCAPTCHA, virtual:pwa-register)
-│   ├── App.tsx              # Roteamento hash-based e estado global de autenticação
-│   ├── main.tsx             # Entry point + registro do Service Worker
-│   └── index.css            # Tailwind + classes de carousel customizadas
-├── vite.config.ts           # Configuração Vite + PWA plugin
-├── tailwind.config.js       # Tema com cor da marca (#16a34a)
-└── tsconfig.app.json
-```
-
----
-
-## Componentes e Páginas
-
-### `Login.tsx`
-- Carousel animado (auto-play 4s) com 3 slides: Marmita, Rótulo Nutricional, Conformidade ANVISA
-- Formulário com validação de e-mail e senha via Zod
-- Proteção contra brute force: bloqueio de 30 segundos após 5 tentativas
-- Integração com Google ReCAPTCHA v2
-
-### `Resgister.tsx`
-- Cadastro exclusivo para Pessoa Jurídica (CNPJ)
-- Campos: Razão Social, Nome Fantasia, CNPJ, Inscrição Estadual (até 14 dígitos), Telefone, E-mail, Senha
-- Máscaras de entrada para CNPJ e Telefone
-- Aceite de Termos de Uso + ReCAPTCHA obrigatórios
-- Painel lateral com 7 cards de benefícios
-
-### `ForgotMyPassword.tsx`
-- Fluxo em 3 etapas: E-mail → Código de 6 dígitos → Nova senha → Sucesso
-- Painel lateral com indicador de progresso por etapa
-- Suporte a reenvio de código
-
-### `Header.tsx`
-- Navegação principal com rotas para todas as telas do sistema
-
-### `Footer.tsx`
-- Links de navegação, informações de contato e aviso LGPD
-
----
-
-## Segurança
-
-Todos os formulários implementam múltiplas camadas de proteção:
-
-### Sanitização de entrada
-- **Caracteres de controle** (`\x00–\x1F`, `\x7F`) removidos de todos os campos de texto
-- **Tags HTML** removidas antes do processamento (prevenção de XSS)
-- **Caracteres de injeção** (`'`, `"`, `;`, `\`, `<`, `>`, `{`, `}`, `` ` ``) bloqueados via Zod `.refine()`
-- **Senhas**: apenas bytes nulos removidos — todos os demais caracteres são preservados
-- Todos os campos têm limites `min` e `max` de caracteres definidos no schema
-
-### Validação
-- Toda validação passa por **Zod + React Hook Form** — não há acesso a dados brutos sem schema válido
-- Os dados só chegam ao `onSubmit` após transformação e validação completa do schema
-- Formulário usa `noValidate` (desativa validação nativa do browser, que pode ser bypassada)
-
-### Proteção adicional
-- **ReCAPTCHA v2** obrigatório em Login e Cadastro
-- **Brute force client-side** no Login: 5 tentativas → bloqueio de 30 segundos
-- **Campos de senha** com `spellCheck={false}` e `autoComplete` correto
-- **Tokens CAPTCHA** resetados após cada tentativa (sucesso ou falha)
-
-> ⚠️ A proteção client-side é complementar. A proteção real (rate limiting, validação do token ReCAPTCHA, sanitização) **deve ser implementada no backend**.
-
----
-
-## PWA
-
-O projeto é configurado como Progressive Web App:
-
-- Pode ser instalado em dispositivos móveis e desktops
-- Cache automático de assets via **Workbox** (gerado pelo `vite-plugin-pwa`)
-- Manifest com nome, tema `#16a34a`, modo `standalone`
-- Service Worker ativo apenas em **produção** (desativado em desenvolvimento)
-
----
-
-## Requisitos
-
-- **Node.js** v20.x (testado em v20.17.0)
-- **npm** v10+
-
----
-
-## Instalação e Execução
-
-### 1. Clonar o repositório
+### 1. Clonar e Instalar
 
 ```bash
 git clone <url-do-repositorio>
 cd cozinhadanutri/Frontend
-```
-
-### 2. Instalar dependências
-
-```bash
 npm install
 ```
 
-### 3. Configurar variáveis de ambiente
+### 2. Variáveis de Ambiente (`.env`)
 
-Crie um arquivo `.env` na raiz de `Frontend/`:
+Crie um arquivo `.env` na raiz do diretório Frontend com:
 
 ```env
 VITE_RECAPTCHA_SITE_KEY=sua_chave_publica_do_recaptcha
+VITE_API_URL=http://localhost:8000
 ```
+> **Nota:** Obtenha a chave ReCAPTCHA v2 (Caixa de seleção) no [Painel do Google](https://www.google.com/recaptcha).
 
-> Obtenha a chave em [google.com/recaptcha](https://www.google.com/recaptcha) — use **reCAPTCHA v2 (Caixa de seleção)**.
-
-### 4. Executar em desenvolvimento
+### 3. Rodar a aplicação
 
 ```bash
 npm run dev
-```
-
-Acesse `http://localhost:5173`
-
-### 5. Build de produção
-
-```bash
-npm run build
-```
-
-Os arquivos otimizados serão gerados em `dist/`. O Service Worker PWA é gerado automaticamente neste passo.
-
-### 6. Pré-visualizar o build
-
-```bash
-npm run preview
-```
-
-### 7. Lint
-
-```bash
-npm run lint
+# Acesse em http://localhost:5174
 ```
 
 ---
 
-## Variáveis de Ambiente
+## 🔐 Autenticação (Sincronizada com Backend)
 
-| Variável | Descrição | Obrigatória |
-|---|---|---|
-| `VITE_RECAPTCHA_SITE_KEY` | Chave pública do Google ReCAPTCHA v2 | Sim (para Login e Cadastro) |
+O sistema conta com um serviço centralizado em `src/services/auth.ts`, consumindo a API Django.
+
+1. **HttpOnly Cookies**: O sistema utiliza o Axios parametrizado com `withCredentials: true`. Assim que o usuário loga (`POST /api/login/`), o navegador intercepta os cookies com o token JWT. Não salvamos tokens no `localStorage` por motivos de segurança (Anti-XSS).
+2. **Renovação de Sessão**: O app possui interceptors globais no Axios que tratam erros `401 Unauthorized`.
+3. **Formulário de Perfil Resiliente**: A página de Configuração de Perfil (`config_profile.tsx`) consome os dados assíncronos do backend e repopula os formulários perfeitamente via `useEffect` caso ocorra um Reload (F5) na página. Foi adaptada para usar verbos `PATCH`, facilitando updates parciais de dados imutáveis como CNPJ.
 
 ---
 
-## Pendências de Implementação
+## ✉️ Fluxo de Recuperação de Senha (EmailJS)
 
-- [ ] `src/services/auth.ts` — integração real com API de autenticação
-- [ ] Páginas: Dashboard, Receitas, Planos, FAQ, Suporte, Termos de Uso, Pagamento, Administrativo
-- [ ] Backend: validação do token ReCAPTCHA, rate limiting, autenticação JWT
+A tela de `ForgotMyPassword.tsx` fornece uma jornada de três etapas:
+1. **Request de Email**: O usuário digita o e-mail, e o frontend comunica o endpoint `/api/password-reset/request/`. **O disparo real do e-mail é feito pelo Backend**, para garantir que hackers não capturem a resposta HTTP no console contendo o código de validação.
+2. **Validação do Código OTP**: Um formulário protegido verifica se o código bate com o cache temporário do servidor.
+3. **Reset**: Aplicação do novo hash de senha.
 
+---
+
+## 🛡️ Segurança no Frontend
+
+Todos os formulários implementam múltiplas camadas de proteção:
+
+- **Sanitização de Entrada**: Expressões regulares purgam caracteres de controle (`\x00–\x1F`), bloqueando by-passes nos schemas Zod.
+- **Prevenção de XSS**: Tags HTML são raspadas (`<[^>]*>`) em campos de texto genéricos.
+- **Brute Force Alert**: No Login, após sucessivas tentativas falhas, implementamos um lock visual (30 segundos), somado ao alerta fixo de "E-mail ou Senha Inválidos".
+- **ReCAPTCHA Dinâmico**: A `key` do componente ReCAPTCHA é reciclada a cada `onSubmit`, para evitar chaves de submissão presas (stale tokens).
+
+---
+
+## 📈 Pontos de Melhoria Futuros (Para Próximos Devs)
+
+1. **Design System & Componentização**: O sistema atual possui muitos botões e formulários injetados inline nos componentes de Páginas (ex: `Login.tsx` e `ForgotMyPassword.tsx`). É recomendável componentizar campos como `<InputText />` e `<Button />` globais.
+2. **Context API / Zustand**: A sessão atual é consultada via `auth.ts` em chamadas sob-demanda no `App.tsx`. Migrar o usuário logado para um Context Provider global facilitaria bastante a leitura de dados em componentes super-aninhados.
+3. **Sistema Global de Toasts (Alertas)**: Substituir mensagens vermelhas espalhadas pelas telas por um gerenciador de Notificações, como `react-hot-toast` ou `react-toastify`, padronizando o feedback visual das APIs em todas as telas.
+4. **Deploy e Variáveis de Produção**: Para build de produção, a flag do serviço Axios deverá apontar para os domínios TLS/SSL com suporte de CORS perfeitamente ajustado no backend Django.

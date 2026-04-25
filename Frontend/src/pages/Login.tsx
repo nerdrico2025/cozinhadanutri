@@ -2,7 +2,7 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Eye, EyeOff, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Eye, EyeOff, ChevronLeft, ChevronRight, AlertCircle } from 'lucide-react';
 import ReCAPTCHA from 'react-google-recaptcha';
 
 // ── Segurança ─────────────────────────────────────────────────────────────────
@@ -211,6 +211,7 @@ export function Login({ onEntrar, onCriarConta, onEsqueciSenha }: LoginProps) {
   const [tentativas, setTentativas] = useState(0);
   const [bloqueadoAte, setBloqueadoAte] = useState<number | null>(null);
   const [tempoRestante, setTempoRestante] = useState(0);
+  const [erroLogin, setErroLogin] = useState<string | null>(null);
 
   const estaBloqueado = bloqueadoAte !== null && Date.now() < bloqueadoAte;
 
@@ -233,6 +234,7 @@ export function Login({ onEntrar, onCriarConta, onEsqueciSenha }: LoginProps) {
 
   const onSubmit = async (data: FormLogin) => {
     if (estaBloqueado || !captchaToken) return;
+    setErroLogin(null);
 
     let sucesso = false;
     try {
@@ -243,6 +245,7 @@ export function Login({ onEntrar, onCriarConta, onEsqueciSenha }: LoginProps) {
     }
 
     if (!sucesso) {
+      setErroLogin('E-mail ou senha inválidos.');
       const proxTentativas = tentativas + 1;
       if (proxTentativas >= MAX_TENTATIVAS) {
         setTentativas(MAX_TENTATIVAS);
@@ -285,6 +288,12 @@ export function Login({ onEntrar, onCriarConta, onEsqueciSenha }: LoginProps) {
             </div>
 
             <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4" noValidate>
+              {erroLogin && (
+                <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-lg text-sm font-medium text-center flex items-center justify-center gap-2">
+                  <AlertCircle size={18} />
+                  {erroLogin}
+                </div>
+              )}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">E-mail</label>
                 <input
