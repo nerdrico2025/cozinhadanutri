@@ -58,8 +58,8 @@ class LogoutView(generics.GenericAPIView):
 
     def post(self, request, *args, **kwargs):
         response = Response({"message": "Logout realizado com sucesso."}, status=status.HTTP_200_OK)
-        response.delete_cookie('access_token')
-        response.delete_cookie('refresh_token')
+        response.delete_cookie('access_token', samesite='Lax')
+        response.delete_cookie('refresh_token', samesite='Lax')
         return response
 
 
@@ -80,10 +80,13 @@ class DeleteUserView(generics.DestroyAPIView):
     def destroy(self, request, *args, **kwargs):
         user = self.get_object()
         user.delete()
-        return Response(
+        response = Response(
             {"message": "Usuário deletado com sucesso."},
             status=status.HTTP_200_OK
         )
+        response.delete_cookie('access_token', samesite='Lax')
+        response.delete_cookie('refresh_token', samesite='Lax')
+        return response
 
 
 class DeleteUserByIdView(generics.DestroyAPIView):

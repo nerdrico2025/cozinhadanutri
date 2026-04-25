@@ -4,7 +4,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import {
   Eye, EyeOff, Lock, KeyRound,
-  CheckCircle2, AlertCircle, ShieldCheck, X, Zap,
+  CheckCircle2, AlertCircle, ShieldCheck, X, Zap, Trash2,
 } from 'lucide-react';
 
 // ── Segurança ─────────────────────────────────────────────────────────────────
@@ -91,6 +91,7 @@ export interface ProfileProps {
   onSalvar?: (dados: FormProfile, senhaAtual: string) => Promise<boolean> | boolean;
   onVoltar?: () => void;
   onUpgrade?: () => void;
+  onApagarConta?: (senhaAtual: string) => Promise<boolean> | boolean;
 }
 
 // ── Helpers visuais ───────────────────────────────────────────────────────────
@@ -239,9 +240,10 @@ function ModalConfirmacao({
 }
 
 // ── Componente principal ──────────────────────────────────────────────────────
-export function Profile({ dadosIniciais, onSalvar, onVoltar, onUpgrade }: ProfileProps) {
+export function Profile({ dadosIniciais, onSalvar, onVoltar, onUpgrade, onApagarConta }: ProfileProps) {
   const [feedback, setFeedback]       = useState<{ tipo: 'sucesso' | 'erro'; mensagem: string } | null>(null);
   const [pendingData, setPendingData] = useState<FormProfile | null>(null);
+  const [acaoPendente, setAcaoPendente] = useState<'salvar' | 'apagar' | null>(null);
   const [erroModal, setErroModal]     = useState<string | null>(null);
 
   const { register, handleSubmit, setValue, reset, formState: { errors, isSubmitting } } =
@@ -277,35 +279,52 @@ export function Profile({ dadosIniciais, onSalvar, onVoltar, onUpgrade }: Profil
     setFeedback(null);
     setErroModal(null);
     setPendingData(data);
+    setAcaoPendente('salvar');
+  }, []);
+
+  const handleApagarRequest = useCallback(() => {
+    setFeedback(null);
+    setErroModal(null);
+    setAcaoPendente('apagar');
   }, []);
 
   // Segundo passo: confirma com senha atual
   const handleConfirmar = useCallback(async (senhaAtual: string) => {
-    if (!pendingData) return;
     setErroModal(null);
     try {
-      const ok = onSalvar ? await onSalvar(pendingData, senhaAtual) : true;
-      if (ok) {
-        setFeedback({ tipo: 'sucesso', mensagem: 'Dados atualizados com sucesso!' });
-        reset({ ...pendingData, novaSenha: '', confirmarSenha: '' });
-        setPendingData(null);
-      } else {
-        setErroModal('Senha incorreta. Verifique e tente novamente.');
+      if (acaoPendente === 'salvar' && pendingData) {
+        const ok = onSalvar ? await onSalvar(pendingData, senhaAtual) : true;
+        if (ok) {
+          setFeedback({ tipo: 'sucesso', mensagem: 'Dados atualizados com sucesso!' });
+          reset({ ...pendingData, novaSenha: '', confirmarSenha: '' });
+          setPendingData(null);
+          setAcaoPendente(null);
+        } else {
+          setErroModal('Senha incorreta. Verifique e tente novamente.');
+        }
+      } else if (acaoPendente === 'apagar') {
+        const ok = onApagarConta ? await onApagarConta(senhaAtual) : true;
+        if (ok) {
+          setAcaoPendente(null);
+        } else {
+          setErroModal('Senha incorreta. Verifique e tente novamente.');
+        }
       }
     } catch {
       setErroModal('Erro inesperado. Tente novamente.');
     }
-  }, [pendingData, onSalvar, reset]);
+  }, [acaoPendente, pendingData, onSalvar, onApagarConta, reset]);
 
   const handleCancelarModal = useCallback(() => {
     setPendingData(null);
+    setAcaoPendente(null);
     setErroModal(null);
   }, []);
 
   return (
     <>
       {/* Modal de confirmação */}
-      {pendingData && (
+      {acaoPendente && (
         <ModalConfirmacao
           onConfirmar={handleConfirmar}
           onCancelar={handleCancelarModal}
@@ -489,6 +508,29 @@ export function Profile({ dadosIniciais, onSalvar, onVoltar, onUpgrade }: Profil
                 Salvar alterações
               </button>
             </div>
+
+            {/* ── Zona de Perigo ── */}
+            {onApagarConta && (
+              <section className="bg-red-50/50 rounded-2xl border border-red-100 p-5 flex flex-col sm:flex-row items-center justify-between gap-4 mt-2">
+                <div className="flex items-start sm:items-center gap-3">
+                  <div className="bg-red-100 rounded-xl p-2.5 shrink-0">
+                    <Trash2 size={18} className="text-red-600" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-bold text-red-900">Apagar conta permanentemente</h3>
+                    <p className="text-xs text-red-600/80 mt-0.5">Esta ação não pode ser desfeita e os dados serão excluídos.</p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleApagarRequest}
+                  className="w-full sm:w-auto shrink-0 bg-red-600 text-white hover:bg-red-700 py-2.5 px-5 rounded-lg border-0 text-sm font-semibold transition-colors cursor-pointer shadow-sm"
+                >
+                  Apagar Conta
+                </button>
+              </section>
+            )}
+
 
           </form>
         </div>

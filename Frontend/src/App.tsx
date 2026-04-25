@@ -17,7 +17,7 @@ import { CadastroIngrediente } from './components/IngredientRegistration';
 import { ListaIngredientes } from './components/IngredientsList';
 import { RotuloNutricional } from './components/NutritionalLabel';
 import { UsuarioLogado, Receita, Ingrediente } from './types';
-import { login, registrar, getSessao, encerrarSessao, atualizarPerfil, requestPasswordReset, validateResetCode, resetPassword } from './services/auth';
+import { login, registrar, getSessao, encerrarSessao, atualizarPerfil, requestPasswordReset, validateResetCode, resetPassword, apagarConta } from './services/auth';
 import {Footer} from './components/Footer';
 import './App.css';
 
@@ -250,8 +250,13 @@ function App() {
               telefone:        usuario.empresa?.telefone || '',
               email:           usuario.email,
             } : undefined}
-            onSalvar={async (dados) => {
-              const sucesso = await atualizarPerfil({ ...dados, cnpj: usuario?.empresa?.cnpj });
+            onSalvar={async (dados, senhaAtual) => {
+              if (!usuario) return false;
+              // Valida a senha usando o fluxo de login
+              const senhaValida = await login(usuario.email, senhaAtual);
+              if (!senhaValida) return false;
+
+              const sucesso = await atualizarPerfil({ ...dados, cnpj: usuario.empresa?.cnpj });
               if (sucesso) {
                  const novaSessao = await getSessao();
                  if (novaSessao) setUsuario(novaSessao);
@@ -260,6 +265,22 @@ function App() {
             }}
             onVoltar={() => setTelaAtiva('home')}
             onUpgrade={() => setTelaAtiva('pagamento')}
+            onApagarConta={async (senhaAtual) => {
+              if (!usuario) return false;
+              // Valida a senha usando o fluxo de login
+              const senhaValida = await login(usuario.email, senhaAtual);
+              if (!senhaValida) return false;
+
+              const sucesso = await apagarConta();
+              if (sucesso) {
+                setUsuario(null);
+                setTelaAtiva('home');
+                return true;
+              } else {
+                alert("Erro ao apagar a conta. Tente novamente.");
+                return false;
+              }
+            }}
           />
         );
       case 'planos':

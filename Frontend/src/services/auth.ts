@@ -119,3 +119,13 @@ export const resetPassword = async (email: string, codigo: string, novaSenha: st
     return false;
   }
 };
+
+export const apagarConta = async (): Promise<boolean> => {
+  try {
+    await api.delete('/api/delete/');
+    return true;
+  } catch (error) {
+    console.error('Erro ao apagar conta:', error);
+    return false;
+  }
+};
