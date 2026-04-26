@@ -24,23 +24,21 @@ class AlimentoSerializer(serializers.ModelSerializer):
 
         return value
 
-    def validate_nome(self, value):
+    def validate_descricao(self, value):
         if value is None:
-            raise serializers.ValidationError("O campo 'nome' é obrigatório.")
+            raise serializers.ValidationError("O campo 'descricao' é obrigatório.")
 
         value = value.strip()
         if not value:
-            raise serializers.ValidationError("O campo 'nome' não pode estar vazio.")
+            raise serializers.ValidationError("O campo 'descricao' não pode estar vazio.")
 
-        if Alimento.objects.filter(nome=value).exists():
-            raise serializers.ValidationError("Já existe um alimento com este nome.")
 
-        queryset = Alimento.objects.filter(nome__iexact=value)
+        queryset = Alimento.objects.filter(descricao__iexact=value)
         if self.instance:
             queryset = queryset.exclude(pk=self.instance.pk)
 
         if queryset.exists():
-            raise serializers.ValidationError("Já existe um alimento com este nome.")
+            raise serializers.ValidationError("Já existe um alimento com esta descrição.")
 
         return value
 
@@ -64,12 +62,15 @@ class AlimentoSerializer(serializers.ModelSerializer):
             'proteina',
             'lipideos',
             'carboidrato',
+            'acucares_totais',
+            'acucares_adicionados',
             'fibra_alimentar',
             'sodio',
+            'vitaminas',
+            'minerais',
             'saturados',
             'AG18_1t',
             'AG18_2t',
-
         ]
 
         for campo in campos:

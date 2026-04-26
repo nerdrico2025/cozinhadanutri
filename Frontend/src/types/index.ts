@@ -27,9 +27,17 @@ export interface UsuarioLogado {
 
 export interface DadosNutricionais {
   calorias: number; // por 100g
-  proteinas: number; // por 100g
   carboidratos: number; // por 100g
-  gorduras: number; // por 100g
+  acucares_totais: number; // por 100g
+  acucares_adicionados: number; // por 100g
+  proteinas: number; // por 100g
+  gorduras: number; // por 100g (Totais)
+  gorduras_saturadas: number; // por 100g
+  gorduras_trans: number; // por 100g
+  fibras: number; // por 100g
+  sodio: number; // por 100g (mg)
+  vitaminas: number; // por 100g (g)
+  minerais: number; // por 100g (g)
 }
 
 export interface IngredienteReceita {

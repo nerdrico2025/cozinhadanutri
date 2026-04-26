@@ -18,6 +18,7 @@ import { ListaIngredientes } from './components/IngredientsList';
 import { RotuloNutricional } from './components/NutritionalLabel';
 import { UsuarioLogado, Receita, Ingrediente } from './types';
 import { login, registrar, getSessao, encerrarSessao, atualizarPerfil, requestPasswordReset, validateResetCode, resetPassword, apagarConta } from './services/auth';
+import { listarAlimentos, salvarAlimento, excluirAlimento } from './services/alimentos';
 import {Footer} from './components/Footer';
 import './App.css';
 
@@ -86,6 +87,39 @@ function App() {
     };
     checkSession();
     
+    // Carrega os alimentos do backend
+    const fetchIngredientes = async () => {
+      try {
+        const dadosBackend = await listarAlimentos();
+        const parseados: Ingrediente[] = dadosBackend.map((item: any) => ({
+          id: item.id,
+          tacoId: item.numero,
+          nome: item.descricao,
+          unidade: item.unidade_medida || 'g',
+          preco: parseFloat(item.preco) || 0,
+          dadosNutricionais: {
+            calorias: parseFloat(item.energia_kcal) || 0,
+            proteinas: parseFloat(item.proteina) || 0,
+            carboidratos: parseFloat(item.carboidrato) || 0,
+            gorduras: parseFloat(item.lipideos) || 0,
+            acucares_totais: parseFloat(item.acucares_totais) || 0,
+            acucares_adicionados: parseFloat(item.acucares_adicionados) || 0,
+            gorduras_saturadas: parseFloat(item.saturados) || 0,
+            gorduras_trans: parseFloat(item.AG18_1t) + parseFloat(item.AG18_2t) || 0,
+            fibras: parseFloat(item.fibra_alimentar) || 0,
+            sodio: parseFloat(item.sodio) || 0,
+            vitaminas: parseFloat(item.vitaminas) || 0,
+            minerais: parseFloat(item.minerais) || 0,
+          },
+          createdAt: new Date(),
+        }));
+        setIngredientes(parseados);
+      } catch (err) {
+        console.error("Erro ao listar alimentos:", err);
+      }
+    };
+    fetchIngredientes();
+    
     return () => window.removeEventListener('popstate', handlePopState);
   }, []);
 
@@ -139,18 +173,54 @@ function App() {
     setReceitas((prev) => prev.filter((r) => r.id !== id));
   };
 
-  const handleSalvarIngrediente = (ingrediente: Ingrediente) => {
-    setIngredientes((prev) =>
-      prev.some((i) => i.id === ingrediente.id)
-        ? prev.map((i) => (i.id === ingrediente.id ? ingrediente : i))
-        : [...prev, ingrediente]
-    );
-    setIngredienteEmEdicao(undefined);
-    setTelaAtiva('lista-ingredientes');
+  const handleSalvarIngrediente = async (ingrediente: Ingrediente) => {
+    try {
+      const itemSalvo = await salvarAlimento(ingrediente, ingrediente.tacoId);
+      const ingredienteParseado: Ingrediente = {
+        id: itemSalvo.id,
+        tacoId: itemSalvo.numero,
+        nome: itemSalvo.descricao,
+        unidade: itemSalvo.unidade_medida || 'g',
+        preco: parseFloat(itemSalvo.preco) || 0,
+        dadosNutricionais: {
+          calorias: parseFloat(itemSalvo.energia_kcal) || 0,
+          proteinas: parseFloat(itemSalvo.proteina) || 0,
+          carboidratos: parseFloat(itemSalvo.carboidrato) || 0,
+          gorduras: parseFloat(itemSalvo.lipideos) || 0,
+          acucares_totais: parseFloat(itemSalvo.acucares_totais) || 0,
+          acucares_adicionados: parseFloat(itemSalvo.acucares_adicionados) || 0,
+          gorduras_saturadas: parseFloat(itemSalvo.saturados) || 0,
+          gorduras_trans: parseFloat(itemSalvo.AG18_1t) + parseFloat(itemSalvo.AG18_2t) || 0,
+          fibras: parseFloat(itemSalvo.fibra_alimentar) || 0,
+          sodio: parseFloat(itemSalvo.sodio) || 0,
+          vitaminas: parseFloat(itemSalvo.vitaminas) || 0,
+          minerais: parseFloat(itemSalvo.minerais) || 0,
+        },
+        createdAt: new Date(),
+      };
+
+      setIngredientes((prev) =>
+        prev.some((i) => i.id === ingredienteParseado.id)
+          ? prev.map((i) => (i.id === ingredienteParseado.id ? ingredienteParseado : i))
+          : [...prev, ingredienteParseado]
+      );
+    } catch (err) {
+      console.error("Erro ao salvar ingrediente:", err);
+      alert("Falha ao salvar o ingrediente no servidor.");
+      throw err;
+    }
   };
 
-  const handleRemoverIngrediente = (id: string) => {
-    setIngredientes((prev) => prev.filter((i) => i.id !== id));
+  const handleRemoverIngrediente = async (id: string) => {
+    if (confirm("Tem certeza que deseja remover este ingrediente?")) {
+      try {
+        await excluirAlimento(Number(id));
+        setIngredientes((prev) => prev.filter((i) => i.id !== id));
+      } catch (err) {
+        console.error("Erro ao remover ingrediente:", err);
+        alert("Falha ao remover o ingrediente no servidor.");
+      }
+    }
   };
 
   const handleSair = async () => {
@@ -196,6 +266,7 @@ function App() {
           <CadastroIngrediente
             ingredienteInicial={ingredienteEmEdicao}
             onSalvar={handleSalvarIngrediente}
+            onVerLista={() => { setIngredienteEmEdicao(undefined); setTelaAtiva('lista-ingredientes'); }}
             onCancelar={() => {
               setIngredienteEmEdicao(undefined);
               window.history.back();

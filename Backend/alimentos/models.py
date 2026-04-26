@@ -20,8 +20,12 @@ class Alimento(models.Model):
     proteina = models.DecimalField(max_digits=20, decimal_places=4, null=True, blank=True)
     lipideos = models.DecimalField(max_digits=20, decimal_places=4, null=True, blank=True)
     carboidrato = models.DecimalField(max_digits=20, decimal_places=4, null=True, blank=True)
+    acucares_totais = models.DecimalField(max_digits=20, decimal_places=4, null=True, blank=True)
+    acucares_adicionados = models.DecimalField(max_digits=20, decimal_places=4, null=True, blank=True)
     fibra_alimentar = models.DecimalField(max_digits=20, decimal_places=4, null=True, blank=True)
     sodio = models.DecimalField(max_digits=20, decimal_places=4, null=True, blank=True)
+    vitaminas = models.DecimalField(max_digits=20, decimal_places=4, null=True, blank=True)
+    minerais = models.DecimalField(max_digits=20, decimal_places=4, null=True, blank=True)
 
     saturados = models.DecimalField(max_digits=20, decimal_places=4, null=True, blank=True)
 
