@@ -1,6 +1,5 @@
-# Ignorar arquivos de cache do Python e arquivos compilados
+.venv/
+venv/
 __pycache__/
 *.pyc
-*.pyo
-*.pyd
-*.sqlite3
+db.sqlite3
