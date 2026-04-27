@@ -67,6 +67,9 @@ function App() {
   const [receitaParaRotulo, setReceitaParaRotulo] = useState<Receita | null>(null);
   const [ingredienteEmEdicao, setIngredienteEmEdicao] = useState<Ingrediente | undefined>(undefined);
   const [rascunhoReceita, setRascunhoReceita] = useState<Receita | undefined>(undefined);
+  const [carregandoSessao, setCarregandoSessao] = useState(true);
+
+  const publicTelas: TelaAtiva[] = ['home', 'login', 'register', 'esqueci-senha', 'faq', 'suporte', 'termos'];
 
   const setTelaAtiva = (tela: TelaAtiva) => {
     window.history.pushState({ tela }, '', `#${tela}`);
@@ -85,15 +88,36 @@ function App() {
   }, []);
 
   // Verifica sessão ativa via cookies
-  useEffect(() => {
-    const checkSession = async () => {
+  const checkSession = async () => {
+    try {
       const sessao = await getSessao();
       if (sessao) {
          setUsuario(sessao);
+      } else {
+         setUsuario(null);
       }
-    };
+    } catch (err) {
+      setUsuario(null);
+    } finally {
+      setCarregandoSessao(false);
+    }
+  };
+
+  useEffect(() => {
     checkSession();
+    
+    // Re-verifica sessão quando a aba ganha foco (ajuda com múltiplas abas)
+    const handleFocus = () => checkSession();
+    window.addEventListener('focus', handleFocus);
+    return () => window.removeEventListener('focus', handleFocus);
   }, []);
+
+  // Proteção de Rotas
+  useEffect(() => {
+    if (!carregandoSessao && !usuario && !publicTelas.includes(telaAtiva)) {
+      setTelaAtiva('login');
+    }
+  }, [telaAtiva, usuario, carregandoSessao]);
 
   // Carrega os alimentos do backend quando o usuário loga
   useEffect(() => {
@@ -386,6 +410,14 @@ function App() {
   };
 
   const renderTela = () => {
+    if (carregandoSessao) {
+      return (
+        <div className="min-h-screen flex items-center justify-center bg-gray-50">
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-[#04585a]"></div>
+        </div>
+      );
+    }
+
     switch (telaAtiva) {
       case 'home':
         return <Home onIrParaRegister={() => setTelaAtiva('register')} />;
