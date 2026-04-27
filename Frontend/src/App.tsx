@@ -11,6 +11,7 @@ import { Support } from './pages/Support';
 import { FAQ } from './pages/FAQ';
 import { Dashboard } from './pages/Dashboard';
 import { Adm } from './pages/Adm';
+import { NotFound } from './pages/NotFound';
 import { CriarReceita } from './components/CreateRecipe';
 import { ListaReceitas } from './components/RecipeList';
 import { CadastroIngrediente } from './components/IngredientRegistration';
@@ -43,18 +44,20 @@ type TelaAtiva =
   | 'termos'
   | 'pagamento'
   | 'adm'
-  | 'boas-vindas';
+  | 'boas-vindas'
+  | 'not-found';
 
 
 const validTelas: TelaAtiva[] = [
   'home', 'login', 'register', 'esqueci-senha', 'perfil',
   'dashboard', 'receitas', 'criar-receita', 'cadastro-ingrediente',
-  'lista-ingredientes', 'planos', 'faq', 'suporte', 'termos', 'pagamento', 'adm',
+  'lista-ingredientes', 'planos', 'faq', 'suporte', 'termos', 'pagamento', 'adm', 'boas-vindas', 'not-found'
 ];
 
 const getTelaFromHash = (): TelaAtiva => {
   const hash = window.location.hash.replace('#', '') as TelaAtiva;
-  return validTelas.includes(hash) ? hash : 'home';
+  if (!hash) return 'home';
+  return validTelas.includes(hash) ? hash : 'not-found';
 };
 
 function App() {
@@ -69,7 +72,7 @@ function App() {
   const [rascunhoReceita, setRascunhoReceita] = useState<Receita | undefined>(undefined);
   const [carregandoSessao, setCarregandoSessao] = useState(true);
 
-  const publicTelas: TelaAtiva[] = ['home', 'login', 'register', 'esqueci-senha', 'faq', 'suporte', 'termos'];
+  const publicTelas: TelaAtiva[] = ['home', 'login', 'register', 'esqueci-senha', 'faq', 'suporte', 'termos', 'not-found'];
 
   const setTelaAtiva = (tela: TelaAtiva) => {
     window.history.pushState({ tela }, '', `#${tela}`);
@@ -77,14 +80,17 @@ function App() {
   };
 
   useEffect(() => {
-    const handlePopState = (event: PopStateEvent) => {
-      if (event.state?.tela && validTelas.includes(event.state.tela)) {
-        setTelaAtivaState(event.state.tela as TelaAtiva);
-      } else {
-        setTelaAtivaState(getTelaFromHash());
-      }
+    const handlePopState = () => {
+      setTelaAtivaState(getTelaFromHash());
     };
-    return () => window.removeEventListener('popstate', handlePopState);
+    
+    window.addEventListener('popstate', handlePopState);
+    window.addEventListener('hashchange', handlePopState);
+    
+    return () => {
+      window.removeEventListener('popstate', handlePopState);
+      window.removeEventListener('hashchange', handlePopState);
+    };
   }, []);
 
   // Verifica sessão ativa via cookies
@@ -516,6 +522,13 @@ function App() {
               setPlanoSelecionado(planoId);
               setTelaAtiva('pagamento');
             }}
+          />
+        );
+      case 'not-found':
+        return (
+          <NotFound 
+            onVoltar={() => window.history.back()} 
+            onIrParaHome={() => setTelaAtiva('home')} 
           />
         );
       case 'perfil':
