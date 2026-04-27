@@ -1,7 +1,7 @@
 from decimal import Decimal, InvalidOperation
 
 from rest_framework import serializers
-from .models import Alimento
+from .models import Alimento, Receita, IngredienteReceita
 
 class AlimentoSerializer(serializers.ModelSerializer):
     class Meta:
@@ -84,4 +84,45 @@ class AlimentoSerializer(serializers.ModelSerializer):
 
                         
         return data
+
+class IngredienteReceitaSerializer(serializers.ModelSerializer):
+    nome = serializers.ReadOnlyField(source='alimento.descricao')
+    tacoId = serializers.ReadOnlyField(source='alimento.numero')
+
+    class Meta:
+        model = IngredienteReceita
+        fields = ['id', 'alimento', 'quantidade', 'preco_personalizado', 'nome', 'tacoId']
+
+class ReceitaSerializer(serializers.ModelSerializer):
+    ingredientes = IngredienteReceitaSerializer(many=True)
+
+    class Meta:
+        model = Receita
+        fields = ['id', 'nome', 'descricao', 'porcoes', 'margem_lucro', 'ingredientes', 'criado_em']
+        read_only_fields = ['id', 'criado_em']
+
+    def create(self, validated_data):
+        ingredientes_data = validated_data.pop('ingredientes')
+        receita = Receita.objects.create(**validated_data)
+        
+        for ing_data in ingredientes_data:
+            IngredienteReceita.objects.create(receita=receita, **ing_data)
+            
+        return receita
+
+    def update(self, instance, validated_data):
+        ingredientes_data = validated_data.pop('ingredientes', None)
+        
+        # Update Receita fields
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+        instance.save()
+        
+        if ingredientes_data is not None:
+            # Simple approach: delete old ones and create new ones
+            instance.ingredientes.all().delete()
+            for ing_data in ingredientes_data:
+                IngredienteReceita.objects.create(receita=instance, **ing_data)
+        
+        return instance
         

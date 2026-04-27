@@ -1,10 +1,11 @@
-from rest_framework import generics
-from .models import Alimento
-from .serializers import AlimentoSerializer
+from rest_framework import generics, permissions
+from .models import Alimento, Receita
+from .serializers import AlimentoSerializer, ReceitaSerializer
 
 
 class AlimentoListCreate(generics.ListCreateAPIView):
     serializer_class = AlimentoSerializer
+    permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
         queryset = Alimento.objects.all()
@@ -23,6 +24,7 @@ class AlimentoListCreate(generics.ListCreateAPIView):
 class AlimentoDetail(generics.RetrieveUpdateDestroyAPIView):
     queryset = Alimento.objects.all()
     serializer_class = AlimentoSerializer
+    permission_classes = [permissions.IsAuthenticated]
 
     def perform_destroy(self, instance):
         if instance.numero < 10000:
@@ -33,3 +35,21 @@ class AlimentoDetail(generics.RetrieveUpdateDestroyAPIView):
         else:
             # Alimento customizado criado pelo usuário, pode deletar de verdade
             instance.delete()
+            
+class ReceitaListCreate(generics.ListCreateAPIView):
+    serializer_class = ReceitaSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        return Receita.objects.filter(usuario=self.request.user)
+
+    def perform_create(self, serializer):
+        serializer.save(usuario=self.request.user)
+
+
+class ReceitaDetail(generics.RetrieveUpdateDestroyAPIView):
+    serializer_class = ReceitaSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        return Receita.objects.filter(usuario=self.request.user)

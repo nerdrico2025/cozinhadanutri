@@ -19,6 +19,8 @@ import { RotuloNutricional } from './components/NutritionalLabel';
 import { UsuarioLogado, Receita, Ingrediente } from './types';
 import { login, registrar, getSessao, encerrarSessao, atualizarPerfil, requestPasswordReset, validateResetCode, resetPassword, apagarConta } from './services/auth';
 import { listarAlimentos, salvarAlimento, excluirAlimento } from './services/alimentos';
+import { salvarReceita, excluirReceita, listarReceitas } from './services/receitas';
+import { calcularCustosReceita, calcularNutrientesTotais, calcularDadosNutricionaisPorPorcao } from './utils/calculations';
 import {Footer} from './components/Footer';
 import './App.css';
 
@@ -62,6 +64,7 @@ function App() {
   const [receitaEmEdicao, setReceitaEmEdicao] = useState<Receita | undefined>(undefined);
   const [receitaParaRotulo, setReceitaParaRotulo] = useState<Receita | null>(null);
   const [ingredienteEmEdicao, setIngredienteEmEdicao] = useState<Ingrediente | undefined>(undefined);
+  const [rascunhoReceita, setRascunhoReceita] = useState<Receita | undefined>(undefined);
 
   const setTelaAtiva = (tela: TelaAtiva) => {
     window.history.pushState({ tela }, '', `#${tela}`);
@@ -119,6 +122,62 @@ function App() {
       }
     };
     fetchIngredientes();
+
+    // Carrega as receitas do backend
+    const fetchReceitas = async () => {
+      try {
+        const dadosBackend = await listarReceitas();
+        const parseadas: Receita[] = dadosBackend.map((r: any) => {
+          // Busca os dados nutricionais completos de cada ingrediente para calcular o total da receita
+          const ingredientesComNutrientes = r.ingredientes.map((ing: any) => {
+            const base = ingredientes.find(i => i.tacoId === ing.alimento);
+            return {
+              quantidade: parseFloat(ing.quantidade),
+              dadosNutricionais: base?.dadosNutricionais || {
+                calorias: 0, proteinas: 0, carboidratos: 0, gorduras: 0,
+                acucares_totais: 0, acucares_adicionados: 0, gorduras_saturadas: 0,
+                gorduras_trans: 0, fibras: 0, sodio: 0, vitaminas: 0, minerais: 0
+              }
+            };
+          });
+
+          const nutriTotais = calcularNutrientesTotais(ingredientesComNutrientes);
+          const nutriPorPorcao = calcularDadosNutricionaisPorPorcao(nutriTotais, r.porcoes);
+          const custos = calcularCustosReceita(
+            r.ingredientes.map((ing: any) => ({ 
+              quantidade: parseFloat(ing.quantidade), 
+              preco: parseFloat(ing.preco_personalizado) 
+            })),
+            r.porcoes,
+            parseFloat(r.margem_lucro)
+          );
+
+          return {
+            id: String(r.id),
+            nome: r.nome,
+            descricao: r.descricao,
+            porcoes: r.porcoes,
+            margemLucro: parseFloat(r.margem_lucro),
+            ingredientes: r.ingredientes.map((ing: any) => ({
+              tacoId: ing.alimento,
+              nome: ing.nome,
+              quantidade: parseFloat(ing.quantidade),
+              preco: parseFloat(ing.preco_personalizado)
+            })),
+            custoTotal: custos.custoTotal,
+            custoPorPorcao: custos.custoPorPorcao,
+            precoSugerido: custos.precoSugerido,
+            dadosNutricionaisTotais: nutriTotais,
+            dadosNutricionaisPorPorcao: nutriPorPorcao,
+            createdAt: new Date(r.criado_em)
+          };
+        });
+        setReceitas(parseadas);
+      } catch (err) {
+        console.error("Erro ao listar receitas:", err);
+      }
+    };
+    fetchReceitas();
     
     return () => window.removeEventListener('popstate', handlePopState);
   }, []);
@@ -143,7 +202,11 @@ function App() {
       const logado = await getSessao();
       if (logado) {
         setUsuario(logado);
-        setTelaAtiva('dashboard');
+        if (rascunhoReceita) {
+          setTelaAtiva('criar-receita');
+        } else {
+          setTelaAtiva('dashboard');
+        }
       } else {
         setTelaAtiva('login');
       }
@@ -159,18 +222,88 @@ function App() {
     setTelaAtiva('pagamento');
   };
 
-  const handleSalvarReceita = (receita: Receita) => {
-    setReceitas((prev) =>
-      prev.some((r) => r.id === receita.id)
-        ? prev.map((r) => (r.id === receita.id ? receita : r))
-        : [...prev, receita]
-    );
-    setReceitaEmEdicao(undefined);
-    setTelaAtiva('receitas');
+  const handleSalvarReceita = async (receita: Partial<Receita>) => {
+    try {
+      const salva = await salvarReceita(receita);
+      
+      const ingredientesComNutrientes = salva.ingredientes.map((ing: any) => {
+        const base = ingredientes.find(i => i.tacoId === ing.alimento);
+        return {
+          quantidade: parseFloat(ing.quantidade),
+          dadosNutricionais: base?.dadosNutricionais || {
+            calorias: 0, proteinas: 0, carboidratos: 0, gorduras: 0,
+            acucares_totais: 0, acucares_adicionados: 0, gorduras_saturadas: 0,
+            gorduras_trans: 0, fibras: 0, sodio: 0, vitaminas: 0, minerais: 0
+          }
+        };
+      });
+
+      const nutriTotais = calcularNutrientesTotais(ingredientesComNutrientes);
+      const nutriPorPorcao = calcularDadosNutricionaisPorPorcao(nutriTotais, salva.porcoes);
+      const custos = calcularCustosReceita(
+        salva.ingredientes.map((ing: any) => ({ 
+          quantidade: parseFloat(ing.quantidade), 
+          preco: parseFloat(ing.preco_personalizado) 
+        })),
+        salva.porcoes,
+        parseFloat(salva.margem_lucro)
+      );
+
+      const parseada: Receita = {
+        id: String(salva.id),
+        nome: salva.nome,
+        descricao: salva.descricao,
+        porcoes: salva.porcoes,
+        margemLucro: parseFloat(salva.margem_lucro),
+        ingredientes: salva.ingredientes.map((ing: any) => ({
+          tacoId: ing.alimento,
+          nome: ing.nome,
+          quantidade: parseFloat(ing.quantidade),
+          preco: parseFloat(ing.preco_personalizado)
+        })),
+        custoTotal: custos.custoTotal,
+        custoPorPorcao: custos.custoPorPorcao,
+        precoSugerido: custos.precoSugerido,
+        dadosNutricionaisTotais: nutriTotais,
+        dadosNutricionaisPorPorcao: nutriPorPorcao,
+        createdAt: new Date(salva.criado_em)
+      };
+
+      setReceitas((prev) =>
+        prev.some((r) => r.id === parseada.id)
+          ? prev.map((r) => (r.id === parseada.id ? parseada : r))
+          : [...prev, parseada]
+      );
+      setReceitaEmEdicao(undefined);
+      setTelaAtiva('receitas');
+    } catch (err: any) {
+      console.error("Erro ao salvar receita:", err);
+      if (err.response?.status === 401) {
+        alert("Sua sessão expirou. Por favor, faça login novamente para salvar.");
+        setTelaAtiva('login');
+      } else {
+        alert("Falha ao salvar a receita no servidor. Verifique os dados e tente novamente.");
+      }
+    }
   };
 
-  const handleRemoverReceita = (id: string) => {
-    setReceitas((prev) => prev.filter((r) => r.id !== id));
+  const handleRemoverReceita = async (id: string, senha?: string) => {
+    try {
+      if (!usuario || !senha) return;
+      
+      // Validação redundante de senha
+      const validado = await login(usuario.email, senha);
+      if (!validado) {
+        alert("Senha incorreta. A exclusão foi cancelada.");
+        return;
+      }
+
+      await excluirReceita(id);
+      setReceitas((prev) => prev.filter((r) => r.id !== id));
+    } catch (err) {
+      console.error("Erro ao excluir receita:", err);
+      alert("Erro ao excluir receita no servidor.");
+    }
   };
 
   const handleSalvarIngrediente = async (ingrediente: Ingrediente) => {
@@ -204,6 +337,11 @@ function App() {
           ? prev.map((i) => (i.id === ingredienteParseado.id ? ingredienteParseado : i))
           : [...prev, ingredienteParseado]
       );
+
+      // Se houver rascunho de receita, volta para ela
+      if (rascunhoReceita) {
+        setTelaAtiva('criar-receita');
+      }
     } catch (err) {
       console.error("Erro ao salvar ingrediente:", err);
       alert("Falha ao salvar o ingrediente no servidor.");
@@ -211,15 +349,22 @@ function App() {
     }
   };
 
-  const handleRemoverIngrediente = async (id: string) => {
-    if (confirm("Tem certeza que deseja remover este ingrediente?")) {
-      try {
-        await excluirAlimento(Number(id));
-        setIngredientes((prev) => prev.filter((i) => i.id !== id));
-      } catch (err) {
-        console.error("Erro ao remover ingrediente:", err);
-        alert("Falha ao remover o ingrediente no servidor.");
+  const handleRemoverIngrediente = async (id: string, senha?: string) => {
+    try {
+      if (!usuario || !senha) return;
+
+      // Validação redundante de senha
+      const validado = await login(usuario.email, senha);
+      if (!validado) {
+        alert("Senha incorreta. A exclusão foi cancelada.");
+        return;
       }
+
+      await excluirAlimento(Number(id));
+      setIngredientes((prev) => prev.filter((i) => i.id !== id));
+    } catch (err) {
+      console.error("Erro ao remover ingrediente:", err);
+      alert("Falha ao remover o ingrediente no servidor.");
     }
   };
 
@@ -244,10 +389,19 @@ function App() {
       case 'criar-receita':
         return (
           <CriarReceita
-            receitaInicial={receitaEmEdicao}
-            onSalvar={handleSalvarReceita}
+            receitaInicial={receitaEmEdicao || rascunhoReceita}
+            onSalvar={(r) => {
+              handleSalvarReceita(r);
+              setRascunhoReceita(undefined);
+            }}
+            onSolicitarCadastro={(dados, rascunho) => {
+              setRascunhoReceita(rascunho);
+              setIngredienteEmEdicao(dados as Ingrediente);
+              setTelaAtiva('cadastro-ingrediente');
+            }}
             onCancelar={() => {
               setReceitaEmEdicao(undefined);
+              setRascunhoReceita(undefined);
               window.history.back();
             }}
           />

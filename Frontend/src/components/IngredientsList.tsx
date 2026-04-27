@@ -5,6 +5,7 @@ import {
   Activity, Scale, AlertTriangle
 } from 'lucide-react';
 import { Ingrediente } from '../types';
+import { ConfirmModal } from './ConfirmModal';
 
 interface ListaIngredientesProps {
   ingredientes: Ingrediente[];
@@ -246,49 +247,16 @@ export function ListaIngredientes({ ingredientes, onEditar, onRemover }: ListaIn
         )}
       </div>
 
-      {/* Modal de Confirmação de Exclusão */}
-      {itemParaRemover && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-          <div 
-            className="bg-white rounded-3xl p-6 max-w-sm w-full shadow-2xl animate-in zoom-in-95 slide-in-from-bottom-4 duration-300"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-center justify-center w-16 h-16 rounded-2xl bg-red-50 mb-6 mx-auto">
-              <div className="relative">
-                <Trash2 className="text-red-500" size={28} />
-                <div className="absolute -top-1 -right-1 w-5 h-5 bg-white rounded-full flex items-center justify-center shadow-sm">
-                  <AlertTriangle className="text-amber-500" size={12} />
-                </div>
-              </div>
-            </div>
-
-            <h3 className="text-xl font-black text-gray-800 text-center mb-2">
-              Remover Ingrediente?
-            </h3>
-            <p className="text-sm text-gray-500 text-center mb-8 leading-relaxed px-2">
-              Você está prestes a excluir <span className="font-bold text-gray-700">"{itemParaRemover.nome}"</span>. 
-              Esta ação não pode ser desfeita e pode afetar receitas existentes.
-            </p>
-
-            <div className="flex flex-col gap-3">
-              <button
-                type="button"
-                onClick={confirmarRemocao}
-                className="w-full py-3.5 rounded-2xl bg-red-500 text-white text-sm font-bold hover:bg-red-600 transition-all shadow-lg shadow-red-200 border-0 cursor-pointer focus:outline-none"
-              >
-                Sim, Remover Ingrediente
-              </button>
-              <button
-                type="button"
-                onClick={() => setItemParaRemover(null)}
-                className="w-full py-3.5 rounded-2xl border border-gray-100 text-sm font-bold text-gray-400 bg-white hover:bg-gray-50 hover:text-gray-600 transition-all border-0 cursor-pointer focus:outline-none"
-              >
-                Cancelar
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <ConfirmModal
+        isOpen={!!itemParaRemover}
+        onClose={() => setItemParaRemover(null)}
+        onConfirm={confirmarRemocao}
+        title="Remover Ingrediente"
+        message={`Você está prestes a excluir "${itemParaRemover?.nome}". Esta ação não pode ser desfeita e pode afetar receitas existentes.`}
+        confirmText="Sim, remover"
+        cancelText="Manter ingrediente"
+        requirePassword={true}
+      />
     </div>
   );
 }

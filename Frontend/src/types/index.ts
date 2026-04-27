@@ -48,7 +48,7 @@ export interface IngredienteReceita {
 }
 
 export interface Receita {
-  id: string;
+  id?: string;
   nome: string;
   descricao?: string;
   ingredientes: IngredienteReceita[];

@@ -38,11 +38,37 @@ class Alimento(models.Model):
     criado_em = models.DateTimeField(auto_now_add=True)
     atualizado_em = models.DateTimeField(auto_now=True)
 
-class Meta:
-    db_table = 'Alimento'
-    ordering = ['número', 'descricao']
-    verbose_name = 'Alimento'
-    verbose_name_plural = 'Alimentos'
+    class Meta:
+        db_table = 'Alimento'
+        ordering = ['numero', 'descricao']
+        verbose_name = 'Alimento'
+        verbose_name_plural = 'Alimentos'
 
-def __str__(self):
-    return f'{self.numero} - {self.descricao}'
+    def __str__(self):
+        return f'{self.numero} - {self.descricao}'
+
+class Receita(models.Model):
+    usuario = models.ForeignKey('usuarios.User', on_delete=models.CASCADE, related_name='receitas')
+    nome = models.CharField(max_length=255)
+    descricao = models.TextField(blank=True, null=True)
+    porcoes = models.IntegerField(default=1)
+    margem_lucro = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    
+    criado_em = models.DateTimeField(auto_now_add=True)
+    atualizado_em = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'Receita'
+        ordering = ['-criado_em']
+
+    def __str__(self):
+        return self.nome
+
+class IngredienteReceita(models.Model):
+    receita = models.ForeignKey(Receita, on_delete=models.CASCADE, related_name='ingredientes')
+    alimento = models.ForeignKey(Alimento, on_delete=models.CASCADE)
+    quantidade = models.DecimalField(max_digits=10, decimal_places=2) # em gramas ou unidades
+    preco_personalizado = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True) # preco por 100g ou unidade
+
+    def __str__(self):
+        return f'{self.alimento.descricao} em {self.receita.nome}'
