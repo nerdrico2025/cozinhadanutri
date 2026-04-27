@@ -217,7 +217,8 @@ export function ListaReceitas({ receitas, onEditar, onRemover, onGerarRotulo }: 
                       {onGerarRotulo && (
                         <button
                           onClick={() => onGerarRotulo(receita)}
-                          className="w-full mt-6 flex items-center justify-center gap-2 py-3 bg-gray-900 text-white rounded-xl font-bold text-sm hover:bg-gray-800 transition-colors shadow-lg shadow-gray-200"
+                          style={{ backgroundColor: '#f49100' }}
+                          className="w-full mt-6 flex items-center justify-center gap-2 py-3 text-white rounded-xl font-bold text-sm hover:brightness-110 transition-all shadow-lg shadow-orange-200 border-0 cursor-pointer"
                         >
                           <Printer size={18} />
                           Gerar Rótulo Nutricional

@@ -6,8 +6,8 @@ from .models import empresa, User
 class EmpresaSerializer(serializers.ModelSerializer):
     class Meta:
         model = empresa
-        fields = ['razao_social', 'nome_fantasia', 'cnpj', 'inscricao_estadual', 'telefone']
-        read_only_fields = ['cnpj']
+        fields = ['razao_social', 'nome_fantasia', 'cnpj', 'inscricao_estadual', 'telefone', 'plano']
+        read_only_fields = ['cnpj', 'plano']
 
 
 class RegisterSerializer(serializers.ModelSerializer):
@@ -122,6 +122,7 @@ class UserProfileSerializer(serializers.ModelSerializer):
             empresa_instance.nome_fantasia = empresa_data.get('nome_fantasia', empresa_instance.nome_fantasia)
             empresa_instance.inscricao_estadual = empresa_data.get('inscricao_estadual', empresa_instance.inscricao_estadual)
             empresa_instance.telefone = empresa_data.get('telefone', empresa_instance.telefone)
+            # Plano não deve ser atualizado pelo perfil comum, apenas por checkout/admin
             empresa_instance.save()
             
         return instance

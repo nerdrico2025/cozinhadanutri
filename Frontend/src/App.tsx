@@ -16,6 +16,7 @@ import { ListaReceitas } from './components/RecipeList';
 import { CadastroIngrediente } from './components/IngredientRegistration';
 import { ListaIngredientes } from './components/IngredientsList';
 import { RotuloNutricional } from './components/NutritionalLabel';
+import { PostRegisterPlans } from './pages/PostRegisterPlans';
 import { UsuarioLogado, Receita, Ingrediente } from './types';
 import { login, registrar, getSessao, encerrarSessao, atualizarPerfil, requestPasswordReset, validateResetCode, resetPassword, apagarConta } from './services/auth';
 import { listarAlimentos, salvarAlimento, excluirAlimento } from './services/alimentos';
@@ -41,7 +42,8 @@ type TelaAtiva =
   | 'suporte'
   | 'termos'
   | 'pagamento'
-  | 'adm';
+  | 'adm'
+  | 'boas-vindas';
 
 
 const validTelas: TelaAtiva[] = [
@@ -79,9 +81,11 @@ function App() {
         setTelaAtivaState(getTelaFromHash());
       }
     };
-    window.addEventListener('popstate', handlePopState);
-    
-    // Verifica sessão ativa via cookies
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
+
+  // Verifica sessão ativa via cookies
+  useEffect(() => {
     const checkSession = async () => {
       const sessao = await getSessao();
       if (sessao) {
@@ -89,8 +93,12 @@ function App() {
       }
     };
     checkSession();
-    
-    // Carrega os alimentos do backend
+  }, []);
+
+  // Carrega os alimentos do backend quando o usuário loga
+  useEffect(() => {
+    if (!usuario) return;
+
     const fetchIngredientes = async () => {
       try {
         const dadosBackend = await listarAlimentos();
@@ -121,9 +129,14 @@ function App() {
         console.error("Erro ao listar alimentos:", err);
       }
     };
-    fetchIngredientes();
 
-    // Carrega as receitas do backend
+    fetchIngredientes();
+  }, [usuario]);
+
+  // Carrega as receitas do backend quando o usuário loga ou os ingredientes mudam
+  useEffect(() => {
+    if (!usuario || ingredientes.length === 0) return;
+
     const fetchReceitas = async () => {
       try {
         const dadosBackend = await listarReceitas();
@@ -177,10 +190,9 @@ function App() {
         console.error("Erro ao listar receitas:", err);
       }
     };
+
     fetchReceitas();
-    
-    return () => window.removeEventListener('popstate', handlePopState);
-  }, []);
+  }, [usuario, ingredientes]);
 
   const handleLogin = async (data: { email: string; senha: string }): Promise<boolean> => {
     const logado = await login(data.email, data.senha);
@@ -196,18 +208,17 @@ function App() {
   ) => {
     const response = await registrar(dados, tipo);
     if (response.sucesso) {
-      // Se o backend nao loga o usuario no registro, podemos redirecionar pro login
-      // setTelaAtiva('login');
-      // Ou logar direto se a api ja setou o cookie:
-      const logado = await getSessao();
+      // Tenta logar automaticamente após o registro bem-sucedido
+      const logado = await login(dados.email, dados.senha);
       if (logado) {
         setUsuario(logado);
         if (rascunhoReceita) {
           setTelaAtiva('criar-receita');
         } else {
-          setTelaAtiva('dashboard');
+          setTelaAtiva('boas-vindas');
         }
       } else {
+        // Se falhar o login automático, manda pro login manual
         setTelaAtiva('login');
       }
     } else {
@@ -462,6 +473,17 @@ function App() {
             onEnviarEmail={requestPasswordReset}
             onVerificarCodigo={validateResetCode}
             onRedefinirSenha={resetPassword}
+          />
+        );
+      case 'boas-vindas':
+        return (
+          <PostRegisterPlans
+            usuario={usuario}
+            onNavegar={setTelaAtiva}
+            onAssinarPlano={(planoId) => {
+              setPlanoSelecionado(planoId);
+              setTelaAtiva('pagamento');
+            }}
           />
         );
       case 'perfil':

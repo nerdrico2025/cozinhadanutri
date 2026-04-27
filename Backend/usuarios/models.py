@@ -4,16 +4,22 @@ from django.db import models
 # Create your models here.
 
 class empresa(models.Model):
+    PLANOS_CHOICES = [
+        ('gratis', 'Grátis'),
+        ('profissional', 'Profissional'),
+        ('empresarial', 'Empresarial'),
+    ]
+
     razao_social = models.CharField(max_length=255)
     nome_fantasia = models.CharField(max_length=255)
     cnpj = models.CharField(max_length=14, unique=True)
     inscricao_estadual = models.CharField(max_length=14, blank=True, null=True)
     telefone = models.CharField(max_length=20, blank=True, null=True)
     email = models.EmailField(blank=True, null=True)
-    senha = models.CharField(max_length=255)
+    plano = models.CharField(max_length=20, choices=PLANOS_CHOICES, default='gratis')
 
-def __str__(self):
-    return self.razao_social
+    def __str__(self):
+        return self.razao_social
 
 class User(AbstractUser):
     empresa = models.ForeignKey(empresa, on_delete=models.CASCADE, related_name='usuarios', null=True, blank=True)

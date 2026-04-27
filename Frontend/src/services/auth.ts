@@ -52,6 +52,7 @@ export const getSessao = async (): Promise<UsuarioLogado | null> => {
       nome: user.empresa?.nome_fantasia || user.username,
       email: user.email,
       role: 'user',
+      planoAtual: user.empresa?.plano || 'gratis',
       empresa: user.empresa,
     };
   } catch (error) {

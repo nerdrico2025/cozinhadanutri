@@ -1,15 +1,29 @@
-import { Check, Sparkles } from 'lucide-react';
+import { Check, Sparkles, Rocket } from 'lucide-react';
 import { UsuarioLogado } from '../types';
 
-type TelaAtiva = 'home' | 'dashboard' | 'receitas' | 'criar-receita' | 'cadastro-ingrediente' | 'lista-ingredientes' | 'login' | 'register' | 'planos' | 'faq' | 'suporte' | 'termos' | 'pagamento' | 'adm';
+type TelaAtiva = 
+  | 'home' | 'dashboard' | 'receitas' | 'criar-receita' 
+  | 'cadastro-ingrediente' | 'lista-ingredientes' | 'login' 
+  | 'register' | 'planos' | 'faq' | 'suporte' | 'termos' 
+  | 'pagamento' | 'adm' | 'esqueci-senha' | 'boas-vindas';
 
-interface PlanosProps {
-  onNavegar?: (tela: TelaAtiva) => void;
-  onAssinarPlano?: (planoId: 'profissional' | 'empresarial') => void;
-  usuario?: UsuarioLogado | null;
+interface PostRegisterPlansProps {
+  onNavegar: (tela: TelaAtiva) => void;
+  onAssinarPlano: (planoId: 'profissional' | 'empresarial') => void;
+  usuario: UsuarioLogado | null;
 }
 
-const planos: { id: 'gratis' | 'profissional' | 'empresarial'; nome: string; precoMensal: string; precoAnual: string; totalAnual: string; economia: string | null; periodo: string; destaque: boolean; recursos: string[] }[] = [
+const planos: { 
+  id: 'gratis' | 'profissional' | 'empresarial'; 
+  nome: string; 
+  precoMensal: string; 
+  precoAnual: string; 
+  totalAnual: string; 
+  economia: string | null; 
+  periodo: string; 
+  destaque: boolean; 
+  recursos: string[] 
+}[] = [
   {
     id: 'gratis',
     nome: 'Grátis',
@@ -64,43 +78,36 @@ const planos: { id: 'gratis' | 'profissional' | 'empresarial'; nome: string; pre
   },
 ];
 
-export function Planos({ onNavegar, onAssinarPlano, usuario }: PlanosProps) {
+export function PostRegisterPlans({ onNavegar, onAssinarPlano, usuario }: PostRegisterPlansProps) {
   return (
-    <div className="min-h-[80vh] bg-gray-50 py-16 px-4">
-
-      {/* Cabeçalho */}
-      <div className="text-center mb-14 max-w-xl mx-auto">
-        <span className="inline-block text-xs font-semibold tracking-widest uppercase text-[#04585a] bg-[#04585a]/10 px-4 py-1.5 rounded-full mb-4">
-          Planos e Preços
-        </span>
-        <h1 className="text-3xl sm:text-4xl font-bold text-gray-900 leading-tight mb-3">
-          O plano certo para o seu negócio
+    <div className="min-h-screen bg-gray-50 py-16 px-4">
+      
+      {/* Welcome Header */}
+      <div className="text-center mb-14 max-w-2xl mx-auto animate-in fade-in slide-in-from-top-4 duration-500">
+        <div className="inline-flex items-center justify-center p-4 bg-[#04585a]/10 rounded-2xl text-[#04585a] mb-6">
+          <Rocket size={32} />
+        </div>
+        <h1 className="text-3xl sm:text-4xl font-bold text-gray-900 leading-tight mb-4">
+          Bem-vindo(a), {usuario?.nome.split(' ')[0]}!
         </h1>
-        <p className="text-base text-gray-500">
-          Comece gratuitamente e evolua conforme crescer. Sem surpresas na fatura.
+        <p className="text-lg text-gray-500 leading-relaxed">
+          Sua conta foi criada com sucesso. Escolha o plano que melhor se adapta às suas necessidades para começar.
         </p>
       </div>
 
-      {/* Toggle mensal / anual */}
-      {/* Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 max-w-5xl mx-auto items-stretch">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 max-w-6xl mx-auto items-stretch">
         {planos.map((plano) => {
-          const isPlanoAtual = !!usuario && usuario.planoAtual === plano.id;
           const isGratis = plano.id === 'gratis';
 
           let labelBotao: string;
-          let handleClick: (() => void) | undefined;
-          let desabilitado = false;
+          let handleClick: () => void;
 
-          if (isPlanoAtual) {
-            labelBotao = 'Plano atual';
-            desabilitado = true;
-          } else if (!usuario && isGratis) {
-            labelBotao = 'Começar agora';
-            handleClick = () => onNavegar?.('register');
+          if (isGratis) {
+            labelBotao = 'Continuar no Grátis';
+            handleClick = () => onNavegar('dashboard');
           } else {
             labelBotao = 'Assinar agora';
-            handleClick = () => onAssinarPlano?.(plano.id as 'profissional' | 'empresarial');
+            handleClick = () => onAssinarPlano(plano.id as 'profissional' | 'empresarial');
           }
 
           return (
@@ -137,6 +144,7 @@ export function Planos({ onNavegar, onAssinarPlano, usuario }: PlanosProps) {
                 <p className={`text-sm ${plano.destaque ? 'text-white/60' : 'text-gray-400'}`}>
                   {plano.periodo}
                 </p>
+                
                 {plano.id !== 'gratis' && (
                   <div className="mt-3 flex flex-col gap-1">
                     <div className={`flex items-center gap-2 text-xs ${plano.destaque ? 'text-white/60' : 'text-gray-400'}`}>
@@ -156,6 +164,7 @@ export function Planos({ onNavegar, onAssinarPlano, usuario }: PlanosProps) {
                     )}
                   </div>
                 )}
+                
                 <div className="mb-6" />
 
                 {/* Divisor */}
@@ -178,13 +187,10 @@ export function Planos({ onNavegar, onAssinarPlano, usuario }: PlanosProps) {
                 {/* Botão */}
                 <button
                   onClick={handleClick}
-                  disabled={desabilitado}
-                  className={`mt-auto w-full py-3 rounded-xl text-sm font-semibold transition-all duration-150 border ${
-                    desabilitado
-                      ? `cursor-default ${plano.destaque ? 'bg-white/10 text-white/40 border-white/10' : 'bg-gray-100 text-gray-400 border-gray-100'}`
-                      : plano.destaque
-                        ? 'bg-white text-[#04585a] border-white hover:bg-white/90 cursor-pointer'
-                        : 'bg-[#04585a] text-white border-[#04585a] hover:bg-[#04585a]/90 cursor-pointer'
+                  className={`mt-auto w-full py-3 rounded-xl text-sm font-semibold transition-all duration-150 border cursor-pointer ${
+                    plano.destaque
+                      ? 'bg-white text-[#04585a] border-white hover:bg-white/90'
+                      : 'bg-[#04585a] text-white border-[#04585a] hover:bg-[#04585a]/90'
                   }`}
                 >
                   {labelBotao}
@@ -195,8 +201,7 @@ export function Planos({ onNavegar, onAssinarPlano, usuario }: PlanosProps) {
         })}
       </div>
 
-      {/* Rodapé informativo */}
-      <p className="text-center text-xs text-gray-400 mt-10">
+      <p className="text-center text-xs text-gray-400 mt-12">
         Todos os planos incluem suporte por e-mail. Cancele quando quiser, sem multas.
       </p>
     </div>
