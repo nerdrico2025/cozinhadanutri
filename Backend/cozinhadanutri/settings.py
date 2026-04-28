@@ -40,13 +40,14 @@ EMAILJS_SERVICE_ID = os.environ.get('EMAILJS_SERVICE_ID')
 EMAILJS_TEMPLATE_ID = os.environ.get('EMAILJS_TEMPLATE_ID')
 EMAILJS_PUBLIC_KEY = os.environ.get('EMAILJS_PUBLIC_KEY')
 EMAILJS_PRIVATE_KEY = os.environ.get('EMAILJS_PRIVATE_KEY')
+SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-dev-fallback-key')
 
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/6.0/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-8k8@u=4*0ns#a4k_$5@&3iof9j&&olqg6f32@n0^y%fk_rk6c1'
+# (Now being loaded from .env above)
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
