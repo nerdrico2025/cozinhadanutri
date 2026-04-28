@@ -19,7 +19,7 @@ export interface FAQEntry {
   id: string;
   pergunta: string;
   resposta: string;
-  categoria: 'geral' | 'tecnico' | 'plano' | 'outros';
+  categoria: 'Nutrição' | 'Precificação' | 'Regulatório' | 'Rótulo' | 'Receitas' | 'Conta' | 'Dados' | 'Assinatura' | 'geral' | 'tecnico' | 'plano' | 'outros';
 }
 
 const DEFAULT_CONFIG: SupportConfig = {

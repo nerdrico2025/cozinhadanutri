@@ -1242,6 +1242,13 @@ export function Adm() {
                            onChange={e => setEditandoFaq({...editandoFaq, categoria: e.target.value as any})}
                            className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-orange-500 outline-none text-sm font-medium"
                         >
+                           <option value="Nutrição">Nutrição</option>
+                           <option value="Rótulo">Rótulo</option>
+                           <option value="Receitas">Receitas</option>
+                           <option value="Precificação">Precificação</option>
+                           <option value="Conta">Conta</option>
+                           <option value="Dados">Dados</option>
+                           <option value="Assinatura">Assinatura</option>
                            <option value="geral">Dúvidas Gerais</option>
                            <option value="tecnico">Problemas Técnicos</option>
                            <option value="plano">Planos e Cobrança</option>
