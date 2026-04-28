@@ -19,6 +19,15 @@ export interface UsuarioAdmin {
   };
 }
 
+export interface AtividadeAdmin {
+  id: number;
+  usuario_nome: string;
+  empresa_nome: string;
+  acao: string;
+  tipo: 'login' | 'logout' | 'cadastro' | 'receita' | 'rotulo' | 'ingrediente' | 'plano';
+  data_hora: string;
+}
+
 export const listarUsuariosAdmin = async (): Promise<UsuarioAdmin[]> => {
   try {
     const response = await api.get('/api/admin/users/');
@@ -36,5 +45,15 @@ export const atualizarUsuarioAdmin = async (id: string, dados: { is_active?: boo
   } catch (error) {
     console.error('Erro ao atualizar usuário admin:', error);
     return false;
+  }
+};
+
+export const listarAtividadesAdmin = async (): Promise<AtividadeAdmin[]> => {
+  try {
+    const response = await api.get('/api/admin/activities/');
+    return response.data;
+  } catch (error) {
+    console.error('Erro ao listar atividades:', error);
+    return [];
   }
 };

@@ -9,14 +9,21 @@ import random
 import urllib.request
 import json
 
-from .models import User, empresa
-from .serializer import RegisterSerializer, CustomTokenObtainPairSerializer, UserProfileSerializer, AdminUserSerializer
+from .models import User, empresa, Auditoria
+from .serializer import (
+    RegisterSerializer, CustomTokenObtainPairSerializer, 
+    UserProfileSerializer, AdminUserSerializer, AuditoriaSerializer
+)
 from datetime import timedelta
 
 
 class RegisterView(generics.CreateAPIView):
     queryset = User.objects.all()
     serializer_class = RegisterSerializer
+
+    def perform_create(self, serializer):
+        user = serializer.save()
+        Auditoria.log(user, "Cadastrou-se no sistema", "cadastro")
 
 
 class LoginView(TokenObtainPairView):
@@ -50,6 +57,14 @@ class LoginView(TokenObtainPairView):
                 del response.data['access']
             if 'refresh' in response.data:
                 del response.data['refresh']
+            
+            # Log de login
+            try:
+                from .models import User
+                user = User.objects.get(email=request.data.get('email'))
+                Auditoria.log(user, "Realizou login", "login")
+            except:
+                pass
                 
         return response
 
@@ -57,6 +72,7 @@ class LogoutView(generics.GenericAPIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request, *args, **kwargs):
+        Auditoria.log(request.user, "Realizou logout", "logout")
         response = Response({"message": "Logout realizado com sucesso."}, status=status.HTTP_200_OK)
         response.delete_cookie('access_token', samesite='Lax')
         response.delete_cookie('refresh_token', samesite='Lax')
@@ -225,12 +241,26 @@ class AdminUpdateUserView(generics.UpdateAPIView):
             if 'is_active' in data:
                 target_user.is_active = data['is_active']
                 target_user.save()
+                msg = "ativado" if data['is_active'] else "desativado"
+                Auditoria.log(target_user, f"Conta {msg} pelo administrador", "login")
             
             if 'plano' in data and target_user.empresa:
                 emp = target_user.empresa
+                plano_antigo = emp.plano
                 emp.plano = data['plano']
                 emp.save()
+                Auditoria.log(target_user, f"Plano alterado de {plano_antigo} para {data['plano']}", "plano")
                 
             return Response({"success": True})
         except User.DoesNotExist:
             return Response({"error": "Usuário não encontrado"}, status=404)
+
+class AdminAuditoriaListView(generics.ListAPIView):
+    permission_classes = [IsAuthenticated]
+    serializer_class = AuditoriaSerializer
+    
+    def get_queryset(self):
+        from .models import Auditoria
+        if not self.request.user.is_superuser:
+            return Auditoria.objects.none()
+        return Auditoria.objects.select_related('usuario', 'usuario__empresa').all()[:100]

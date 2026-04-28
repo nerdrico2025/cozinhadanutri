@@ -9,7 +9,10 @@ import {
   Mail, CheckCircle, AlertCircle
 } from 'lucide-react';
 import { login } from '../services/auth';
-import { listarUsuariosAdmin, UsuarioAdmin, atualizarUsuarioAdmin } from '../services/admin';
+import { 
+  listarUsuariosAdmin, UsuarioAdmin, atualizarUsuarioAdmin, 
+  listarAtividadesAdmin, AtividadeAdmin 
+} from '../services/admin';
 import { getPlans, savePlans, PlanData } from '../services/planService';
 import { 
   getSupportConfig, saveSupportConfig, 
@@ -44,23 +47,6 @@ const HOJE = new Date(2026, 3, 19);
 const TRINTA_DIAS_ATRAS = new Date(HOJE);
 TRINTA_DIAS_ATRAS.setDate(TRINTA_DIAS_ATRAS.getDate() - 30);
 
-const usuariosIniciais: Usuario[] = [
-  { id: '1', nome: 'Ana Souza',      email: 'ana@email.com',      plano: 'Profissional', status: 'ativo',   cadastro: '01/03/2026', ultimoAcesso: '18/04/2026', receitas: 12, rotulos: 8  },
-  { id: '2', nome: 'Carlos Lima',    email: 'carlos@email.com',   plano: 'Grátis',       status: 'ativo',   cadastro: '10/03/2026', ultimoAcesso: '15/04/2026', receitas: 3,  rotulos: 0  },
-  { id: '3', nome: 'Fernanda Costa', email: 'fernanda@email.com', plano: 'Empresarial',  status: 'inativo', cadastro: '15/02/2026', ultimoAcesso: '01/03/2026', receitas: 27, rotulos: 19 },
-  { id: '4', nome: 'João Mendes',    email: 'joao@email.com',     plano: 'Grátis',       status: 'ativo',   cadastro: '20/03/2026', ultimoAcesso: '19/04/2026', receitas: 1,  rotulos: 0  },
-  { id: '5', nome: 'Mariana Braga',  email: 'mariana@email.com',  plano: 'Profissional', status: 'ativo',   cadastro: '05/04/2026', ultimoAcesso: '19/04/2026', receitas: 6,  rotulos: 4  },
-];
-
-const atividadesMock = [
-  { id: 1, usuario: 'Mariana Braga', acao: 'Gerou rótulo nutricional',         tempo: '2h atrás',  tipo: 'rotulo'     },
-  { id: 2, usuario: 'João Mendes',   acao: 'Criou receita "Bolo de Cenoura"',  tempo: '5h atrás',  tipo: 'receita'    },
-  { id: 3, usuario: 'Ana Souza',     acao: 'Atualizou cadastro de ingrediente',tempo: '1d atrás',  tipo: 'ingrediente'},
-  { id: 4, usuario: 'Carlos Lima',   acao: 'Fez login no sistema',             tempo: '2d atrás',  tipo: 'login'      },
-  { id: 5, usuario: 'Mariana Braga', acao: 'Criou receita "Frango Grelhado"',  tempo: '3d atrás',  tipo: 'receita'    },
-  { id: 6, usuario: 'Ana Souza',     acao: 'Criou receita "Salada Caesar"',    tempo: '4d atrás',  tipo: 'receita'    },
-];
-
 interface AuditEntry {
   id: number;
   dataHora: string;
@@ -89,6 +75,9 @@ const TIPO_ATIVIDADE: Record<string, { label: string; cls: string; Icon: React.E
   receita:    { label: 'Receita',      cls: 'bg-teal-100 text-teal-700',     Icon: ChefHat },
   ingrediente:{ label: 'Ingrediente',  cls: 'bg-blue-100 text-blue-600',     Icon: Leaf    },
   login:      { label: 'Login',        cls: 'bg-gray-100 text-gray-500',     Icon: LogIn   },
+  logout:     { label: 'Logout',       cls: 'bg-red-50 text-red-400',        Icon: LogIn   },
+  cadastro:   { label: 'Cadastro',     Icon: Users,       cls: 'bg-indigo-50 text-indigo-600' },
+  plano:      { label: 'Plano',        Icon: CreditCard,  cls: 'bg-purple-50 text-purple-600'  },
 };
 
 const PLANO_CONFIG: Record<Plano, { cor: string; borda: string; fundo: string; Icon: React.ElementType; badge: string }> = {
@@ -128,6 +117,7 @@ export function Adm() {
   const [aba, setAba] = useState<Aba>('visao-geral');
 
   const [usuarios, setUsuarios] = useState<Usuario[]>([]);
+  const [atividades, setAtividades] = useState<AtividadeAdmin[]>([]);
   const [carregando, setCarregando] = useState(true);
   const [planConfigs, setPlanConfigs] = useState(getPlans());
   const [precoTemp, setPrecoTemp]         = useState('');
@@ -171,7 +161,12 @@ export function Adm() {
 
   async function fetchUsuarios() {
     setCarregando(true);
-    const dados = await listarUsuariosAdmin();
+    const [dados, dadosAtividades] = await Promise.all([
+      listarUsuariosAdmin(),
+      listarAtividadesAdmin()
+    ]);
+    
+    setAtividades(dadosAtividades);
     
     const mapeados: Usuario[] = dados.map(u => ({
       id: u.id,
@@ -1304,27 +1299,34 @@ export function Adm() {
 
       {/* ── Atividades ── */}
       {aba === 'atividades' && (
-        <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-          <ul className="divide-y divide-gray-100">
-            {atividadesMock.map(a => {
-              const cfg  = TIPO_ATIVIDADE[a.tipo] ?? TIPO_ATIVIDADE['login'];
-              const Icon = cfg.Icon;
-              return (
-                <li key={a.id} className="flex items-center gap-4 px-5 py-3.5 hover:bg-gray-50 transition-colors">
-                  <div className={`p-2 rounded-lg shrink-0 ${cfg.cls}`}>
-                    <Icon size={14} />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm text-gray-800">{a.acao}</p>
-                    <p className="text-xs text-gray-400 mt-0.5">{a.usuario}</p>
-                  </div>
-                  <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full shrink-0 ${cfg.cls}`}>{cfg.label}</span>
-                  <span className="text-xs text-gray-400 shrink-0">{a.tempo}</span>
-                </li>
-              );
-            })}
-          </ul>
-        </div>
+         <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+           <ul className="divide-y divide-gray-100">
+             {atividades.length > 0 ? atividades.map(a => {
+               const cfg  = TIPO_ATIVIDADE[a.tipo] ?? TIPO_ATIVIDADE['login'];
+               const Icon = cfg.Icon;
+               return (
+                 <li key={a.id} className="flex items-center gap-4 px-5 py-3.5 hover:bg-gray-50 transition-colors">
+                   <div className={`p-2 rounded-lg shrink-0 ${cfg.cls}`}>
+                     <Icon size={14} />
+                   </div>
+                   <div className="min-w-0 flex-1">
+                     <p className="text-sm font-bold text-gray-800">{a.acao}</p>
+                     <p className="text-xs text-gray-400 mt-0.5">{a.empresa_nome || 'Sistema'} • {a.usuario_nome}</p>
+                   </div>
+                   <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-full shrink-0 ${cfg.cls}`}>{cfg.label}</span>
+                   <span className="text-[10px] font-bold text-gray-400 shrink-0 uppercase tracking-tighter">
+                      {new Date(a.data_hora).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
+                   </span>
+                 </li>
+               );
+             }) : (
+                <div className="p-10 text-center">
+                   <Activity size={40} className="text-gray-200 mx-auto mb-3" />
+                   <p className="text-sm text-gray-400 font-bold uppercase tracking-widest">Nenhuma atividade registrada ainda</p>
+                </div>
+             )}
+           </ul>
+         </div>
       )}
 
       {/* ── Modal de confirmação de senha ── */}

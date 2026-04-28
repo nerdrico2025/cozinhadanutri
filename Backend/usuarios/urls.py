@@ -2,7 +2,7 @@ from django.urls import path
 from .views import (
     RegisterView, LoginView, UserProfileView, DeleteUserView, DeleteUserByIdView, LogoutView,
     request_password_reset, validate_reset_code, reset_password,
-    AdminUserListView, AdminUpdateUserView
+    AdminUserListView, AdminUpdateUserView, AdminAuditoriaListView
 )
 
 urlpatterns = [
@@ -19,4 +19,5 @@ urlpatterns = [
     # Admin
     path('admin/users/', AdminUserListView.as_view()),
     path('admin/users/<int:pk>/', AdminUpdateUserView.as_view()),
+    path('admin/activities/', AdminAuditoriaListView.as_view()),
 ]

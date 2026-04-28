@@ -1,6 +1,7 @@
 from rest_framework import generics, permissions
 from .models import Alimento, Receita
 from .serializers import AlimentoSerializer, ReceitaSerializer
+from usuarios.models import Auditoria
 
 
 class AlimentoListCreate(generics.ListCreateAPIView):
@@ -19,6 +20,11 @@ class AlimentoListCreate(generics.ListCreateAPIView):
             queryset = queryset.filter(preco__isnull=False)
 
         return queryset
+
+    def perform_create(self, serializer):
+        alimento = serializer.save()
+        if alimento.numero >= 10000:
+             Auditoria.log(self.request.user, f"Cadastrou novo ingrediente: {alimento.descricao}", "ingrediente")
 
 
 class AlimentoDetail(generics.RetrieveUpdateDestroyAPIView):
@@ -44,7 +50,8 @@ class ReceitaListCreate(generics.ListCreateAPIView):
         return Receita.objects.filter(usuario=self.request.user)
 
     def perform_create(self, serializer):
-        serializer.save(usuario=self.request.user)
+        receita = serializer.save(usuario=self.request.user)
+        Auditoria.log(self.request.user, f"Criou a receita: {receita.nome}", "receita")
 
 
 class ReceitaDetail(generics.RetrieveUpdateDestroyAPIView):

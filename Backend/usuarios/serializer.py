@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
-from .models import empresa, User
+from .models import empresa, User, Auditoria
 
 
 class EmpresaSerializer(serializers.ModelSerializer):
@@ -8,6 +8,15 @@ class EmpresaSerializer(serializers.ModelSerializer):
         model = empresa
         fields = ['razao_social', 'nome_fantasia', 'cnpj', 'inscricao_estadual', 'telefone', 'plano']
         read_only_fields = ['cnpj', 'plano']
+
+
+class AuditoriaSerializer(serializers.ModelSerializer):
+    usuario_nome = serializers.CharField(source='usuario.username', read_only=True)
+    empresa_nome = serializers.CharField(source='usuario.empresa.nome_fantasia', read_only=True)
+    
+    class Meta:
+        model = Auditoria
+        fields = ['id', 'usuario_nome', 'empresa_nome', 'acao', 'tipo', 'data_hora']
 
 
 class RegisterSerializer(serializers.ModelSerializer):
