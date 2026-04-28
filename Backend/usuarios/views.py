@@ -38,7 +38,7 @@ class LoginView(TokenObtainPairView):
             response.set_cookie(
                 key='access_token',
                 value=access_token,
-                expires=timedelta(minutes=60),
+                expires=timedelta(minutes=120),
                 secure=False, # Deve ser True em produção (HTTPS)
                 httponly=True,
                 samesite='Lax'
