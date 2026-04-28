@@ -102,7 +102,7 @@ class UserProfileSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = User
-        fields = ['id', 'username', 'email', 'empresa']
+        fields = ['id', 'username', 'email', 'empresa', 'is_superuser']
         
     def update(self, instance, validated_data):
         empresa_data = validated_data.pop('empresa', None)
@@ -126,3 +126,16 @@ class UserProfileSerializer(serializers.ModelSerializer):
             empresa_instance.save()
             
         return instance
+
+class AdminUserSerializer(serializers.ModelSerializer):
+    empresa = EmpresaSerializer()
+    receitas_count = serializers.IntegerField(read_only=True)
+    rotulos_count = serializers.IntegerField(read_only=True)
+    
+    class Meta:
+        model = User
+        fields = [
+            'id', 'username', 'email', 'empresa', 
+            'is_active', 'date_joined', 'last_login', 
+            'receitas_count', 'rotulos_count'
+        ]

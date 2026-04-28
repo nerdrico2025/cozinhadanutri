@@ -47,11 +47,12 @@ export const getSessao = async (): Promise<UsuarioLogado | null> => {
   try {
     const response = await api.get('/api/profile/');
     const user = response.data;
+    console.log('DADOS DO PERFIL RECEBIDOS:', user);
     return {
       id: user.id.toString(),
       nome: user.empresa?.nome_fantasia || user.username,
       email: user.email,
-      role: 'user',
+      role: user.is_superuser ? 'admin' : 'user',
       planoAtual: user.empresa?.plano || 'gratis',
       empresa: user.empresa,
     };

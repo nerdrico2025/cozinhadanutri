@@ -9,8 +9,8 @@ import random
 import urllib.request
 import json
 
-from .models import User
-from .serializer import RegisterSerializer, CustomTokenObtainPairSerializer, UserProfileSerializer
+from .models import User, empresa
+from .serializer import RegisterSerializer, CustomTokenObtainPairSerializer, UserProfileSerializer, AdminUserSerializer
 from datetime import timedelta
 
 
@@ -197,3 +197,40 @@ def reset_password(request):
         return Response({'message': 'Password updated'}, status=200)
     except User.DoesNotExist:
         return Response({'error': 'User not found'}, status=400)
+
+class AdminUserListView(generics.ListAPIView):
+    permission_classes = [IsAuthenticated]
+    serializer_class = AdminUserSerializer
+    
+    def get_queryset(self):
+        if not self.request.user.is_superuser:
+             return User.objects.none()
+        from django.db.models import Count, Value
+        return User.objects.annotate(
+            receitas_count=Count('receitas', distinct=True),
+            rotulos_count=Value(0)
+        ).select_related('empresa').order_by('-date_joined')
+
+class AdminUpdateUserView(generics.UpdateAPIView):
+    permission_classes = [IsAuthenticated]
+    
+    def patch(self, request, pk):
+        if not self.request.user.is_superuser:
+             return Response({"error": "Não autorizado"}, status=403)
+             
+        try:
+            target_user = User.objects.get(pk=pk)
+            data = request.data
+            
+            if 'is_active' in data:
+                target_user.is_active = data['is_active']
+                target_user.save()
+            
+            if 'plano' in data and target_user.empresa:
+                emp = target_user.empresa
+                emp.plano = data['plano']
+                emp.save()
+                
+            return Response({"success": True})
+        except User.DoesNotExist:
+            return Response({"error": "Usuário não encontrado"}, status=404)

@@ -99,7 +99,7 @@ export function Header({
         {/* DESKTOP: NAV CENTRAL */}
         <nav className="hidden md:flex items-center gap-1">
           {navItem('home', 'Início', Home)}
-          {usuario && navItem('dashboard', 'Dashboard', LayoutDashboard)}
+          {usuario && usuario.role !== 'admin' && navItem('dashboard', 'Dashboard', LayoutDashboard)}
           {navItem('planos', 'Planos', CreditCard)}
           {navItem('faq', 'Perguntas e Respostas', HelpCircle)}
           {navItem('suporte', 'Suporte', Headphones)}
@@ -169,7 +169,7 @@ export function Header({
       {menuAberto && (
         <div className="md:hidden border-t border-gray-200 bg-white px-3 pb-4 pt-2 flex flex-col gap-0.5">
           {navItemMobile('home', 'Início', Home)}
-          {usuario && navItemMobile('dashboard', 'Dashboard', LayoutDashboard)}
+          {usuario && usuario.role !== 'admin' && navItemMobile('dashboard', 'Dashboard', LayoutDashboard)}
           {navItemMobile('planos', 'Planos', CreditCard)}
           {navItemMobile('faq', 'Perguntas e Respostas', HelpCircle)}
           {navItemMobile('suporte', 'Suporte', Headphones)}

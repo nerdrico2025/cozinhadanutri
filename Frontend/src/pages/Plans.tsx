@@ -1,5 +1,7 @@
 import { Check, Sparkles } from 'lucide-react';
 import { UsuarioLogado } from '../types';
+import React, { useState, useEffect } from 'react';
+import { getPlans, Plano as PlanoLabel } from '../services/planService';
 
 type TelaAtiva = 'home' | 'dashboard' | 'receitas' | 'criar-receita' | 'cadastro-ingrediente' | 'lista-ingredientes' | 'login' | 'register' | 'planos' | 'faq' | 'suporte' | 'termos' | 'pagamento' | 'adm';
 
@@ -9,62 +11,22 @@ interface PlanosProps {
   usuario?: UsuarioLogado | null;
 }
 
-const planos: { id: 'gratis' | 'profissional' | 'empresarial'; nome: string; precoMensal: string; precoAnual: string; totalAnual: string; economia: string | null; periodo: string; destaque: boolean; recursos: string[] }[] = [
-  {
-    id: 'gratis',
-    nome: 'Grátis',
-    precoMensal: 'R$ 0',
-    precoAnual: 'R$ 0',
-    totalAnual: 'R$ 0 / ano',
-    economia: null,
-    periodo: 'para sempre',
-    destaque: false,
-    recursos: [
-      'Até 3 receitas',
-      'Até 10 ingredientes',
-      'Busca na tabela TACO',
-      'Cálculo nutricional básico',
-      'Rótulo nutricional ANVISA',
-    ],
-  },
-  {
-    id: 'profissional',
-    nome: 'Profissional',
-    precoMensal: 'R$ 29',
-    precoAnual: 'R$ 24',
-    totalAnual: 'R$ 290 / ano',
-    economia: 'Economize R$ 58',
-    periodo: '/ mês',
-    destaque: true,
-    recursos: [
-      'Receitas ilimitadas',
-      'Ingredientes ilimitados',
-      'Precificação avançada',
-      'Exportar rótulos em PDF',
-      'Histórico de receitas',
-      'Suporte prioritário',
-    ],
-  },
-  {
-    id: 'empresarial',
-    nome: 'Empresarial',
-    precoMensal: 'R$ 79',
-    precoAnual: 'R$ 66',
-    totalAnual: 'R$ 790 / ano',
-    economia: 'Economize R$ 158',
-    periodo: '/ mês',
-    destaque: false,
-    recursos: [
-      'Tudo do Profissional',
-      'Múltiplos usuários',
-      'Relatórios gerenciais',
-      'API de integração',
-      'Onboarding dedicado',
-    ],
-  },
-];
 
 export function Planos({ onNavegar, onAssinarPlano, usuario }: PlanosProps) {
+  const [planosData, setPlanosData] = useState(getPlans());
+
+  useEffect(() => {
+    const handleUpdate = () => setPlanosData(getPlans());
+    window.addEventListener('plans_updated', handleUpdate);
+    return () => window.removeEventListener('plans_updated', handleUpdate);
+  }, []);
+
+  const listPlanos = [
+    { id: 'gratis',       nome: 'Grátis',       data: planosData['Grátis'],       destaque: false },
+    { id: 'profissional', nome: 'Profissional', data: planosData['Profissional'], destaque: true },
+    { id: 'empresarial',  nome: 'Empresarial',  data: planosData['Empresarial'],  destaque: false },
+  ];
+
   return (
     <div className="min-h-[80vh] bg-gray-50 py-16 px-4">
 
@@ -81,12 +43,12 @@ export function Planos({ onNavegar, onAssinarPlano, usuario }: PlanosProps) {
         </p>
       </div>
 
-      {/* Toggle mensal / anual */}
       {/* Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 max-w-5xl mx-auto items-stretch">
-        {planos.map((plano) => {
+        {listPlanos.map((plano) => {
           const isPlanoAtual = !!usuario && usuario.planoAtual === plano.id;
           const isGratis = plano.id === 'gratis';
+          const data = plano.data;
 
           let labelBotao: string;
           let handleClick: (() => void) | undefined;
@@ -102,6 +64,8 @@ export function Planos({ onNavegar, onAssinarPlano, usuario }: PlanosProps) {
             labelBotao = 'Assinar agora';
             handleClick = () => onAssinarPlano?.(plano.id as 'profissional' | 'empresarial');
           }
+
+          const economia = (data.mensal * 12) - (data.anual * 12);
 
           return (
             <div
@@ -131,27 +95,27 @@ export function Planos({ onNavegar, onAssinarPlano, usuario }: PlanosProps) {
                 {/* Preço */}
                 <div className="flex items-end gap-1 mb-1">
                   <span className={`text-5xl font-extrabold leading-none ${plano.destaque ? 'text-white' : 'text-gray-900'}`}>
-                    {plano.precoMensal}
+                    R$ {data.mensal}
                   </span>
                 </div>
                 <p className={`text-sm ${plano.destaque ? 'text-white/60' : 'text-gray-400'}`}>
-                  {plano.periodo}
+                  {isGratis ? 'para sempre' : '/ mês'}
                 </p>
-                {plano.id !== 'gratis' && (
+                {!isGratis && (
                   <div className="mt-3 flex flex-col gap-1">
                     <div className={`flex items-center gap-2 text-xs ${plano.destaque ? 'text-white/60' : 'text-gray-400'}`}>
                       <span>ou</span>
                       <span className={`font-bold text-sm ${plano.destaque ? 'text-white' : 'text-gray-800'}`}>
-                        {plano.precoAnual}/mês
+                        R$ {data.anual}/mês
                       </span>
                       <span>no plano anual</span>
                     </div>
                     <p className={`text-xs ${plano.destaque ? 'text-white/50' : 'text-gray-400'}`}>
-                      {plano.totalAnual} cobrado uma vez
+                      R$ {data.anual * 12} cobrado uma vez
                     </p>
-                    {plano.economia && (
+                    {economia > 0 && (
                       <span className={`text-xs font-semibold ${plano.destaque ? 'text-green-300' : 'text-green-600'}`}>
-                        {plano.economia} vs. mensal
+                        Economize R$ {economia} vs. mensal
                       </span>
                     )}
                   </div>
@@ -163,7 +127,7 @@ export function Planos({ onNavegar, onAssinarPlano, usuario }: PlanosProps) {
 
                 {/* Recursos */}
                 <ul className="flex flex-col gap-3 mb-8">
-                  {plano.recursos.map((r) => (
+                  {data.recursos.map((r) => (
                     <li key={r} className="flex items-start gap-2.5 text-sm">
                       <span className={`mt-0.5 flex-shrink-0 w-4 h-4 rounded-full flex items-center justify-center ${
                         plano.destaque ? 'bg-white/20' : 'bg-[#04585a]/10'

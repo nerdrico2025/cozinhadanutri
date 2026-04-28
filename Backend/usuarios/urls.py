@@ -1,7 +1,8 @@
 from django.urls import path
 from .views import (
     RegisterView, LoginView, UserProfileView, DeleteUserView, DeleteUserByIdView, LogoutView,
-    request_password_reset, validate_reset_code, reset_password
+    request_password_reset, validate_reset_code, reset_password,
+    AdminUserListView, AdminUpdateUserView
 )
 
 urlpatterns = [
@@ -14,4 +15,8 @@ urlpatterns = [
     path('password-reset/request/', request_password_reset),
     path('password-reset/validate/', validate_reset_code),
     path('password-reset/confirm/', reset_password),
+    
+    # Admin
+    path('admin/users/', AdminUserListView.as_view()),
+    path('admin/users/<int:pk>/', AdminUpdateUserView.as_view()),
 ]

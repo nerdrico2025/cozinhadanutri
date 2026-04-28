@@ -72,7 +72,7 @@ function App() {
   const [rascunhoReceita, setRascunhoReceita] = useState<Receita | undefined>(undefined);
   const [carregandoSessao, setCarregandoSessao] = useState(true);
 
-  const publicTelas: TelaAtiva[] = ['home', 'login', 'register', 'esqueci-senha', 'faq', 'suporte', 'termos', 'not-found'];
+  const publicTelas: TelaAtiva[] = ['home', 'login', 'register', 'esqueci-senha', 'faq', 'suporte', 'termos', 'not-found', 'planos'];
 
   const setTelaAtiva = (tela: TelaAtiva) => {
     window.history.pushState({ tela }, '', `#${tela}`);
@@ -122,6 +122,11 @@ function App() {
   useEffect(() => {
     if (!carregandoSessao && !usuario && !publicTelas.includes(telaAtiva)) {
       setTelaAtiva('login');
+    }
+    
+    // Se for admin e tentar acessar dashboard, manda pro adm
+    if (!carregandoSessao && usuario?.role === 'admin' && telaAtiva === 'dashboard') {
+      setTelaAtiva('adm');
     }
   }, [telaAtiva, usuario, carregandoSessao]);
 
@@ -227,8 +232,22 @@ function App() {
   const handleLogin = async (data: { email: string; senha: string }): Promise<boolean> => {
     const logado = await login(data.email, data.senha);
     if (!logado) return false;
+    
     setUsuario(logado);
-    setTelaAtiva(logado.role === 'admin' ? 'adm' : 'dashboard');
+    console.log('USUARIO LOGADO:', logado.email, 'ROLE:', logado.role);
+    
+    // Ordem de prioridade no redirecionamento:
+    if (rascunhoReceita) {
+      console.log('REDIRECIONANDO PARA: criar-receita (rascunho)');
+      setTelaAtiva('criar-receita');
+    } else if (logado.role === 'admin') {
+      console.log('REDIRECIONANDO PARA: adm (admin)');
+      setTelaAtiva('adm');
+    } else {
+      console.log('REDIRECIONANDO PARA: dashboard (user)');
+      setTelaAtiva('dashboard');
+    }
+    
     return true;
   };
 
