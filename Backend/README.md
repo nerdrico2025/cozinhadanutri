@@ -32,16 +32,31 @@ pip install -r requirements.txt
 ```
 
 ### 2. Configurar Variáveis de Ambiente (`.env`)
-Na raiz do projeto `Backend/`, crie um arquivo `.env` com as seguintes chaves. O projeto possui um leitor nativo de `.env` configurado em `settings.py` que remove espaços e comentários inline automaticamente.
+Na raiz do projeto `Backend/`, existe um arquivo `.env.example`. Copie-o para um novo arquivo `.env`:
+
+```bash
+cp .env.example .env
+```
+
+O projeto possui um leitor nativo de `.env` configurado em `settings.py`. Para gerar uma `SECRET_KEY` segura para o seu ambiente local, execute:
+
+```bash
+python -c "from django.core.management.utils import get_random_secret_key; print(get_random_secret_key())"
+```
+
+Preencha o `.env` com as seguintes chaves:
 
 ```env
+# Django Security
+SECRET_KEY=sua_chave_gerada_aqui
+
 # EmailJS - Necessário para recuperação de senhas
 EMAILJS_SERVICE_ID=service_xxxxx
 EMAILJS_TEMPLATE_ID=template_xxxxx
 EMAILJS_PUBLIC_KEY=xxxxxx
 EMAILJS_PRIVATE_KEY=xxxxxx  # Obrigatório para disparos via REST API do Backend
 
-# Opcional: Secret Key do ReCAPTCHA para validação
+# Opcional: Secret Key do ReCAPTCHA para validação futura
 RECAPTCHA_SECRET_KEY=xxxxxx
 ```
 
@@ -91,12 +106,22 @@ O EmailJS, por padrão, bloqueia requisições disparadas por servidores. Para q
 | `POST` | `/api/login/` | Autenticação (Seta os HttpOnly Cookies) |
 | `POST` | `/api/logout/` | Deleta os cookies de sessão |
 | `GET`/`PATCH` | `/api/profile/` | Consulta e atualização parcial do perfil (Requer Cookie Auth) |
+| `DELETE` | `/api/delete/` | Deleta a conta do próprio usuário logado |
 
-### 🥗 Alimentos
+### 🛡️ Administração (Apenas Superusuários)
 | Método | Endpoint | Descrição |
 |--------|----------|-----------|
-| `GET` | `/api/alimentos/` | Lista alimentos (suporta query `?descricao=`) |
-| `POST` | `/api/alimentos/` | Cria novo alimento |
+| `GET` | `/api/admin/users/` | Lista todos os usuários e estatísticas |
+| `PATCH` | `/api/admin/users/<id>/` | Ativa/desativa usuários ou altera planos |
+| `GET` | `/api/admin/activities/` | Feed de auditoria (Logins, cadastros, alterações) |
+
+### 🥗 Alimentos e Receitas
+| Método | Endpoint | Descrição |
+|--------|----------|-----------|
+| `GET`/`POST` | `/api/alimentos/` | Listagem e criação de ingredientes (TACO) |
+| `GET`/`PATCH`/`DELETE` | `/api/alimentos/<id>/` | Detalhes, edição e exclusão de ingrediente |
+| `GET`/`POST` | `/api/receitas/` | Listagem e criação de receitas do nutricionista |
+| `GET`/`PATCH`/`DELETE` | `/api/receitas/<id>/` | Detalhes, edição e exclusão de receita |
 
 ---
 
