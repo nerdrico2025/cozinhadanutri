@@ -18,6 +18,8 @@ import { CadastroIngrediente } from './components/IngredientRegistration';
 import { ListaIngredientes } from './components/IngredientsList';
 import { RotuloNutricional } from './components/NutritionalLabel';
 import { PostRegisterPlans } from './pages/PostRegisterPlans';
+import { Terms } from './pages/Terms';
+import { Privacy } from './pages/Privacy';
 import { UsuarioLogado, Receita, Ingrediente } from './types';
 import { login, registrar, getSessao, encerrarSessao, atualizarPerfil, requestPasswordReset, validateResetCode, resetPassword, apagarConta } from './services/auth';
 import { listarAlimentos, salvarAlimento, excluirAlimento } from './services/alimentos';
@@ -42,6 +44,7 @@ type TelaAtiva =
   | 'faq'
   | 'suporte'
   | 'termos'
+  | 'privacidade'
   | 'pagamento'
   | 'adm'
   | 'boas-vindas'
@@ -51,7 +54,7 @@ type TelaAtiva =
 const validTelas: TelaAtiva[] = [
   'home', 'login', 'register', 'esqueci-senha', 'perfil',
   'dashboard', 'receitas', 'criar-receita', 'cadastro-ingrediente',
-  'lista-ingredientes', 'planos', 'faq', 'suporte', 'termos', 'pagamento', 'adm', 'boas-vindas', 'not-found'
+  'lista-ingredientes', 'planos', 'faq', 'suporte', 'termos', 'privacidade', 'pagamento', 'adm', 'boas-vindas', 'not-found'
 ];
 
 const getTelaFromHash = (): TelaAtiva => {
@@ -72,7 +75,7 @@ function App() {
   const [rascunhoReceita, setRascunhoReceita] = useState<Receita | undefined>(undefined);
   const [carregandoSessao, setCarregandoSessao] = useState(true);
 
-  const publicTelas: TelaAtiva[] = ['home', 'login', 'register', 'esqueci-senha', 'faq', 'suporte', 'termos', 'not-found', 'planos'];
+  const publicTelas: TelaAtiva[] = ['home', 'login', 'register', 'esqueci-senha', 'faq', 'suporte', 'termos', 'privacidade', 'not-found', 'planos'];
 
   const setTelaAtiva = (tela: TelaAtiva) => {
     window.history.pushState({ tela }, '', `#${tela}`);
@@ -515,6 +518,8 @@ function App() {
         return (
           <Register
             onJaTemConta={() => setTelaAtiva('login')}
+            onVerTermos={() => setTelaAtiva('termos')}
+            onVerPrivacidade={() => setTelaAtiva('privacidade')}
             onCadastroSucesso={(dados, tipo) =>
               handleRegistro(
                 dados as { email: string; senha: string; nomeCompleto?: string; nomeFantasia?: string },
@@ -609,6 +614,10 @@ function App() {
             onLogin={() => setTelaAtiva('login')}
           />
         );
+      case 'termos':
+        return <Terms onVoltar={() => window.history.back()} />;
+      case 'privacidade':
+        return <Privacy onVoltar={() => window.history.back()} />;
       case 'adm':
         return <Adm />;
       default:

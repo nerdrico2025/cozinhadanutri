@@ -6,7 +6,10 @@ from .models import empresa, User, Auditoria
 class EmpresaSerializer(serializers.ModelSerializer):
     class Meta:
         model = empresa
-        fields = ['razao_social', 'nome_fantasia', 'cnpj', 'inscricao_estadual', 'telefone', 'plano']
+        fields = [
+            'razao_social', 'nome_fantasia', 'cnpj', 'inscricao_estadual', 'telefone', 'plano',
+            'cep', 'logradouro', 'numero', 'complemento', 'bairro', 'municipio', 'uf'
+        ]
         read_only_fields = ['cnpj', 'plano']
 
 
@@ -131,6 +134,15 @@ class UserProfileSerializer(serializers.ModelSerializer):
             empresa_instance.nome_fantasia = empresa_data.get('nome_fantasia', empresa_instance.nome_fantasia)
             empresa_instance.inscricao_estadual = empresa_data.get('inscricao_estadual', empresa_instance.inscricao_estadual)
             empresa_instance.telefone = empresa_data.get('telefone', empresa_instance.telefone)
+            
+            empresa_instance.cep = empresa_data.get('cep', empresa_instance.cep)
+            empresa_instance.logradouro = empresa_data.get('logradouro', empresa_instance.logradouro)
+            empresa_instance.numero = empresa_data.get('numero', empresa_instance.numero)
+            empresa_instance.complemento = empresa_data.get('complemento', empresa_instance.complemento)
+            empresa_instance.bairro = empresa_data.get('bairro', empresa_instance.bairro)
+            empresa_instance.municipio = empresa_data.get('municipio', empresa_instance.municipio)
+            empresa_instance.uf = empresa_data.get('uf', empresa_instance.uf)
+            
             # Plano não deve ser atualizado pelo perfil comum, apenas por checkout/admin
             empresa_instance.save()
             

@@ -7,7 +7,9 @@ from django.core.cache import cache
 from django.conf import settings
 import random
 import urllib.request
+import urllib.error
 import json
+import os
 
 from .models import User, empresa, Auditoria
 from .serializer import (
@@ -264,3 +266,27 @@ class AdminAuditoriaListView(generics.ListAPIView):
         if not self.request.user.is_superuser:
             return Auditoria.objects.none()
         return Auditoria.objects.select_related('usuario', 'usuario__empresa').all()[:100]
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def consultar_cnpj(request, cnpj):
+    token = os.environ.get('RECEITAWS_API_TOKEN', getattr(settings, 'RECEITAWS_API_TOKEN', ''))
+    url = f"https://receitaws.com.br/v1/cnpj/{cnpj}"
+    
+    headers = {'Accept': 'application/json'}
+    if token:
+        headers['Authorization'] = f'Bearer {token}'
+        
+    req = urllib.request.Request(url, headers=headers)
+    try:
+        with urllib.request.urlopen(req) as response:
+            data = json.loads(response.read().decode())
+            return Response(data, status=200)
+    except urllib.error.HTTPError as e:
+        try:
+            error_data = json.loads(e.read().decode())
+            return Response(error_data, status=e.code)
+        except:
+            return Response({'error': str(e)}, status=e.code)
+    except Exception as e:
+        return Response({'error': str(e)}, status=500)

@@ -2,7 +2,7 @@ from django.urls import path
 from .views import (
     RegisterView, LoginView, UserProfileView, DeleteUserView, DeleteUserByIdView, LogoutView,
     request_password_reset, validate_reset_code, reset_password,
-    AdminUserListView, AdminUpdateUserView, AdminAuditoriaListView
+    AdminUserListView, AdminUpdateUserView, AdminAuditoriaListView, consultar_cnpj
 )
 
 urlpatterns = [
@@ -20,4 +20,7 @@ urlpatterns = [
     path('admin/users/', AdminUserListView.as_view()),
     path('admin/users/<int:pk>/', AdminUpdateUserView.as_view()),
     path('admin/activities/', AdminAuditoriaListView.as_view()),
+    
+    # Utilitarios
+    path('cnpj/<str:cnpj>/', consultar_cnpj),
 ]

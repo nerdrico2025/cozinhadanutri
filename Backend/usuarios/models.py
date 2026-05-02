@@ -17,6 +17,15 @@ class empresa(models.Model):
     telefone = models.CharField(max_length=20, blank=True, null=True)
     email = models.EmailField(blank=True, null=True)
     plano = models.CharField(max_length=20, choices=PLANOS_CHOICES, default='gratis')
+    
+    # Endereço (Integrações NF-e / ISS)
+    cep = models.CharField(max_length=9, blank=True, null=True)
+    logradouro = models.CharField(max_length=255, blank=True, null=True)
+    numero = models.CharField(max_length=20, blank=True, null=True)
+    complemento = models.CharField(max_length=150, blank=True, null=True)
+    bairro = models.CharField(max_length=150, blank=True, null=True)
+    municipio = models.CharField(max_length=150, blank=True, null=True)
+    uf = models.CharField(max_length=2, blank=True, null=True)
 
     def __str__(self):
         return self.razao_social

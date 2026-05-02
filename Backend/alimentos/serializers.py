@@ -93,13 +93,31 @@ class IngredienteReceitaSerializer(serializers.ModelSerializer):
         model = IngredienteReceita
         fields = ['id', 'alimento', 'quantidade', 'preco_personalizado', 'nome', 'tacoId']
 
+    def validate_quantidade(self, value):
+        if value <= 0:
+            raise serializers.ValidationError("A quantidade deve ser maior que zero.")
+        return value
+
+    def validate_preco_personalizado(self, value):
+        if value is not None and value < 0:
+            raise serializers.ValidationError("O custo unitário não pode ser negativo.")
+        return value
+
 class ReceitaSerializer(serializers.ModelSerializer):
-    ingredientes = IngredienteReceitaSerializer(many=True)
+    ingredientes = IngredienteReceitaSerializer(many=True, allow_empty=False)
 
     class Meta:
         model = Receita
         fields = ['id', 'nome', 'descricao', 'porcoes', 'margem_lucro', 'ingredientes', 'criado_em']
         read_only_fields = ['id', 'criado_em']
+        extra_kwargs = {
+            'nome': {'error_messages': {'blank': "O nome da ficha técnica é obrigatório.", 'required': "O nome da ficha técnica é obrigatório."}}
+        }
+
+    def validate_porcoes(self, value):
+        if value <= 0:
+            raise serializers.ValidationError("O número de porções deve ser maior que zero.")
+        return value
 
     def create(self, validated_data):
         ingredientes_data = validated_data.pop('ingredientes')
