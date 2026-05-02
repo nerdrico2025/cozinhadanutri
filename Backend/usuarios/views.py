@@ -1,0 +1,292 @@
+from rest_framework import generics, status
+from rest_framework.response import Response
+from rest_framework_simplejwt.views import TokenObtainPairView
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import IsAuthenticated, AllowAny
+from django.core.cache import cache
+from django.conf import settings
+import random
+import urllib.request
+import urllib.error
+import json
+import os
+
+from .models import User, empresa, Auditoria
+from .serializer import (
+    RegisterSerializer, CustomTokenObtainPairSerializer, 
+    UserProfileSerializer, AdminUserSerializer, AuditoriaSerializer
+)
+from datetime import timedelta
+
+
+class RegisterView(generics.CreateAPIView):
+    queryset = User.objects.all()
+    serializer_class = RegisterSerializer
+
+    def perform_create(self, serializer):
+        user = serializer.save()
+        Auditoria.log(user, "Cadastrou-se no sistema", "cadastro")
+
+
+class LoginView(TokenObtainPairView):
+    serializer_class = CustomTokenObtainPairSerializer
+
+    def post(self, request, *args, **kwargs):
+        response = super().post(request, *args, **kwargs)
+        if response.status_code == 200:
+            access_token = response.data.get('access')
+            refresh_token = response.data.get('refresh')
+            
+            response.set_cookie(
+                key='access_token',
+                value=access_token,
+                expires=timedelta(minutes=120),
+                secure=False, # Deve ser True em produção (HTTPS)
+                httponly=True,
+                samesite='Lax'
+            )
+            response.set_cookie(
+                key='refresh_token',
+                value=refresh_token,
+                expires=timedelta(days=1),
+                secure=False,
+                httponly=True,
+                samesite='Lax'
+            )
+            
+            # Remove os tokens do payload JSON para maior segurança
+            if 'access' in response.data:
+                del response.data['access']
+            if 'refresh' in response.data:
+                del response.data['refresh']
+            
+            # Log de login
+            try:
+                from .models import User
+                user = User.objects.get(email=request.data.get('email'))
+                Auditoria.log(user, "Realizou login", "login")
+            except:
+                pass
+                
+        return response
+
+class LogoutView(generics.GenericAPIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, *args, **kwargs):
+        Auditoria.log(request.user, "Realizou logout", "logout")
+        response = Response({"message": "Logout realizado com sucesso."}, status=status.HTTP_200_OK)
+        response.delete_cookie('access_token', samesite='Lax')
+        response.delete_cookie('refresh_token', samesite='Lax')
+        return response
+
+
+class UserProfileView(generics.RetrieveUpdateAPIView):
+    serializer_class = UserProfileSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_object(self):
+        return self.request.user
+
+
+class DeleteUserView(generics.DestroyAPIView):
+    permission_classes = [IsAuthenticated]
+
+    def get_object(self):
+        return self.request.user
+
+    def destroy(self, request, *args, **kwargs):
+        user = self.get_object()
+        user.delete()
+        response = Response(
+            {"message": "Usuário deletado com sucesso."},
+            status=status.HTTP_200_OK
+        )
+        response.delete_cookie('access_token', samesite='Lax')
+        response.delete_cookie('refresh_token', samesite='Lax')
+        return response
+
+
+class DeleteUserByIdView(generics.DestroyAPIView):
+    queryset = User.objects.all()
+    permission_classes = [IsAuthenticated]
+    lookup_field = 'id'
+
+    def destroy(self, request, *args, **kwargs):
+        user = self.get_object()
+        user.delete()
+        return Response(
+            {"message": "Usuário deletado com sucesso."},
+            status=status.HTTP_200_OK
+        )
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def request_password_reset(request):
+    email = request.data.get('email')
+    print(">>> RECEBIDO REQUEST PARA RESET:", repr(email), flush=True)
+    if not email:
+        return Response({'error': 'Email is required'}, status=400)
+    
+    try:
+        user = User.objects.get(email=email)
+        print(">>> USUARIO ENCONTRADO:", user.email, flush=True)
+    except User.DoesNotExist:
+        print(">>> USUARIO NAO ENCONTRADO PARA O EMAIL:", repr(email), flush=True)
+        # Para evitar enumeração de usuários, retornamos 200 de qualquer forma
+        return Response({'message': 'Code sent if email exists'}, status=200)
+        
+    code = f"{random.randint(0, 999999):06d}"
+    cache.set(f"pwd_reset_{email}", code, timeout=900) # 15 min de expiração
+    print(">>> GERADO CODIGO:", code, flush=True)
+    
+    # INTEGRAÇÃO EMAILJS VIA REST API (Mais seguro que no frontend)
+    emailjs_service_id = getattr(settings, 'EMAILJS_SERVICE_ID', 'service_cozinhadanutri') # Substitua pelo seu ID
+    emailjs_template_id = getattr(settings, 'EMAILJS_TEMPLATE_ID', 'template_reset_senha') # Substitua pelo seu ID
+    emailjs_public_key = getattr(settings, 'EMAILJS_PUBLIC_KEY', 'sua_chave_publica') # Substitua pela sua chave publica
+    emailjs_private_key = getattr(settings, 'EMAILJS_PRIVATE_KEY', 'sua_chave_privada') # Substitua pela chave privada (opcional, mas recomendado)
+    
+    # Se você configurou a chave pública, tentamos enviar o email
+    if emailjs_public_key != 'sua_chave_publica':
+        try:
+            payload = {
+                "service_id": emailjs_service_id,
+                "template_id": emailjs_template_id,
+                "user_id": emailjs_public_key,
+                "accessToken": emailjs_private_key if emailjs_private_key != 'sua_chave_privada' else None,
+                "template_params": {
+                    "to_email": email,
+                    "codigo": code
+                }
+            }
+            req = urllib.request.Request(
+                "https://api.emailjs.com/api/v1.0/email/send",
+                data=json.dumps(payload).encode('utf-8'),
+                headers={
+                    'Content-Type': 'application/json',
+                    'User-Agent': 'Mozilla/5.0'
+                }
+            )
+            try:
+                response = urllib.request.urlopen(req)
+                print("EmailJS Success:", response.read().decode('utf-8'))
+            except urllib.error.HTTPError as e:
+                print("EmailJS HTTP Error:", e.code, e.read().decode('utf-8'))
+            except Exception as e:
+                print("EmailJS General Error:", e)
+        except Exception as e:
+            print("Erro crítico antes do EmailJS:", e)
+    else:
+        # Fallback local para testes
+        print("\n" + "="*50)
+        print(f"CÓDIGO DE RECUPERAÇÃO PARA {email}: {code}")
+        print("="*50 + "\n")
+    
+    return Response({'message': 'Code sent'}, status=200)
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def validate_reset_code(request):
+    email = request.data.get('email')
+    code = request.data.get('codigo')
+    
+    stored_code = cache.get(f"pwd_reset_{email}")
+    if stored_code and stored_code == code:
+        return Response({'message': 'Valid code'}, status=200)
+        
+    return Response({'error': 'Invalid code'}, status=400)
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def reset_password(request):
+    email = request.data.get('email')
+    code = request.data.get('codigo')
+    new_password = request.data.get('novaSenha')
+    
+    stored_code = cache.get(f"pwd_reset_{email}")
+    if not stored_code or stored_code != code:
+        return Response({'error': 'Invalid code'}, status=400)
+        
+    try:
+        user = User.objects.get(email=email)
+        user.set_password(new_password)
+        user.save()
+        cache.delete(f"pwd_reset_{email}")
+        return Response({'message': 'Password updated'}, status=200)
+    except User.DoesNotExist:
+        return Response({'error': 'User not found'}, status=400)
+
+class AdminUserListView(generics.ListAPIView):
+    permission_classes = [IsAuthenticated]
+    serializer_class = AdminUserSerializer
+    
+    def get_queryset(self):
+        if not self.request.user.is_superuser:
+             return User.objects.none()
+        from django.db.models import Count, Value
+        return User.objects.annotate(
+            receitas_count=Count('receitas', distinct=True),
+            rotulos_count=Value(0)
+        ).select_related('empresa').order_by('-date_joined')
+
+class AdminUpdateUserView(generics.UpdateAPIView):
+    permission_classes = [IsAuthenticated]
+    
+    def patch(self, request, pk):
+        if not self.request.user.is_superuser:
+             return Response({"error": "Não autorizado"}, status=403)
+             
+        try:
+            target_user = User.objects.get(pk=pk)
+            data = request.data
+            
+            if 'is_active' in data:
+                target_user.is_active = data['is_active']
+                target_user.save()
+                msg = "ativado" if data['is_active'] else "desativado"
+                Auditoria.log(target_user, f"Conta {msg} pelo administrador", "login")
+            
+            if 'plano' in data and target_user.empresa:
+                emp = target_user.empresa
+                plano_antigo = emp.plano
+                emp.plano = data['plano']
+                emp.save()
+                Auditoria.log(target_user, f"Plano alterado de {plano_antigo} para {data['plano']}", "plano")
+                
+            return Response({"success": True})
+        except User.DoesNotExist:
+            return Response({"error": "Usuário não encontrado"}, status=404)
+
+class AdminAuditoriaListView(generics.ListAPIView):
+    permission_classes = [IsAuthenticated]
+    serializer_class = AuditoriaSerializer
+    
+    def get_queryset(self):
+        from .models import Auditoria
+        if not self.request.user.is_superuser:
+            return Auditoria.objects.none()
+        return Auditoria.objects.select_related('usuario', 'usuario__empresa').all()[:100]
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def consultar_cnpj(request, cnpj):
+    token = os.environ.get('RECEITAWS_API_TOKEN', getattr(settings, 'RECEITAWS_API_TOKEN', ''))
+    url = f"https://receitaws.com.br/v1/cnpj/{cnpj}"
+    
+    headers = {'Accept': 'application/json'}
+    if token:
+        headers['Authorization'] = f'Bearer {token}'
+        
+    req = urllib.request.Request(url, headers=headers)
+    try:
+        with urllib.request.urlopen(req) as response:
+            data = json.loads(response.read().decode())
+            return Response(data, status=200)
+    except urllib.error.HTTPError as e:
+        try:
+            error_data = json.loads(e.read().decode())
+            return Response(error_data, status=e.code)
+        except:
+            return Response({'error': str(e)}, status=e.code)
+    except Exception as e:
+        return Response({'error': str(e)}, status=500)

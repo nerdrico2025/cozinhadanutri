@@ -4,27 +4,47 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import {
   Search, ChevronDown, Loader2, ArrowLeft,
-  PackagePlus, DollarSign, Flame, Beef, Wheat, Droplets,
+  PackagePlus, DollarSign, Flame, Beef, Wheat, Droplets, HelpCircle, AlertTriangle,
+  CheckCircle2, List, PlusCircle
 } from 'lucide-react';
 import { Unidade, Ingrediente } from '../types';
-import { buscarAlimentos, TacoFood } from '../services/tacoApi';
+import { buscarAlimentosBackend } from '../services/alimentos';
+
+const numField = z.preprocess(
+  (val) => (typeof val === 'number' && isNaN(val) ? undefined : val),
+  z.number({ required_error: 'Campo não pode ficar vazio', invalid_type_error: 'Campo não pode ficar vazio' })
+    .min(0, 'Inválido')
+);
 
 const ingredienteSchema = z.object({
   nome: z.string().min(1, 'Nome é obrigatório'),
   unidade: z.enum(['g', 'kg', 'ml', 'l', 'unidade']),
-  preco: z.number().min(0.01, 'Preço deve ser maior que zero'),
-  calorias: z.number().min(0),
-  proteinas: z.number().min(0),
-  carboidratos: z.number().min(0),
-  gorduras: z.number().min(0),
+  preco: z.preprocess(
+    (val) => (typeof val === 'number' && isNaN(val) ? undefined : val),
+    z.number({ required_error: 'Campo não pode ficar vazio', invalid_type_error: 'Campo não pode ficar vazio' })
+      .min(0.01, 'Preço deve ser maior que zero')
+  ),
+  calorias: numField,
+  proteinas: numField,
+  carboidratos: numField,
+  gorduras: numField,
+  acucares_totais: numField,
+  acucares_adicionados: numField,
+  gorduras_saturadas: numField,
+  gorduras_trans: numField,
+  fibras: numField,
+  sodio: numField,
+  vitaminas: numField,
+  minerais: numField,
 });
 
 type IngredienteForm = z.infer<typeof ingredienteSchema>;
 
 interface CadastroIngredienteProps {
   ingredienteInicial?: Ingrediente;
-  onSalvar: (ingrediente: Ingrediente) => void;
+  onSalvar: (ingrediente: Ingrediente) => Promise<void> | void;
   onCancelar: () => void;
+  onVerLista?: () => void;
 }
 
 const unidades: { value: Unidade; label: string }[] = [
@@ -42,13 +62,17 @@ const inputCls = (hasError?: boolean) =>
       : 'border-gray-200 bg-white focus:border-brand focus:ring-1 focus:ring-brand/20'
   }`;
 
-export function CadastroIngrediente({ ingredienteInicial, onSalvar, onCancelar }: CadastroIngredienteProps) {
-  const [sugestoesTaco, setSugestoesTaco] = useState<TacoFood[]>([]);
+export function CadastroIngrediente({ ingredienteInicial, onSalvar, onCancelar, onVerLista }: CadastroIngredienteProps) {
+  const [sugestoesTaco, setSugestoesTaco] = useState<any[]>([]);
   const [mostrarSugestoes, setMostrarSugestoes] = useState(false);
   const [carregando, setCarregando] = useState(false);
   const [erroApi, setErroApi] = useState<string | null>(null);
-  const [tacoIdSelecionado, setTacoIdSelecionado] = useState<number | undefined>(ingredienteInicial?.tacoId);
+  const [tacoNumeroSelecionado, setTacoNumeroSelecionado] = useState<number | undefined>(ingredienteInicial?.tacoId);
+  const [tacoDbId, setTacoDbId] = useState<string | number | undefined>(ingredienteInicial?.id);
   const [salvando, setSalvando] = useState(false);
+  const [modalAcucarAberto, setModalAcucarAberto] = useState(false);
+  const [modalSucessoAberto, setModalSucessoAberto] = useState(false);
+  const [dadosParaSalvar, setDadosParaSalvar] = useState<IngredienteForm | null>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const { register, handleSubmit, formState: { errors }, setValue, reset } = useForm<IngredienteForm>({
@@ -62,8 +86,16 @@ export function CadastroIngrediente({ ingredienteInicial, onSalvar, onCancelar }
           proteinas: ingredienteInicial.dadosNutricionais.proteinas,
           carboidratos: ingredienteInicial.dadosNutricionais.carboidratos,
           gorduras: ingredienteInicial.dadosNutricionais.gorduras,
+          acucares_totais: ingredienteInicial.dadosNutricionais.acucares_totais || 0,
+          acucares_adicionados: ingredienteInicial.dadosNutricionais.acucares_adicionados || 0,
+          gorduras_saturadas: ingredienteInicial.dadosNutricionais.gorduras_saturadas || 0,
+          gorduras_trans: ingredienteInicial.dadosNutricionais.gorduras_trans || 0,
+          fibras: ingredienteInicial.dadosNutricionais.fibras || 0,
+          sodio: ingredienteInicial.dadosNutricionais.sodio || 0,
+          vitaminas: ingredienteInicial.dadosNutricionais.vitaminas || 0,
+          minerais: ingredienteInicial.dadosNutricionais.minerais || 0,
         }
-      : { unidade: 'g' },
+      : { unidade: 'g', calorias: 0, proteinas: 0, carboidratos: 0, gorduras: 0, acucares_totais: 0, acucares_adicionados: 0, gorduras_saturadas: 0, gorduras_trans: 0, fibras: 0, sodio: 0, vitaminas: 0, minerais: 0 },
   });
 
   const buscarSugestoes = (nome: string) => {
@@ -72,7 +104,7 @@ export function CadastroIngrediente({ ingredienteInicial, onSalvar, onCancelar }
     debounceRef.current = setTimeout(async () => {
       setCarregando(true); setErroApi(null);
       try {
-        const resultados = await buscarAlimentos(nome);
+        const resultados = await buscarAlimentosBackend(nome);
         setSugestoesTaco(resultados);
         setMostrarSugestoes(resultados.length > 0);
       } catch {
@@ -82,22 +114,46 @@ export function CadastroIngrediente({ ingredienteInicial, onSalvar, onCancelar }
     }, 400);
   };
 
-  const aplicarDadosTaco = (alimento: TacoFood) => {
-    setValue('nome', alimento.description);
-    setValue('calorias', alimento.kcal ?? 0);
-    setValue('proteinas', alimento.protein ?? 0);
-    setValue('carboidratos', alimento.carbohydrate ?? 0);
-    setValue('gorduras', alimento.lipids ?? 0);
-    setTacoIdSelecionado(alimento.id);
+  const aplicarDadosTaco = (alimento: any) => {
+    setValue('nome', alimento.descricao);
+    setValue('calorias', parseFloat(alimento.energia_kcal) || 0);
+    setValue('proteinas', parseFloat(alimento.proteina) || 0);
+    setValue('carboidratos', parseFloat(alimento.carboidrato) || 0);
+    setValue('gorduras', parseFloat(alimento.lipideos) || 0);
+    setValue('acucares_totais', parseFloat(alimento.acucares_totais) || 0);
+    setValue('acucares_adicionados', parseFloat(alimento.acucares_adicionados) || 0);
+    setValue('gorduras_saturadas', parseFloat(alimento.saturados) || 0);
+    
+    const trans1 = parseFloat(alimento.AG18_1t) || 0;
+    const trans2 = parseFloat(alimento.AG18_2t) || 0;
+    setValue('gorduras_trans', trans1 + trans2);
+    
+    setValue('fibras', parseFloat(alimento.fibra_alimentar) || 0);
+    setValue('sodio', parseFloat(alimento.sodio) || 0);
+    setValue('vitaminas', parseFloat(alimento.vitaminas) || 0);
+    setValue('minerais', parseFloat(alimento.minerais) || 0);
+    setTacoNumeroSelecionado(alimento.numero);
+    setTacoDbId(alimento.id);
     setMostrarSugestoes(false);
   };
 
   const onSubmit = (data: IngredienteForm) => {
+    // Verifica se os campos de açúcares estão vazios ou zerados
+    if (!data.acucares_totais && !data.acucares_adicionados) {
+      setDadosParaSalvar(data);
+      setModalAcucarAberto(true);
+      return;
+    }
+    salvarFinal(data);
+  };
+
+  const salvarFinal = async (data: IngredienteForm) => {
     setSalvando(true);
+    setModalAcucarAberto(false);
     try {
-      onSalvar({
-        id: ingredienteInicial?.id ?? crypto.randomUUID(),
-        tacoId: tacoIdSelecionado,
+      await onSalvar({
+        id: tacoDbId ?? ingredienteInicial?.id ?? '', // App.tsx vai lidar com isso e salvarAlimento também
+        tacoId: tacoNumeroSelecionado,
         nome: data.nome,
         unidade: data.unidade,
         preco: data.preco,
@@ -106,11 +162,23 @@ export function CadastroIngrediente({ ingredienteInicial, onSalvar, onCancelar }
           proteinas: data.proteinas,
           carboidratos: data.carboidratos,
           gorduras: data.gorduras,
+          acucares_totais: data.acucares_totais || 0,
+          acucares_adicionados: data.acucares_adicionados || 0,
+          gorduras_saturadas: data.gorduras_saturadas || 0,
+          gorduras_trans: data.gorduras_trans || 0,
+          fibras: data.fibras || 0,
+          sodio: data.sodio || 0,
+          vitaminas: data.vitaminas || 0,
+          minerais: data.minerais || 0,
         },
         createdAt: ingredienteInicial?.createdAt ?? new Date(),
       });
-      setTacoIdSelecionado(undefined);
+      setTacoNumeroSelecionado(undefined);
+      setTacoDbId(undefined);
       reset();
+      setModalSucessoAberto(true);
+    } catch (err) {
+      console.error(err);
     } finally {
       setSalvando(false);
     }
@@ -206,10 +274,10 @@ export function CadastroIngrediente({ ingredienteInicial, onSalvar, onCancelar }
                 </div>
                 {errors.nome && <p className="text-red-500 text-xs mt-1">{errors.nome.message}</p>}
                 {erroApi && <p className="text-yellow-600 text-xs mt-1">{erroApi}</p>}
-                {tacoIdSelecionado && (
+                {tacoNumeroSelecionado && (
                   <p className="text-brand text-xs mt-1 flex items-center gap-1">
                     <span className="inline-block w-1.5 h-1.5 rounded-full bg-brand" />
-                    Vinculado à tabela TACO (ID {tacoIdSelecionado})
+                    Vinculado à tabela TACO (Nº {tacoNumeroSelecionado})
                   </p>
                 )}
 
@@ -217,13 +285,13 @@ export function CadastroIngrediente({ ingredienteInicial, onSalvar, onCancelar }
                   <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-xl shadow-xl z-20 max-h-52 overflow-y-auto">
                     {sugestoesTaco.map((alimento) => (
                       <button
-                        key={alimento.id}
+                        key={alimento.numero || alimento.id}
                         type="button"
                         onMouseDown={() => aplicarDadosTaco(alimento)}
                         className="w-full text-left px-4 py-2.5 hover:bg-brand/5 border-0 bg-transparent cursor-pointer flex items-center justify-between gap-3 border-b border-gray-50 last:border-b-0"
                       >
-                        <span className="text-sm text-gray-800 truncate">{alimento.description}</span>
-                        <span className="text-xs text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full shrink-0">{alimento.category.name}</span>
+                        <span className="text-sm text-gray-800 truncate">{alimento.descricao}</span>
+                        <span className="text-xs text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full shrink-0">TACO {alimento.numero}</span>
                       </button>
                     ))}
                   </div>
@@ -280,7 +348,7 @@ export function CadastroIngrediente({ ingredienteInicial, onSalvar, onCancelar }
                   <span className="ml-2 text-xs font-normal text-gray-400">por 100g</span>
                 </h2>
               </div>
-              {tacoIdSelecionado && (
+              {tacoNumeroSelecionado && (
                 <span className="text-xs bg-brand/8 text-brand px-2 py-0.5 rounded-full font-medium">
                   Preenchido via TACO
                 </span>
@@ -290,11 +358,22 @@ export function CadastroIngrediente({ ingredienteInicial, onSalvar, onCancelar }
             <div className="p-5">
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                 {([
-                  { field: 'calorias',     label: 'Calorias',     unit: 'kcal', Icon: Flame,    color: 'text-brand-orange', bg: 'bg-brand-orange/8' },
-                  { field: 'proteinas',    label: 'Proteínas',    unit: 'g',    Icon: Beef,     color: 'text-rose-500',     bg: 'bg-rose-50'        },
-                  { field: 'carboidratos', label: 'Carboidratos', unit: 'g',    Icon: Wheat,    color: 'text-amber-500',    bg: 'bg-amber-50'       },
-                  { field: 'gorduras',     label: 'Gorduras',     unit: 'g',    Icon: Droplets, color: 'text-sky-500',      bg: 'bg-sky-50'         },
-                ] as const).map(({ field, label, unit, Icon, color, bg }) => (
+                  { field: 'calorias',             label: 'Valor Energético',  unit: 'kcal', Icon: Flame,    color: 'text-brand-orange', bg: 'bg-brand-orange/8' },
+                  { field: 'carboidratos',         label: 'Carboidratos',      unit: 'g',    Icon: Wheat,    color: 'text-amber-500',    bg: 'bg-amber-50'       },
+                  { field: 'acucares_totais',      label: 'Açúcares Totais',   unit: 'g',    Icon: Wheat,    color: 'text-amber-600',    bg: 'bg-amber-50'       },
+                  { field: 'acucares_adicionados', label: 'Açúc. Adicionados', unit: 'g',    Icon: Wheat,    color: 'text-amber-700',    bg: 'bg-amber-50'       },
+                  { field: 'proteinas',            label: 'Proteínas',         unit: 'g',    Icon: Beef,     color: 'text-rose-500',     bg: 'bg-rose-50'        },
+                  { field: 'gorduras',             label: 'Gorduras Totais',   unit: 'g',    Icon: Droplets, color: 'text-sky-500',      bg: 'bg-sky-50'         },
+                  { field: 'gorduras_saturadas',   label: 'Gord. Saturadas',   unit: 'g',    Icon: Droplets, color: 'text-sky-600',      bg: 'bg-sky-50'         },
+                  { field: 'gorduras_trans',       label: 'Gorduras Trans',    unit: 'g',    Icon: Droplets, color: 'text-sky-700',      bg: 'bg-sky-50'         },
+                  { field: 'fibras',               label: 'Fibras Alimentares',unit: 'g',    Icon: Wheat,    color: 'text-emerald-500',  bg: 'bg-emerald-50'     },
+                  { field: 'sodio',                label: 'Sódio',             unit: 'mg',   Icon: PackagePlus,color: 'text-gray-500',   bg: 'bg-gray-100'       },
+                  { field: 'vitaminas',            label: 'Vitaminas',         unit: 'g',    Icon: PackagePlus,color: 'text-purple-500', bg: 'bg-purple-50'      },
+                  { field: 'minerais',             label: 'Minerais',          unit: 'g',    Icon: PackagePlus,color: 'text-indigo-500', bg: 'bg-indigo-50'      },
+                ] as const).map(({ field, label, unit, Icon, color, bg }) => {
+                  const isSugarField = field === 'acucares_totais' || field === 'acucares_adicionados';
+                  const isReadOnly = tacoNumeroSelecionado && !isSugarField;
+                  return (
                   <div key={field}>
                     <label className="flex items-center gap-1.5 text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">
                       <span className={`w-5 h-5 rounded-md flex items-center justify-center shrink-0 ${bg}`}>
@@ -302,6 +381,14 @@ export function CadastroIngrediente({ ingredienteInicial, onSalvar, onCancelar }
                       </span>
                       {label}
                       <span className="text-gray-300 font-normal normal-case">({unit})</span>
+                      {isSugarField && tacoNumeroSelecionado && (
+                        <div className="group relative ml-auto flex items-center justify-center">
+                          <HelpCircle size={14} className="text-brand/80 cursor-help" />
+                          <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 p-2 bg-gray-800 text-white text-xs rounded-lg shadow-lg opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity z-10 text-center">
+                            A tabela TACO não possui este dado. Preencha manualmente, se desejar.
+                          </div>
+                        </div>
+                      )}
                     </label>
                     <input
                       type="number"
@@ -309,14 +396,15 @@ export function CadastroIngrediente({ ingredienteInicial, onSalvar, onCancelar }
                       min={0}
                       {...register(field, { valueAsNumber: true })}
                       placeholder="0"
-                      className={inputCls(!!errors[field])}
+                      readOnly={isReadOnly}
+                      className={`${inputCls(!!errors[field])} ${isReadOnly ? 'bg-gray-100 text-gray-400 cursor-not-allowed select-none' : ''}`}
                     />
                     {errors[field] && <p className="text-red-500 text-xs mt-1">{errors[field]?.message}</p>}
                   </div>
-                ))}
+                );})}
               </div>
 
-              {!tacoIdSelecionado && (
+              {!tacoNumeroSelecionado && (
                 <p className="text-xs text-gray-400 text-center mt-4 leading-relaxed">
                   Pesquise um alimento acima para preencher automaticamente os dados nutricionais.
                 </p>
@@ -346,6 +434,79 @@ export function CadastroIngrediente({ ingredienteInicial, onSalvar, onCancelar }
           </div>
         </form>
       </div>
+
+      {/* Modal de Confirmação de Açúcares */}
+      {modalAcucarAberto && dadosParaSalvar && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-2xl p-6 max-w-sm w-full shadow-2xl animate-in fade-in zoom-in-95 duration-200">
+            <div className="flex items-center justify-center w-12 h-12 rounded-full bg-amber-100 mb-4 mx-auto">
+              <AlertTriangle className="text-amber-600" size={24} />
+            </div>
+            <h3 className="text-lg font-bold text-gray-800 text-center mb-2">
+              Atenção aos Açúcares
+            </h3>
+            <p className="text-sm text-gray-600 text-center mb-6">
+              "Açúcares Totais" e "Açúc. Adicionados" não foram preenchidos. Deseja continuar e salvar assim mesmo?
+            </p>
+            <div className="flex gap-3">
+              <button
+                type="button"
+                onClick={() => setModalAcucarAberto(false)}
+                className="flex-1 py-2.5 rounded-xl border border-gray-200 text-sm font-medium text-gray-600 bg-white hover:bg-gray-50 transition-colors focus:outline-none"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={() => salvarFinal(dadosParaSalvar)}
+                className="flex-1 py-2.5 rounded-xl bg-brand text-white text-sm font-bold hover:brightness-110 transition-colors focus:outline-none"
+              >
+                Sim, Continuar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Sucesso */}
+      {modalSucessoAberto && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-2xl p-6 max-w-sm w-full shadow-2xl animate-in fade-in zoom-in-95 duration-200">
+            <div className="flex items-center justify-center w-14 h-14 rounded-full bg-emerald-100 mb-5 mx-auto">
+              <CheckCircle2 className="text-emerald-600" size={30} />
+            </div>
+            <h3 className="text-xl font-bold text-gray-800 text-center mb-2">
+              Ingrediente salvo com sucesso!
+            </h3>
+            <p className="text-sm text-gray-600 text-center mb-8">
+              O que você deseja fazer agora?
+            </p>
+            <div className="flex flex-col gap-3">
+              <button
+                type="button"
+                onClick={() => setModalSucessoAberto(false)}
+                className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-brand text-white text-sm font-bold hover:brightness-110 transition-colors focus:outline-none border-0 cursor-pointer"
+              >
+                <PlusCircle size={16} />
+                Cadastrar mais ingredientes
+              </button>
+              {onVerLista && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setModalSucessoAberto(false);
+                    onVerLista();
+                  }}
+                  className="w-full flex items-center justify-center gap-2 py-3 rounded-xl border border-gray-200 text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 transition-colors focus:outline-none cursor-pointer"
+                >
+                  <List size={16} />
+                  Acessar lista de ingredientes
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

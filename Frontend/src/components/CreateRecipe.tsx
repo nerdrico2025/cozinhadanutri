@@ -5,19 +5,16 @@ import { z } from "zod";
 import {
   Plus, Trash2, ChefHat, Loader2, Search, ArrowLeft,
   UtensilsCrossed, TrendingUp, DollarSign, Flame,
-  Beef, Wheat, Droplets,
+  Beef, Wheat, Droplets, Info, Activity, Scale,
+  PlusCircle, AlertCircle
 } from "lucide-react";
 
-import { Receita, IngredienteReceita, DadosNutricionais } from "../types";
+import { Receita, IngredienteReceita, DadosNutricionais, Ingrediente } from "../types";
 import {
   calcularCustosReceita,
   calcularDadosNutricionaisPorPorcao,
 } from "../utils/calculations";
-import {
-  buscarAlimentos,
-  calcularRefeicao,
-  TacoFood,
-} from "../services/tacoApi";
+import { buscarAlimentosBackend, listarAlimentos } from "../services/alimentos";
 
 const receitaSchema = z.object({
   nome: z.string().min(1, "Nome da receita é obrigatório"),
@@ -38,9 +35,17 @@ const receitaSchema = z.object({
 
 type ReceitaForm = z.infer<typeof receitaSchema>;
 
+interface SearchResult {
+  id: string | number;
+  nome: string;
+  cadastrado: boolean;
+  preco?: number;
+  originalData: any; // Dados brutos do backend
+}
+
 interface RowSearch {
   query: string;
-  results: TacoFood[];
+  results: SearchResult[];
   loading: boolean;
   open: boolean;
 }
@@ -56,12 +61,14 @@ interface CriarReceitaProps {
   receitaInicial?: Receita;
   onSalvar: (receita: Receita) => void;
   onCancelar: () => void;
+  onSolicitarCadastro?: (dadosIniciais: Partial<Ingrediente>, rascunho: Receita) => void;
 }
 
 interface Calculos {
   custoTotal: number;
   custoPorPorcao: number;
   precoSugerido: number;
+  margemLucroReal: number;
   dadosNutricionaisTotais: DadosNutricionais;
   dadosNutricionaisPorPorcao: DadosNutricionais;
 }
@@ -73,7 +80,7 @@ const inputCls = (hasError?: boolean) =>
       : "border-gray-200 bg-white focus:border-brand focus:ring-1 focus:ring-brand/20"
   }`;
 
-export function CriarReceita({ receitaInicial, onSalvar, onCancelar }: CriarReceitaProps) {
+export function CriarReceita({ receitaInicial, onSalvar, onCancelar, onSolicitarCadastro }: CriarReceitaProps) {
   const [rowSearches, setRowSearches] = useState<RowSearch[]>(
     receitaInicial
       ? receitaInicial.ingredientes.map((i) => ({ query: i.nome, results: [], loading: false, open: false }))
@@ -82,14 +89,15 @@ export function CriarReceita({ receitaInicial, onSalvar, onCancelar }: CriarRece
   const [calculos, setCalculos] = useState<Calculos | null>(null);
   const [calculandoApi, setCalculandoApi] = useState(false);
   const [salvando, setSalvando] = useState(false);
+  const [modalCadastro, setModalCadastro] = useState<{ aberto: boolean; ingrediente?: SearchResult }>({ aberto: false });
   const debounceRefs = useRef<(ReturnType<typeof setTimeout> | null)[]>([]);
 
-  const { register, handleSubmit, control, formState: { errors }, watch, setValue, reset } =
+  const { register, handleSubmit, control, formState: { errors }, watch, setValue, reset, getValues } =
     useForm<ReceitaForm>({
       resolver: zodResolver(receitaSchema),
       defaultValues: receitaInicial ?? {
         porcoes: 1,
-        margemLucro: 200,
+        margemLucro: 10,
         ingredientes: [{ tacoId: 0, nome: "", quantidade: 0, preco: 0 }],
       },
     });
@@ -109,19 +117,48 @@ export function CriarReceita({ receitaInicial, onSalvar, onCancelar }: CriarRece
 
   useEffect(() => {
     const validos = watchedIngredientes.filter(
-      (i) => i.tacoId > 0 && i.quantidade > 0 && i.preco > 0
+      (i) => i.tacoId && i.quantidade > 0 && i.preco >= 0
     );
     if (validos.length === 0 || watchedPorcoes <= 0) { setCalculos(null); return; }
 
-    const custos = calcularCustosReceita(validos as IngredienteReceita[], watchedPorcoes, watchedMargemLucro);
-    setCalculandoApi(true);
-    calcularRefeicao(validos.map((i) => ({ id: i.tacoId, grams: i.quantidade })))
-      .then((resp) => {
-        const t = resp.totals.macros;
-        const totais: DadosNutricionais = { calorias: t.kcal, proteinas: t.protein, carboidratos: t.carbohydrate, gorduras: t.lipids };
-        setCalculos({ ...custos, dadosNutricionaisTotais: totais, dadosNutricionaisPorPorcao: calcularDadosNutricionaisPorPorcao(totais, watchedPorcoes) });
-      })
-      .finally(() => setCalculandoApi(false));
+    const custos = calcularCustosReceita(
+      validos.map(v => ({ quantidade: v.quantidade, preco: v.preco })), 
+      watchedPorcoes, 
+      watchedMargemLucro
+    );
+
+    // Cálculo nutricional local baseado nos ingredientes selecionados
+    const totais: DadosNutricionais = {
+      calorias: 0, proteinas: 0, carboidratos: 0, gorduras: 0,
+      acucares_totais: 0, acucares_adicionados: 0, gorduras_saturadas: 0,
+      gorduras_trans: 0, fibras: 0, sodio: 0, vitaminas: 0, minerais: 0
+    };
+
+    validos.forEach((item) => {
+      // Busca o ingrediente original nos resultados da busca
+      const searchResult = rowSearches
+        .flatMap(rs => rs.results)
+        .find(r => r.cadastrado && String(r.id) === String(item.tacoId));
+      
+      const ingredienteCompleto = searchResult?.originalData as Ingrediente | undefined;
+      
+      if (ingredienteCompleto?.dadosNutricionais) {
+        const proporcao = item.quantidade / 100;
+        Object.keys(totais).forEach((key) => {
+          const k = key as keyof DadosNutricionais;
+          const valor = ingredienteCompleto.dadosNutricionais[k];
+          if (typeof valor === 'number') {
+            totais[k] += valor * proporcao;
+          }
+        });
+      }
+    });
+
+    setCalculos({ 
+      ...custos, 
+      dadosNutricionaisTotais: totais, 
+      dadosNutricionaisPorPorcao: calcularDadosNutricionaisPorPorcao(totais, watchedPorcoes) 
+    });
   }, [watchedIngredientes, watchedPorcoes, watchedMargemLucro]);
 
   const updateRow = useCallback((index: number, patch: Partial<RowSearch>) => {
@@ -135,16 +172,86 @@ export function CriarReceita({ receitaInicial, onSalvar, onCancelar }: CriarRece
     debounceRefs.current[index] = setTimeout(async () => {
       updateRow(index, { loading: true });
       try {
-        const results = await buscarAlimentos(value);
-        updateRow(index, { results, open: results.length > 0, loading: false });
-      } catch { updateRow(index, { loading: false }); }
-    }, 350);
+        const results = await buscarAlimentosBackend(value);
+
+        const combined: SearchResult[] = results.map((item: any) => {
+          const ingrediente: Ingrediente = {
+            id: String(item.id),
+            tacoId: item.numero,
+            nome: item.descricao,
+            unidade: item.unidade_medida || 'g',
+            preco: item.preco !== null ? parseFloat(item.preco) : 0,
+            dadosNutricionais: {
+              calorias: parseFloat(item.energia_kcal) || 0,
+              proteinas: parseFloat(item.proteina) || 0,
+              carboidratos: parseFloat(item.carboidrato) || 0,
+              gorduras: parseFloat(item.lipideos) || 0,
+              acucares_totais: parseFloat(item.acucares_totais) || 0,
+              acucares_adicionados: parseFloat(item.acucares_adicionados) || 0,
+              gorduras_saturadas: parseFloat(item.saturados) || 0,
+              gorduras_trans: (parseFloat(item.AG18_1t) || 0) + (parseFloat(item.AG18_2t) || 0),
+              fibras: parseFloat(item.fibra_alimentar) || 0,
+              sodio: parseFloat(item.sodio) || 0,
+              vitaminas: parseFloat(item.vitaminas) || 0,
+              minerais: parseFloat(item.minerais) || 0,
+            }
+          };
+
+          return {
+            id: String(item.id),
+            nome: item.descricao,
+            cadastrado: item.preco !== null && item.preco !== undefined,
+            preco: item.preco !== null ? parseFloat(item.preco) : undefined,
+            originalData: ingrediente
+          };
+        });
+
+        if (combined.length === 0) {
+          updateRow(index, { results: [], open: false, loading: false });
+          return;
+        }
+
+        updateRow(index, { results: combined, open: true, loading: false });
+      } catch (err) { 
+        console.error("Erro na busca:", err);
+        updateRow(index, { loading: false }); 
+      }
+    }, 600);
   };
 
-  const handleSelectAlimento = (index: number, alimento: TacoFood) => {
-    setValue(`ingredientes.${index}.tacoId`, alimento.id, { shouldValidate: true });
-    setValue(`ingredientes.${index}.nome`, alimento.description, { shouldValidate: true });
-    updateRow(index, { query: alimento.description, results: [], open: false });
+  const handleSelectAlimento = (index: number, result: SearchResult) => {
+    if (!result.cadastrado) {
+      setModalCadastro({ aberto: true, ingrediente: result });
+      return;
+    }
+
+    setValue(`ingredientes.${index}.tacoId`, Number(result.id), { shouldValidate: true });
+    setValue(`ingredientes.${index}.nome`, result.nome, { shouldValidate: true });
+    setValue(`ingredientes.${index}.preco`, result.preco || 0, { shouldValidate: true });
+    updateRow(index, { query: result.nome, results: [result], open: false });
+  };
+
+  const handleConfirmarRedirecionamento = () => {
+    const result = modalCadastro.ingrediente;
+    if (result && onSolicitarCadastro) {
+      const currentData = getValues();
+      const rascunho: Receita = {
+        id: receitaInicial?.id ?? "rascunho",
+        nome: currentData.nome,
+        descricao: currentData.descricao,
+        porcoes: currentData.porcoes,
+        margemLucro: currentData.margemLucro,
+        ingredientes: currentData.ingredientes as IngredienteReceita[],
+        custoTotal: calculos?.custoTotal ?? 0,
+        custoPorPorcao: calculos?.custoPorPorcao ?? 0,
+        precoSugerido: calculos?.precoSugerido ?? 0,
+        dadosNutricionaisTotais: calculos?.dadosNutricionaisTotais ?? { calorias: 0, proteinas: 0, carboidratos: 0, gorduras: 0, acucares_totais: 0, acucares_adicionados: 0, gorduras_saturadas: 0, gorduras_trans: 0, fibras: 0, sodio: 0, vitaminas: 0, minerais: 0 },
+        dadosNutricionaisPorPorcao: calculos?.dadosNutricionaisPorPorcao ?? { calorias: 0, proteinas: 0, carboidratos: 0, gorduras: 0, acucares_totais: 0, acucares_adicionados: 0, gorduras_saturadas: 0, gorduras_trans: 0, fibras: 0, sodio: 0, vitaminas: 0, minerais: 0 },
+        createdAt: receitaInicial?.createdAt ?? new Date()
+      };
+      onSolicitarCadastro(result.originalData as Ingrediente, rascunho);
+    }
+    setModalCadastro({ aberto: false });
   };
 
   const onSubmit = async (data: ReceitaForm) => {
@@ -153,7 +260,7 @@ export function CriarReceita({ receitaInicial, onSalvar, onCancelar }: CriarRece
     try {
       const custos = calcularCustosReceita(data.ingredientes as IngredienteReceita[], data.porcoes, data.margemLucro);
       onSalvar({
-        id: receitaInicial?.id ?? Date.now().toString(),
+        id: receitaInicial?.id,
         nome: data.nome,
         descricao: data.descricao,
         ingredientes: data.ingredientes as IngredienteReceita[],
@@ -337,7 +444,10 @@ export function CriarReceita({ receitaInicial, onSalvar, onCancelar }: CriarRece
                           {fields.length > 1 && (
                             <button
                               type="button"
-                              onClick={() => remove(index)}
+                              onClick={() => {
+                                remove(index);
+                                setRowSearches((prev) => prev.filter((_, i) => i !== index));
+                              }}
                               aria-label="Remover ingrediente"
                               className="flex items-center gap-1 text-xs text-red-400 hover:text-red-600 hover:bg-red-50 px-2 py-1 rounded-lg transition-colors border-0 bg-transparent cursor-pointer focus:outline-none"
                             >
@@ -371,15 +481,35 @@ export function CriarReceita({ receitaInicial, onSalvar, onCancelar }: CriarRece
                           )}
                           {row.open && row.results.length > 0 && (
                             <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-xl shadow-xl z-20 max-h-52 overflow-y-auto">
-                              {row.results.map((alimento) => (
+                              {row.results.map((result) => (
                                 <button
-                                  key={alimento.id}
+                                  key={result.id}
                                   type="button"
-                                  onMouseDown={() => handleSelectAlimento(index, alimento)}
-                                  className="w-full text-left px-4 py-2.5 hover:bg-brand/5 border-0 bg-transparent cursor-pointer flex items-center justify-between gap-3 border-b border-gray-50 last:border-b-0"
+                                  onMouseDown={() => handleSelectAlimento(index, result)}
+                                  className="w-full text-left px-4 py-2.5 hover:bg-brand/5 border-0 bg-transparent cursor-pointer flex items-center justify-between gap-3 border-b border-gray-50 last:border-b-0 group"
                                 >
-                                  <span className="text-sm text-gray-800 truncate">{alimento.description}</span>
-                                  <span className="text-xs text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full shrink-0">{alimento.category.name}</span>
+                                  <div className="flex flex-col min-w-0">
+                                    <span className="text-sm text-gray-800 truncate group-hover:text-brand transition-colors font-medium">
+                                      {result.nome}
+                                    </span>
+                                    {result.cadastrado && result.preco && (
+                                      <span className="text-[10px] text-gray-400">
+                                        Preço base: R$ {result.preco.toFixed(2)}
+                                      </span>
+                                    )}
+                                  </div>
+                                  
+                                  {result.cadastrado ? (
+                                    <div className="flex items-center gap-1.5 shrink-0 bg-emerald-50 text-emerald-600 px-2 py-0.5 rounded-full border border-emerald-100">
+                                      <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                                      <span className="text-[10px] font-bold uppercase tracking-tight">Cadastrado</span>
+                                    </div>
+                                  ) : (
+                                    <div className="flex items-center gap-1.5 shrink-0 bg-amber-50 text-amber-600 px-2 py-0.5 rounded-full border border-amber-100">
+                                      <PlusCircle size={10} />
+                                      <span className="text-[10px] font-bold uppercase tracking-tight">Não Cadastrado</span>
+                                    </div>
+                                  )}
                                 </button>
                               ))}
                             </div>
@@ -405,16 +535,19 @@ export function CriarReceita({ receitaInicial, onSalvar, onCancelar }: CriarRece
                           </div>
                           <div>
                             <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">
-                              Preço / 100g (R$)
+                              Preço / 100g ou UN (R$)
                             </label>
-                            <input
-                              type="number"
-                              min={0.01}
-                              step={0.01}
-                              {...register(`ingredientes.${index}.preco`, { valueAsNumber: true })}
-                              placeholder="0,00"
-                              className={inputCls(!!errosIng?.preco)}
-                            />
+                            <div className="relative">
+                              <DollarSign size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                              <input
+                                type="number"
+                                min={0.01}
+                                step={0.01}
+                                {...register(`ingredientes.${index}.preco`, { valueAsNumber: true })}
+                                placeholder="0,00"
+                                className={`${inputCls(!!errosIng?.preco)} pl-8`}
+                              />
+                            </div>
                             {errosIng?.preco && (
                               <p className="text-red-500 text-xs mt-1">{errosIng.preco.message}</p>
                             )}
@@ -433,7 +566,10 @@ export function CriarReceita({ receitaInicial, onSalvar, onCancelar }: CriarRece
                 <div className="px-5 py-3 border-t border-dashed border-gray-100">
                   <button
                     type="button"
-                    onClick={() => append({ tacoId: 0, nome: "", quantidade: 0, preco: 0 })}
+                    onClick={() => {
+                      append({ tacoId: 0, nome: "", quantidade: 0, preco: 0 });
+                      setRowSearches((prev) => [...prev, emptyRow()]);
+                    }}
                     className="w-full flex items-center justify-center gap-2 text-sm text-gray-400 hover:text-brand hover:bg-brand/5 py-2 rounded-lg transition-colors border-0 bg-transparent cursor-pointer focus:outline-none"
                   >
                     <Plus size={14} />
@@ -467,38 +603,48 @@ export function CriarReceita({ receitaInicial, onSalvar, onCancelar }: CriarRece
             {/* ── Coluna lateral — resumo sticky ───────────────────────── */}
             <div className="w-full lg:w-72 xl:w-80 shrink-0 lg:sticky lg:top-20 flex flex-col gap-4">
 
-              {/* Card: financeiro */}
+               {/* Card: financeiro */}
               <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-                <div className="px-5 py-4 border-b border-gray-50 flex items-center justify-between">
-                  <p className="text-sm font-semibold text-gray-800">Resumo Financeiro</p>
-                  {calculandoApi && (
-                    <Loader2 size={14} className="animate-spin text-brand" />
-                  )}
+                <div className="px-5 py-4 border-b border-gray-50 bg-gray-50/50">
+                  <p className="text-sm font-bold text-gray-800">Resumo Financeiro</p>
                 </div>
 
                 {calculos ? (
-                  <div className="p-4 flex flex-col gap-3">
-                    {[
-                      { label: "Custo Total", value: `R$ ${calculos.custoTotal?.toFixed(2)}`, Icon: DollarSign, bg: "bg-blue-50", color: "text-blue-600" },
-                      { label: "Custo por Porção", value: `R$ ${calculos.custoPorPorcao?.toFixed(2)}`, Icon: TrendingUp, bg: "bg-purple-50", color: "text-purple-600" },
-                      { label: "Preço Sugerido", value: `R$ ${calculos.precoSugerido?.toFixed(2)}`, Icon: DollarSign, bg: "bg-green-50", color: "text-green-600" },
-                    ].map(({ label, value, Icon, bg, color }) => (
-                      <div key={label} className="flex items-center gap-3">
-                        <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${bg}`}>
-                          <Icon size={16} className={color} />
-                        </div>
-                        <div className="min-w-0">
-                          <p className="text-xs text-gray-400">{label}</p>
-                          <p className={`text-sm font-bold ${color}`}>{value}</p>
-                        </div>
+                  <div className="p-5 flex flex-col gap-4">
+                    <div className="grid grid-cols-2 gap-3 mb-2">
+                      <div className="bg-gray-50 p-3 rounded-xl border border-gray-100">
+                        <p className="text-[10px] text-gray-400 uppercase font-bold tracking-wider mb-1">Ingredientes</p>
+                        <p className="text-lg font-black text-gray-700">{watchedIngredientes.length}</p>
                       </div>
-                    ))}
+                      <div className="bg-blue-50/30 p-3 rounded-xl border border-blue-100/50">
+                        <p className="text-[10px] text-blue-400 uppercase font-bold tracking-wider mb-1">Custo Total</p>
+                        <p className="text-lg font-black text-blue-600">R$ {calculos.custoTotal.toFixed(2)}</p>
+                      </div>
+                    </div>
+
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between py-2 border-b border-gray-50">
+                        <span className="text-xs text-gray-500">Custo por Porção</span>
+                        <span className="text-sm font-bold text-gray-700">R$ {calculos.custoPorPorcao.toFixed(2)}</span>
+                      </div>
+                      <div className="flex items-center justify-between py-2 border-b border-gray-50">
+                        <span className="text-xs text-gray-500">Sugestão de Venda</span>
+                        <span className="text-sm font-black text-emerald-600">R$ {calculos.precoSugerido.toFixed(2)}</span>
+                      </div>
+                        <div className="flex items-center justify-between py-2 bg-emerald-50/50 px-3 rounded-lg">
+                        <div className="flex flex-col">
+                          <span className="text-[10px] text-emerald-600 uppercase font-bold">Lucro Previsto</span>
+                          <span className="text-xs text-emerald-500 font-medium">Margem de {watchedMargemLucro}%</span>
+                        </div>
+                        <span className="text-base font-black text-emerald-600">R$ {calculos.margemLucroReal.toFixed(2)}</span>
+                      </div>
+                    </div>
                   </div>
                 ) : (
                   <div className="px-5 py-8 text-center">
                     <DollarSign size={28} className="text-gray-200 mx-auto mb-2" />
                     <p className="text-xs text-gray-400 leading-relaxed">
-                      Adicione ingredientes com quantidade e preço para ver o resumo.
+                      Adicione ingredientes para ver o resumo financeiro detalhado.
                     </p>
                   </div>
                 )}
@@ -506,48 +652,55 @@ export function CriarReceita({ receitaInicial, onSalvar, onCancelar }: CriarRece
 
               {/* Card: nutricional */}
               <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-                <div className="px-5 py-4 border-b border-gray-50">
-                  <p className="text-sm font-semibold text-gray-800">Informação Nutricional</p>
-                  <p className="text-xs text-gray-400 mt-0.5">por porção</p>
+                <div className="px-5 py-4 border-b border-gray-50 bg-gray-50/50 flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-bold text-gray-800">Prévia Nutricional</p>
+                    <p className="text-[10px] text-gray-400 uppercase font-medium tracking-tight">Valores médios por porção</p>
+                  </div>
+                  <Info size={14} className="text-gray-300" />
                 </div>
 
                 {calculos ? (
                   <div className="p-4 flex flex-col gap-3">
-                    {/* Calorias — destaque */}
-                    <div className="bg-brand-orange/8 rounded-xl p-3 flex items-center gap-3">
-                      <div className="w-9 h-9 rounded-xl bg-brand-orange/15 flex items-center justify-center shrink-0">
-                        <Flame size={17} className="text-brand-orange" />
+                    <div className="bg-orange-50/50 rounded-xl p-3 flex items-center justify-between border border-orange-100/50">
+                      <div className="flex items-center gap-2">
+                        <Flame size={16} className="text-orange-500" />
+                        <span className="text-xs font-bold text-gray-600">Energia</span>
                       </div>
-                      <div>
-                        <p className="text-xs text-brand-orange/70">Calorias</p>
-                        <p className="text-base font-bold text-brand-orange">
-                          {calculos.dadosNutricionaisPorPorcao?.calorias?.toFixed(0)} kcal
-                        </p>
-                      </div>
+                      <span className="text-sm font-black text-orange-600">
+                        {calculos.dadosNutricionaisPorPorcao.calorias.toFixed(0)} kcal
+                      </span>
                     </div>
 
-                    {/* Macros */}
-                    {[
-                      { label: "Proteínas", value: `${calculos.dadosNutricionaisPorPorcao?.proteinas?.toFixed(1)}g`, Icon: Beef, color: "text-rose-500", bg: "bg-rose-50" },
-                      { label: "Carboidratos", value: `${calculos.dadosNutricionaisPorPorcao?.carboidratos?.toFixed(1)}g`, Icon: Wheat, color: "text-amber-500", bg: "bg-amber-50" },
-                      { label: "Gorduras", value: `${calculos.dadosNutricionaisPorPorcao?.gorduras?.toFixed(1)}g`, Icon: Droplets, color: "text-sky-500", bg: "bg-sky-50" },
-                    ].map(({ label, value, Icon, color, bg }) => (
-                      <div key={label} className="flex items-center gap-3">
-                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${bg}`}>
-                          <Icon size={14} className={color} />
+                    <div className="grid grid-cols-1 gap-2">
+                      {[
+                        { label: "Proteínas", value: calculos.dadosNutricionaisPorPorcao.proteinas, unit: "g", Icon: Beef, color: "text-rose-500", bg: "bg-rose-50" },
+                        { label: "Carbos", value: calculos.dadosNutricionaisPorPorcao.carboidratos, unit: "g", Icon: Wheat, color: "text-amber-500", bg: "bg-amber-50" },
+                        { label: "Gorduras", value: calculos.dadosNutricionaisPorPorcao.gorduras, unit: "g", Icon: Droplets, color: "text-sky-500", bg: "bg-sky-50" },
+                        { label: "Fibras", value: calculos.dadosNutricionaisPorPorcao.fibras, unit: "g", Icon: Wheat, color: "text-emerald-500", bg: "bg-emerald-50" },
+                        { label: "Sódio", value: calculos.dadosNutricionaisPorPorcao.sodio, unit: "mg", Icon: Activity, color: "text-gray-500", bg: "bg-gray-100" },
+                      ].map(({ label, value, unit, Icon, color, bg }) => (
+                        <div key={label} className="flex items-center justify-between px-3 py-2 rounded-lg hover:bg-gray-50 transition-colors">
+                          <div className="flex items-center gap-2">
+                            <div className={`p-1 rounded-md ${bg}`}>
+                              <Icon size={12} className={color} />
+                            </div>
+                            <span className="text-[11px] font-medium text-gray-500">{label}</span>
+                          </div>
+                          <span className="text-xs font-bold text-gray-700">{value.toFixed(1)}{unit}</span>
                         </div>
-                        <div className="flex-1 flex items-center justify-between">
-                          <p className="text-xs text-gray-500">{label}</p>
-                          <p className={`text-sm font-semibold ${color}`}>{value}</p>
-                        </div>
-                      </div>
-                    ))}
+                      ))}
+                    </div>
+
+                    <p className="text-[9px] text-gray-400 text-center italic mt-2">
+                      Valores aproximados baseados nos ingredientes informados.
+                    </p>
                   </div>
                 ) : (
                   <div className="px-5 py-8 text-center">
                     <Flame size={28} className="text-gray-200 mx-auto mb-2" />
                     <p className="text-xs text-gray-400 leading-relaxed">
-                      Os dados nutricionais aparecem automaticamente conforme os ingredientes são preenchidos.
+                      Preencha os ingredientes para gerar a prévia nutricional.
                     </p>
                   </div>
                 )}
@@ -557,6 +710,46 @@ export function CriarReceita({ receitaInicial, onSalvar, onCancelar }: CriarRece
           </div>
         </form>
       </div>
+
+      {/* Modal de Alerta de Cadastro */}
+      {modalCadastro.aberto && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-3xl p-8 max-w-sm w-full shadow-2xl animate-in fade-in zoom-in-95 duration-200">
+            <div className="flex items-center justify-center w-20 h-20 rounded-full bg-amber-100 mb-6 mx-auto">
+              <AlertCircle className="text-amber-600" size={40} />
+            </div>
+            
+            <h3 className="text-xl font-black text-gray-800 text-center mb-3">
+              Ingrediente não cadastrado
+            </h3>
+            
+            <p className="text-sm text-gray-500 text-center mb-8 leading-relaxed">
+              O item <span className="font-bold text-gray-700">"{modalCadastro.ingrediente?.nome}"</span> ainda não possui preço ou unidade definidos. 
+              <br/><br/>
+              Deseja cadastrá-lo agora? Seu rascunho da receita será <span className="text-brand font-bold">preservado automaticamente</span>.
+            </p>
+            
+            <div className="flex flex-col gap-3">
+              <button
+                type="button"
+                onClick={handleConfirmarRedirecionamento}
+                className="w-full flex items-center justify-center gap-2 py-4 rounded-2xl bg-brand text-white text-sm font-black hover:brightness-110 transition-all shadow-lg shadow-brand/20 border-0 cursor-pointer"
+              >
+                Sim, cadastrar agora
+                <PlusCircle size={18} />
+              </button>
+              
+              <button
+                type="button"
+                onClick={() => setModalCadastro({ aberto: false })}
+                className="w-full py-3 rounded-2xl border border-gray-100 text-xs font-bold text-gray-400 bg-white hover:bg-gray-50 transition-colors border-0 cursor-pointer"
+              >
+                Agora não
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
