@@ -69,6 +69,7 @@ INSTALLED_APPS = [
     'alimentos',
     'drf_spectacular',
     'usuarios',
+    'fichas',
 ]
 
 MIDDLEWARE = [
