@@ -12,9 +12,13 @@ https://docs.djangoproject.com/en/6.0/ref/settings/
 
 import os
 from pathlib import Path
+from dotenv import load_dotenv
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
+
+# Load environment variables from .env file
+load_dotenv()
 
 # Load .env file manually to avoid needing python-dotenv
 env_file = BASE_DIR / '.env'
@@ -69,6 +73,7 @@ INSTALLED_APPS = [
     'alimentos',
     'drf_spectacular',
     'usuarios',
+    'fichas',
 ]
 
 MIDDLEWARE = [
@@ -88,8 +93,9 @@ REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
         'usuarios.authentication.CustomCookieJWTAuthentication',
     ),
-}
 
+    'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
+}
 SIMPLE_JWT = {
     'ACCESS_TOKEN_LIFETIME': timedelta(hours=2),
     'REFRESH_TOKEN_LIFETIME': timedelta(days=1),
