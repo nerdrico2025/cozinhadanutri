@@ -3,4 +3,9 @@ from .models import Alimento
 
 # Register your models here.
 
-admin.site.register(Alimento)
+
+class AlimentoAdmin(admin.ModelAdmin):
+    list_display = ('numero', 'descricao', 'energia_kcal', 'carboidratos', 'proteinas', 'gorduras_totais', 'fibra_alimentar', 'sodio')
+    search_fields = ('descricao',)
+
+admin.site.register(Alimento, AlimentoAdmin)

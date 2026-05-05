@@ -57,20 +57,17 @@ class AlimentoSerializer(serializers.ModelSerializer):
 
     def validate(self, data):
         campos = [
-            'umidade',
+            'gorduras_totais',
             'energia_kcal',
-            'proteina',
-            'lipideos',
-            'carboidrato',
+            'proteinas',
+            'gorduras_saturadas',
+            'carboidratos',
             'acucares_totais',
             'acucares_adicionados',
             'fibra_alimentar',
             'sodio',
-            'vitaminas',
-            'minerais',
-            'saturados',
-            'AG18_1t',
-            'AG18_2t',
+            'preco',
+            'unidade_medida',
         ]
 
         for campo in campos:
@@ -126,7 +123,7 @@ class ReceitaSerializer(serializers.ModelSerializer):
         for ing_data in ingredientes_data:
             IngredienteReceita.objects.create(receita=receita, **ing_data)
             
-        return receita
+        return rec
 
     def update(self, instance, validated_data):
         ingredientes_data = validated_data.pop('ingredientes', None)

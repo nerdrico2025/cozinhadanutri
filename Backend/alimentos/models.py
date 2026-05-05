@@ -15,22 +15,17 @@ class Alimento(models.Model):
     numero = models.IntegerField(unique=True)
     descricao = models.CharField(max_length=255)
     
-    umidade = models.DecimalField(max_digits=10, decimal_places=4, null=True, blank=True)
     energia_kcal = models.DecimalField(max_digits=20, decimal_places=4, null=True, blank=True)
-    proteina = models.DecimalField(max_digits=20, decimal_places=4, null=True, blank=True)
-    lipideos = models.DecimalField(max_digits=20, decimal_places=4, null=True, blank=True)
-    carboidrato = models.DecimalField(max_digits=20, decimal_places=4, null=True, blank=True)
+    carboidratos = models.DecimalField(max_digits=20, decimal_places=4, null=True, blank=True)
     acucares_totais = models.DecimalField(max_digits=20, decimal_places=4, null=True, blank=True)
     acucares_adicionados = models.DecimalField(max_digits=20, decimal_places=4, null=True, blank=True)
+    proteinas = models.DecimalField(max_digits=20, decimal_places=4, null=True, blank=True)
+    gorduras_totais = models.DecimalField(max_digits=20, decimal_places=4, null=True, blank=True)
+    gorduras_saturadas = models.DecimalField(max_digits=20, decimal_places=4, null=True, blank=True)
+    gorduras_trans = models.DecimalField(max_digits=20, decimal_places=4, null=True, blank=True)
+
     fibra_alimentar = models.DecimalField(max_digits=20, decimal_places=4, null=True, blank=True)
     sodio = models.DecimalField(max_digits=20, decimal_places=4, null=True, blank=True)
-    vitaminas = models.DecimalField(max_digits=20, decimal_places=4, null=True, blank=True)
-    minerais = models.DecimalField(max_digits=20, decimal_places=4, null=True, blank=True)
-
-    saturados = models.DecimalField(max_digits=20, decimal_places=4, null=True, blank=True)
-
-    AG18_1t = models.DecimalField(max_digits=20, decimal_places=4, null=True, blank=True)
-    AG18_2t = models.DecimalField(max_digits=20, decimal_places=4, null=True, blank=True)
 
     preco = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     unidade_medida = models.CharField(max_length=10, choices=UNIDADES, null=True, blank=True)
