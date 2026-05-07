@@ -16,7 +16,10 @@ class empresa(models.Model):
     inscricao_estadual = models.CharField(max_length=14, blank=True, null=True)
     telefone = models.CharField(max_length=20, blank=True, null=True)
     email = models.EmailField(blank=True, null=True)
+
     plano = models.CharField(max_length=20, choices=PLANOS_CHOICES, default='gratis')
+
+    plano_ativo = models.BooleanField(default=True)
     
     # Endereço (Integrações NF-e / ISS)
     cep = models.CharField(max_length=9, blank=True, null=True)

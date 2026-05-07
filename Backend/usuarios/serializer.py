@@ -1,6 +1,8 @@
 from rest_framework import serializers
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from .models import empresa, User, Auditoria
+from rest_framework import serializers
+from .models import empresa
 
 
 class EmpresaSerializer(serializers.ModelSerializer):
@@ -159,4 +161,16 @@ class AdminUserSerializer(serializers.ModelSerializer):
             'id', 'username', 'email', 'empresa', 
             'is_active', 'date_joined', 'last_login', 
             'receitas_count', 'rotulos_count'
+        ]
+
+class EmpresaPlanoSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = empresa
+
+        fields = [
+            "id",
+            "razao_social",
+            "plano",
+            "plano_ativo",
         ]

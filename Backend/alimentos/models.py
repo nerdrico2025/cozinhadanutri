@@ -66,4 +66,4 @@ class IngredienteReceita(models.Model):
     preco_personalizado = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True) # preco por 100g ou unidade
 
     def __str__(self):
-        return f'{self.alimento.descricao} em {self.receita.nome}'
+        return f'{self.alimento.descricao} em {self.receita.nome}' 
