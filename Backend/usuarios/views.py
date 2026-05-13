@@ -1,4 +1,4 @@
-from rest_framework import generics, status
+from rest_framework import generics, status, permissions
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
@@ -11,7 +11,8 @@ from django.http import HttpResponse
 
 from .models import (
     User,
-    Auditoria
+    Auditoria,
+    Plano
 )
 
 from .serializer import (
@@ -117,6 +118,14 @@ class EsqueciSenhaView(APIView):
         )
 
 
+# LISTAR PLANOS
+class PlanoListView(generics.ListAPIView):
+
+    queryset = Plano.objects.filter(ativo=True)
+    permission_classes = [permissions.IsAuthenticated]
+
+
+# ASSINATURA ATUAL
 class MeuPlanoView(APIView):
 
     permission_classes = [IsAuthenticated]
@@ -141,7 +150,8 @@ class MeuPlanoView(APIView):
         return Response(serializer.data)
 
 
-class TrocarPlanoView(APIView):
+# ASSINAR PLANO
+class AssinarPlanoView(APIView):
 
     permission_classes = [IsAuthenticated]
 
@@ -158,15 +168,96 @@ class TrocarPlanoView(APIView):
 
         empresa_usuario = request.user.empresa
 
-        novo_plano = request.data.get("plano")
+        plano_id = request.data.get("plano")
 
-        planos_validos = [
-            "gratis",
-            "profissional",
-            "empresarial"
-        ]
+        if not plano_id:
 
-        if novo_plano not in planos_validos:
+            return Response(
+                {
+                    "detail": "Plano não enviado."
+                },
+                status=400
+            )
+
+        try:
+
+            plano = Plano.objects.get(id=plano_id)
+
+        except Plano.DoesNotExist:
+
+            return Response(
+                {
+                    "detail": "Plano não encontrado."
+                },
+                status=404
+            )
+
+        empresa_usuario.plano = plano
+        empresa_usuario.plano_ativo = True
+
+        empresa_usuario.save()
+
+        Auditoria.log(
+            usuario=request.user,
+            acao=f'Assinou o plano {plano.nome}',
+            tipo='plano'
+        )
+
+        serializer = EmpresaPlanoSerializer(
+            empresa_usuario
+        )
+
+        return Response(serializer.data)
+
+
+# TROCAR PLANO
+class TrocarPlanoView(APIView):
+
+    permission_classes = [IsAuthenticated]
+
+    @extend_schema(
+        request={
+            "application/json": {
+                "type": "object",
+                "properties": {
+                    "plano": {
+                        "type": "integer"
+                    }
+                },
+                "required": ["plano"]
+            }
+        }
+    )
+    def patch(self, request):
+
+        if not request.user.empresa:
+
+            return Response(
+                {
+                    "detail": "Usuário sem empresa."
+                },
+                status=404
+            )
+
+        empresa_usuario = request.user.empresa
+
+        plano_id = request.data.get("plano")
+
+        if not plano_id:
+
+            return Response(
+                {
+                    "detail": "Plano não enviado."
+                },
+                status=400
+            )
+
+        from .models import Plano
+
+        try:
+            plano = Plano.objects.get(id=plano_id)
+
+        except Plano.DoesNotExist:
 
             return Response(
                 {
@@ -175,31 +266,19 @@ class TrocarPlanoView(APIView):
                 status=400
             )
 
-        if not empresa_usuario.plano_ativo:
-
-            return Response(
-                {
-                    "detail": "Plano desativado."
-                },
-                status=400
-            )
-
-        plano_antigo = empresa_usuario.plano
-
-        empresa_usuario.plano = novo_plano
+        empresa_usuario.plano = plano
 
         empresa_usuario.save()
 
         Auditoria.log(
             usuario=request.user,
-            acao=f'Trocou plano de {plano_antigo} para {novo_plano}',
+            acao=f'Trocou plano para {plano.nome}',
             tipo='plano'
         )
 
         return Response(
             {
                 "message": "Plano alterado.",
-                "de": plano_antigo,
-                "para": novo_plano
+                "plano": plano.nome
             }
         )
