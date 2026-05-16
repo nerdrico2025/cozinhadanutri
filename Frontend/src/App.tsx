@@ -12,6 +12,8 @@ import { FAQ } from './pages/FAQ';
 import { Dashboard } from './pages/Dashboard';
 import { Adm } from './pages/Adm';
 import { NotFound } from './pages/NotFound';
+import { ContactForm } from './pages/ContactForm';
+import { Receipt } from './pages/receipt';
 import { CriarReceita } from './components/CreateRecipe';
 import { ListaReceitas } from './components/RecipeList';
 import { CadastroIngrediente } from './components/IngredientRegistration';
@@ -47,6 +49,8 @@ type TelaAtiva =
   | 'privacidade'
   | 'pagamento'
   | 'adm'
+  | 'contato'
+  | 'recibo'
   | 'boas-vindas'
   | 'not-found';
 
@@ -54,7 +58,7 @@ type TelaAtiva =
 const validTelas: TelaAtiva[] = [
   'home', 'login', 'register', 'esqueci-senha', 'perfil',
   'dashboard', 'receitas', 'criar-receita', 'cadastro-ingrediente',
-  'lista-ingredientes', 'planos', 'faq', 'suporte', 'termos', 'privacidade', 'pagamento', 'adm', 'boas-vindas', 'not-found'
+  'lista-ingredientes', 'planos', 'faq', 'suporte', 'contato', 'recibo', 'termos', 'privacidade', 'pagamento', 'adm', 'boas-vindas', 'not-found'
 ];
 
 const getTelaFromHash = (): TelaAtiva => {
@@ -75,7 +79,7 @@ function App() {
   const [rascunhoReceita, setRascunhoReceita] = useState<Receita | undefined>(undefined);
   const [carregandoSessao, setCarregandoSessao] = useState(true);
 
-  const publicTelas: TelaAtiva[] = ['home', 'login', 'register', 'esqueci-senha', 'faq', 'suporte', 'termos', 'privacidade', 'not-found', 'planos'];
+  const publicTelas: TelaAtiva[] = ['home', 'login', 'register', 'esqueci-senha', 'faq', 'suporte', 'contato', 'recibo', 'termos', 'privacidade', 'not-found', 'planos'];
 
   const setTelaAtiva = (tela: TelaAtiva) => {
     window.history.pushState({ tela }, '', `#${tela}`);
@@ -602,7 +606,11 @@ function App() {
       case 'planos':
         return <Planos onNavegar={setTelaAtiva} onAssinarPlano={handleAssinarPlano} usuario={usuario} />;
       case 'suporte':
-        return <Support />;
+        return <Support onNavegar={setTelaAtiva} />;
+      case 'contato':
+        return <ContactForm onCancelar={() => setTelaAtiva('suporte')} />;
+      case 'recibo':
+        return <Receipt onDashboard={() => setTelaAtiva('dashboard')} onSuporte={() => setTelaAtiva('suporte')} />;
       case 'faq':
         return <FAQ onNavegar={setTelaAtiva} />;
       case 'pagamento':

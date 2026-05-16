@@ -22,7 +22,11 @@ function EmailIcon({ size = 24, className = '' }: { size?: number; className?: s
   );
 }
 
-export function Support(): JSX.Element {
+interface SupportProps {
+  onNavegar?: (tela: any) => void;
+}
+
+export function Support({ onNavegar }: SupportProps): JSX.Element {
   const [config, setConfig] = useState<SupportConfig>(getSupportConfig());
 
   useEffect(() => {
@@ -36,7 +40,9 @@ export function Support(): JSX.Element {
       titulo: 'E-mail',
       descricao: 'Envie sua dúvida por e-mail. Ideal para solicitações detalhadas ou questões que exigem análise mais cuidadosa.',
       contato: config.email,
-      link: `mailto:${config.email}`,
+      onClick: () => {
+        if (onNavegar) onNavegar('contato');
+      },
       labelLink: 'Enviar e-mail',
       Icon: EmailIcon,
       iconBg: 'bg-[#04585a]/10',
@@ -123,15 +129,25 @@ export function Support(): JSX.Element {
             </div>
 
             {/* Botão */}
-            <a
-              href={canal.link}
-              target="_blank"
-              rel="noopener noreferrer"
-              className={`inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl text-sm font-semibold transition-opacity hover:opacity-90 ${canal.btnClass}`}
-            >
-              <canal.Icon size={16} />
-              {canal.labelLink}
-            </a>
+            {canal.onClick ? (
+              <button
+                onClick={canal.onClick}
+                className={`inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl text-sm font-semibold transition-opacity hover:opacity-90 ${canal.btnClass}`}
+              >
+                <canal.Icon size={16} />
+                {canal.labelLink}
+              </button>
+            ) : (
+              <a
+                href={canal.link}
+                target="_blank"
+                rel="noopener noreferrer"
+                className={`inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl text-sm font-semibold transition-opacity hover:opacity-90 ${canal.btnClass}`}
+              >
+                <canal.Icon size={16} />
+                {canal.labelLink}
+              </a>
+            )}
           </div>
         ))}
       </div>

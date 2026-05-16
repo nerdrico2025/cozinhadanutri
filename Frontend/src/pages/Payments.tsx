@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   CreditCard,
   Check,
@@ -14,6 +14,12 @@ import {
 } from 'lucide-react';
 import { criarPreferencia, PlanoId, MetodoPagamento } from '../services/mercadoPagoApi';
 import { UsuarioLogado } from '../types';
+import { initMercadoPago, Wallet } from '@mercadopago/sdk-react';
+
+// Inicializa o Mercado Pago com a chave pública
+// IMPORTANTE: Adicione VITE_MP_PUBLIC_KEY no seu arquivo .env do Frontend
+const MP_PUBLIC_KEY = import.meta.env.VITE_MP_PUBLIC_KEY as string || 'TEST-sua-public-key-aqui';
+initMercadoPago(MP_PUBLIC_KEY, { locale: 'pt-BR' });
 
 interface Plano {
   id: PlanoId;
@@ -86,6 +92,12 @@ export function Payments({ usuario, planoPreSelecionado, onVoltar, onLogin }: Pa
   const [parcelas, setParcelas] = useState(1);
   const [carregando, setCarregando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
+  const [preferenceId, setPreferenceId] = useState<string | null>(null);
+
+  useEffect(() => {
+    // Se o usuário alterar opções, invalidamos o preferenceId gerado para forçar um novo
+    setPreferenceId(null);
+  }, [planoSelecionado, cicloAnual, metodoPagamento, parcelas]);
 
   const planoAtual = planos.find((p) => p.id === planoSelecionado);
 
@@ -103,6 +115,7 @@ export function Payments({ usuario, planoPreSelecionado, onVoltar, onLogin }: Pa
 
     setCarregando(true);
     setErro(null);
+    setPreferenceId(null);
 
     try {
       const resposta = await criarPreferencia({
@@ -115,9 +128,14 @@ export function Payments({ usuario, planoPreSelecionado, onVoltar, onLogin }: Pa
         parcelas: metodoPagamento === 'cartao' ? parcelas : undefined,
       });
 
-      const isSandbox = import.meta.env.DEV;
-      const url = isSandbox ? resposta.sandboxInitPoint : resposta.initPoint;
-      window.location.href = url;
+      // O SDK do Mercado Pago usa o preferenceId para renderizar o botão Wallet (Checkout Pro),
+      // em vez de redirecionar manualmente o usuário pelo window.location.
+      setPreferenceId(resposta.preferenceId);
+      
+      // Obs: a lógica de redirecionamento manual abaixo foi substituída pelo componente Wallet.
+      // const isSandbox = import.meta.env.DEV;
+      // const url = isSandbox ? resposta.sandboxInitPoint : resposta.initPoint;
+      // window.location.href = url;
     } catch (err) {
       setErro(
         err instanceof Error ? err.message : 'Erro ao iniciar o pagamento. Tente novamente.'
@@ -389,27 +407,34 @@ export function Payments({ usuario, planoPreSelecionado, onVoltar, onLogin }: Pa
                       </div>
                     )}
 
-                    {/* Botão */}
-                    <button
-                      type="button"
-                      onClick={handleAssinar}
-                      disabled={carregando || !podePagar}
-                      className={`flex items-center justify-center gap-2 w-full py-3.5 rounded-xl text-sm font-bold transition ${
-                        carregando || !podePagar
-                          ? 'bg-white/20 text-white/40 cursor-not-allowed'
-                          : 'bg-white text-[#04585a] hover:bg-gray-100 cursor-pointer'
-                      }`}
-                    >
-                      {carregando ? (
-                        <><Loader2 size={15} className="animate-spin" /> Processando...</>
-                      ) : metodoPagamento === 'pix' ? (
-                        <><QrCode size={15} /> Pagar com PIX</>
-                      ) : metodoPagamento === 'cartao' ? (
-                        <><CreditCard size={15} /> Pagar com cartão</>
-                      ) : (
-                        'Selecione como pagar'
-                      )}
-                    </button>
+                    {/* Botão ou Wallet do Mercado Pago */}
+                    {!preferenceId ? (
+                      <button
+                        type="button"
+                        onClick={handleAssinar}
+                        disabled={carregando || !podePagar}
+                        className={`flex items-center justify-center gap-2 w-full py-3.5 rounded-xl text-sm font-bold transition ${
+                          carregando || !podePagar
+                            ? 'bg-white/20 text-white/40 cursor-not-allowed'
+                            : 'bg-white text-[#04585a] hover:bg-gray-100 cursor-pointer'
+                        }`}
+                      >
+                        {carregando ? (
+                          <><Loader2 size={15} className="animate-spin" /> Preparando...</>
+                        ) : metodoPagamento === 'pix' ? (
+                          <><QrCode size={15} /> Pagar com PIX</>
+                        ) : metodoPagamento === 'cartao' ? (
+                          <><CreditCard size={15} /> Pagar com cartão</>
+                        ) : (
+                          'Selecione como pagar'
+                        )}
+                      </button>
+                    ) : (
+                      <div className="mt-2 w-full">
+                        <p className="text-center text-xs text-white/80 mb-2">Clique abaixo para finalizar com segurança:</p>
+                        <Wallet initialization={{ preferenceId }} />
+                      </div>
+                    )}
 
                     {/* Link MP */}
                     <a

@@ -4,7 +4,8 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import {
   Eye, EyeOff, Lock, KeyRound,
-  CheckCircle2, AlertCircle, ShieldCheck, X, Zap, Trash2, Building2, MapPin, Phone
+  CheckCircle2, AlertCircle, ShieldCheck, X, Zap, Trash2, Building2, MapPin, Phone,
+  Receipt, Calendar, CreditCard, Hash, Printer
 } from 'lucide-react';
 
 // ── Segurança ─────────────────────────────────────────────────────────────────
@@ -258,7 +259,7 @@ export function Profile({ dadosIniciais, onSalvar, onVoltar, onUpgrade, onApagar
   const [pendingData, setPendingData] = useState<FormProfile | null>(null);
   const [acaoPendente, setAcaoPendente] = useState<'salvar' | 'apagar' | null>(null);
   const [erroModal, setErroModal]     = useState<string | null>(null);
-  const [activeTab, setActiveTab]     = useState<'geral' | 'endereco' | 'seguranca'>('geral');
+  const [activeTab, setActiveTab]     = useState<'geral' | 'endereco' | 'seguranca' | 'pagamentos'>('geral');
 
   const { register, handleSubmit, setValue, reset, formState: { errors, isSubmitting } } =
     useForm<FormProfile>({
@@ -400,6 +401,15 @@ export function Profile({ dadosIniciais, onSalvar, onVoltar, onUpgrade, onApagar
               }`}
             >
               Segurança
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab('pagamentos')}
+              className={`flex-1 py-3 text-sm font-bold rounded-xl transition-all cursor-pointer ${
+                activeTab === 'pagamentos' ? 'bg-white text-brand shadow-sm' : 'text-gray-500 hover:text-gray-700 hover:bg-white/50'
+              }`}
+            >
+              Pagamentos
             </button>
           </div>
 
@@ -595,6 +605,85 @@ export function Profile({ dadosIniciais, onSalvar, onVoltar, onUpgrade, onApagar
                 </div>
               </div>
             </section>
+              </div>
+            )}
+
+            {/* CONTEÚDO: PAGAMENTOS */}
+            {activeTab === 'pagamentos' && (
+              <div className="flex flex-col gap-6 md:gap-8 animate-[fadeSlideIn_0.2s_ease-out_forwards]">
+                <section className="bg-white/80 backdrop-blur-xl rounded-3xl border border-white/60 shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-6 md:p-8 flex flex-col gap-6 transition-all hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)]">
+                  <div className="border-b border-gray-100 pb-4 mb-2 flex items-center justify-between">
+                    <h3 className="text-base font-bold text-gray-800 flex items-center gap-3">
+                      <div className="p-2 bg-emerald-500/10 rounded-xl text-emerald-600">
+                        <Receipt size={18} />
+                      </div>
+                      Histórico de Pagamentos
+                    </h3>
+                  </div>
+
+                  <div className="flex flex-col gap-4">
+                    {[
+                      {
+                        id: 'REC-12345678-MP',
+                        data: '15/05/2026',
+                        plano: 'Plano Profissional (Anual)',
+                        valor: 'R$ 290,00',
+                        metodo: 'PIX',
+                        status: 'Concluído'
+                      },
+                      {
+                        id: 'REC-87654321-CC',
+                        data: '15/05/2025',
+                        plano: 'Plano Básico (Mensal)',
+                        valor: 'R$ 29,90',
+                        metodo: 'Cartão de Crédito',
+                        status: 'Concluído'
+                      }
+                    ].map((pgto, idx) => (
+                      <div key={idx} className="border border-gray-100 bg-gray-50/50 rounded-2xl p-5 flex flex-col md:flex-row md:items-center justify-between gap-4 transition-all hover:bg-white hover:shadow-md hover:border-gray-200">
+                        <div className="flex flex-col gap-3">
+                          <div className="flex items-center gap-3">
+                            <span className="bg-green-100 text-green-700 text-xs font-bold px-2.5 py-1 rounded-md flex items-center gap-1.5">
+                              <CheckCircle2 size={12} />
+                              {pgto.status}
+                            </span>
+                            <span className="text-sm font-mono text-gray-500 flex items-center gap-1">
+                              <Hash size={14} />
+                              {pgto.id}
+                            </span>
+                          </div>
+                          
+                          <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
+                            <div className="flex items-center gap-2 text-sm text-gray-700">
+                              <Calendar size={16} className="text-gray-400" />
+                              <span className="font-semibold">{pgto.data}</span>
+                            </div>
+                            <div className="flex items-center gap-2 text-sm text-gray-700">
+                              <CheckCircle2 size={16} className="text-gray-400" />
+                              <span className="font-medium">{pgto.plano}</span>
+                            </div>
+                            <div className="flex items-center gap-2 text-sm text-gray-700">
+                              <CreditCard size={16} className="text-gray-400" />
+                              <span className="font-medium">{pgto.metodo}</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center justify-between md:flex-col md:items-end gap-3 border-t md:border-t-0 border-gray-200 pt-4 md:pt-0">
+                          <div className="text-lg font-extrabold text-gray-900">{pgto.valor}</div>
+                          <button
+                            type="button"
+                            onClick={() => window.print()}
+                            className="flex items-center gap-2 bg-white border border-gray-200 text-gray-600 text-sm font-bold px-4 py-2 rounded-xl hover:bg-gray-50 hover:text-brand transition-all cursor-pointer active:scale-95"
+                          >
+                            <Printer size={16} />
+                            Recibo
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </section>
               </div>
             )}
 

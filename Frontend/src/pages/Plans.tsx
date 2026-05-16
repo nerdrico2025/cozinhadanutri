@@ -1,30 +1,96 @@
-import { Check, Sparkles } from 'lucide-react';
+import { Check, Sparkles, Minus } from 'lucide-react';
 import { UsuarioLogado } from '../types';
-import React, { useState, useEffect } from 'react';
-import { getPlans, Plano as PlanoLabel } from '../services/planService';
+import React from 'react';
 
 type TelaAtiva = 'home' | 'dashboard' | 'receitas' | 'criar-receita' | 'cadastro-ingrediente' | 'lista-ingredientes' | 'login' | 'register' | 'planos' | 'faq' | 'suporte' | 'termos' | 'pagamento' | 'adm';
 
 interface PlanosProps {
   onNavegar?: (tela: TelaAtiva) => void;
-  onAssinarPlano?: (planoId: 'profissional' | 'empresarial') => void;
+  onAssinarPlano?: (planoId: string) => void;
   usuario?: UsuarioLogado | null;
 }
 
-
 export function Planos({ onNavegar, onAssinarPlano, usuario }: PlanosProps) {
-  const [planosData, setPlanosData] = useState(getPlans());
-
-  useEffect(() => {
-    const handleUpdate = () => setPlanosData(getPlans());
-    window.addEventListener('plans_updated', handleUpdate);
-    return () => window.removeEventListener('plans_updated', handleUpdate);
-  }, []);
-
   const listPlanos = [
-    { id: 'gratis',       nome: 'Grátis',       data: planosData['Grátis'],       destaque: false },
-    { id: 'profissional', nome: 'Profissional', data: planosData['Profissional'], destaque: true },
-    { id: 'empresarial',  nome: 'Empresarial',  data: planosData['Empresarial'],  destaque: false },
+    {
+      id: 'iniciante',
+      nome: 'Iniciante',
+      descricao: 'Para quem está começando e quer experimentar',
+      mensal: 0,
+      anual: 0,
+      badgeMensal: 'Grátis para sempre',
+      destaque: false,
+      recursos: [
+        { nome: 'Até 5 receitas cadastradas', incluso: true },
+        { nome: 'Ficha técnica básica', incluso: true },
+        { nome: 'Custo automático por receita', incluso: true },
+        { nome: 'Base TACO integrada', incluso: true },
+        { nome: 'Tabela nutricional ANVISA', incluso: false },
+        { nome: 'Rótulo e etiqueta', incluso: false },
+        { nome: 'Exportação PDF/Excel', incluso: false },
+        { nome: '1 usuário', incluso: true },
+        { nome: 'Suporte: central de ajuda', incluso: true }
+      ]
+    },
+    {
+      id: 'basico',
+      nome: 'Básico',
+      descricao: 'Para quem já vende e precisa de controle real',
+      mensal: 47,
+      anual: 39,
+      badgeMensal: '',
+      destaque: false,
+      recursos: [
+        { nome: 'Até 20 receitas', incluso: true },
+        { nome: 'Ficha técnica padronizada', incluso: true },
+        { nome: 'Custo automático + markup', incluso: true },
+        { nome: 'Sugestão de preço de venda', incluso: true },
+        { nome: 'Tabela nutricional ANVISA', incluso: true },
+        { nome: 'Rótulo e etiqueta imprimível', incluso: false },
+        { nome: 'Exportação PDF/Excel', incluso: false },
+        { nome: '1 usuário', incluso: true },
+        { nome: 'Suporte por e-mail', incluso: true }
+      ]
+    },
+    {
+      id: 'profissional',
+      nome: 'Profissional',
+      descricao: 'Para negócios que precisam de rótulo e etiqueta prontos',
+      mensal: 97,
+      anual: 79,
+      badgeMensal: 'Mais escolhido',
+      destaque: true,
+      recursos: [
+        { nome: 'Até 60 receitas', incluso: true },
+        { nome: 'Tudo do plano Básico', incluso: true },
+        { nome: 'Rótulo nutricional ANVISA', incluso: true },
+        { nome: 'Etiqueta personalizável', incluso: true },
+        { nome: 'Exportação PDF e Excel', incluso: true },
+        { nome: 'Relatório de custo e margem', incluso: true },
+        { nome: '1 usuário', incluso: true },
+        { nome: 'Suporte por WhatsApp', incluso: true }
+      ]
+    },
+    {
+      id: 'premium',
+      nome: 'Premium',
+      descricao: 'Para operações maiores com múltiplos colaboradores',
+      mensal: 147,
+      anual: 119,
+      badgeMensal: 'Para equipes',
+      destaque: false,
+      recursos: [
+        { nome: 'Receitas ilimitadas', incluso: true },
+        { nome: 'Tudo do Profissional', incluso: true },
+        { nome: 'Controle de estoque básico', incluso: true },
+        { nome: 'Dashboard financeiro', incluso: true },
+        { nome: 'Relatórios avançados', incluso: true },
+        { nome: 'Importação em lote (CSV)', incluso: true },
+        { nome: 'Histórico de alterações', incluso: true },
+        { nome: 'Até 5 usuários', incluso: true },
+        { nome: 'Suporte prioritário WhatsApp', incluso: true }
+      ]
+    }
   ];
 
   return (
@@ -44,11 +110,10 @@ export function Planos({ onNavegar, onAssinarPlano, usuario }: PlanosProps) {
       </div>
 
       {/* Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 max-w-5xl mx-auto items-stretch">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 max-w-7xl mx-auto items-stretch">
         {listPlanos.map((plano) => {
           const isPlanoAtual = !!usuario && usuario.planoAtual === plano.id;
-          const isGratis = plano.id === 'gratis';
-          const data = plano.data;
+          const isGratis = plano.id === 'iniciante';
 
           let labelBotao: string;
           let handleClick: (() => void) | undefined;
@@ -62,10 +127,10 @@ export function Planos({ onNavegar, onAssinarPlano, usuario }: PlanosProps) {
             handleClick = () => onNavegar?.('register');
           } else {
             labelBotao = 'Assinar agora';
-            handleClick = () => onAssinarPlano?.(plano.id as 'profissional' | 'empresarial');
+            handleClick = () => onAssinarPlano?.(plano.id);
           }
 
-          const economia = (data.mensal * 12) - (data.anual * 12);
+          const economia = (plano.mensal * 12) - (plano.anual * 12);
 
           return (
             <div
@@ -77,49 +142,54 @@ export function Planos({ onNavegar, onAssinarPlano, usuario }: PlanosProps) {
               }`}
             >
               {/* Badge */}
-              {plano.destaque && (
-                <div className="absolute -top-4 left-1/2 -translate-x-1/2">
-                  <span className="inline-flex items-center gap-1.5 bg-white text-[#04585a] text-xs font-bold px-4 py-1.5 rounded-full shadow-md whitespace-nowrap">
-                    <Sparkles size={12} />
-                    Mais popular
+              {plano.badgeMensal && (
+                <div className="absolute -top-4 left-1/2 -translate-x-1/2 w-full text-center">
+                  <span className={`inline-flex items-center gap-1.5 text-xs font-bold px-4 py-1.5 rounded-full shadow-md whitespace-nowrap ${
+                    plano.destaque ? 'bg-white text-[#04585a]' : 'bg-gray-100 text-gray-600'
+                  }`}>
+                    {plano.destaque && <Sparkles size={12} />}
+                    {plano.badgeMensal}
                   </span>
                 </div>
               )}
 
-              <div className="p-8 flex flex-col flex-1">
+              <div className="p-8 flex flex-col flex-1 mt-2">
                 {/* Nome do plano */}
-                <p className={`text-xs font-bold uppercase tracking-widest mb-4 ${plano.destaque ? 'text-white/60' : 'text-gray-400'}`}>
+                <p className={`text-xl font-bold mb-2 ${plano.destaque ? 'text-white' : 'text-gray-900'}`}>
                   {plano.nome}
+                </p>
+                <p className={`text-sm mb-6 min-h-[40px] ${plano.destaque ? 'text-white/80' : 'text-gray-500'}`}>
+                  {plano.descricao}
                 </p>
 
                 {/* Preço */}
                 <div className="flex items-end gap-1 mb-1">
                   <span className={`text-5xl font-extrabold leading-none ${plano.destaque ? 'text-white' : 'text-gray-900'}`}>
-                    R$ {data.mensal}
+                    R$ {plano.mensal}
                   </span>
                 </div>
                 <p className={`text-sm ${plano.destaque ? 'text-white/60' : 'text-gray-400'}`}>
-                  {isGratis ? 'para sempre' : '/ mês'}
+                  {isGratis ? 'sem cartão de crédito' : '/ mês'}
                 </p>
+                
                 {!isGratis && (
-                  <div className="mt-3 flex flex-col gap-1">
+                  <div className="mt-3 flex flex-col gap-1 min-h-[60px]">
                     <div className={`flex items-center gap-2 text-xs ${plano.destaque ? 'text-white/60' : 'text-gray-400'}`}>
                       <span>ou</span>
                       <span className={`font-bold text-sm ${plano.destaque ? 'text-white' : 'text-gray-800'}`}>
-                        R$ {data.anual}/mês
+                        R$ {plano.anual}/mês
                       </span>
-                      <span>no plano anual</span>
+                      <span>no anual</span>
                     </div>
-                    <p className={`text-xs ${plano.destaque ? 'text-white/50' : 'text-gray-400'}`}>
-                      R$ {data.anual * 12} cobrado uma vez
-                    </p>
                     {economia > 0 && (
                       <span className={`text-xs font-semibold ${plano.destaque ? 'text-green-300' : 'text-green-600'}`}>
-                        Economize R$ {economia} vs. mensal
+                        Economize R$ {economia}
                       </span>
                     )}
                   </div>
                 )}
+                {isGratis && <div className="mt-3 flex flex-col gap-1 min-h-[60px]" />}
+                
                 <div className="mb-6" />
 
                 {/* Divisor */}
@@ -127,14 +197,26 @@ export function Planos({ onNavegar, onAssinarPlano, usuario }: PlanosProps) {
 
                 {/* Recursos */}
                 <ul className="flex flex-col gap-3 mb-8">
-                  {data.recursos.map((r) => (
-                    <li key={r} className="flex items-start gap-2.5 text-sm">
+                  {plano.recursos.map((r, i) => (
+                    <li key={i} className="flex items-start gap-2.5 text-sm">
                       <span className={`mt-0.5 flex-shrink-0 w-4 h-4 rounded-full flex items-center justify-center ${
-                        plano.destaque ? 'bg-white/20' : 'bg-[#04585a]/10'
+                        r.incluso
+                          ? (plano.destaque ? 'bg-white/20' : 'bg-[#04585a]/10')
+                          : (plano.destaque ? 'bg-white/5' : 'bg-gray-100')
                       }`}>
-                        <Check size={10} className={plano.destaque ? 'text-white' : 'text-[#04585a]'} strokeWidth={3} />
+                        {r.incluso ? (
+                          <Check size={10} className={plano.destaque ? 'text-white' : 'text-[#04585a]'} strokeWidth={3} />
+                        ) : (
+                          <Minus size={10} className={plano.destaque ? 'text-white/30' : 'text-gray-400'} strokeWidth={3} />
+                        )}
                       </span>
-                      <span className={plano.destaque ? 'text-white/85' : 'text-gray-600'}>{r}</span>
+                      <span className={`${
+                        r.incluso 
+                          ? (plano.destaque ? 'text-white/85' : 'text-gray-600')
+                          : (plano.destaque ? 'text-white/50' : 'text-gray-400')
+                      }`}>
+                        {r.nome}
+                      </span>
                     </li>
                   ))}
                 </ul>
@@ -159,10 +241,6 @@ export function Planos({ onNavegar, onAssinarPlano, usuario }: PlanosProps) {
         })}
       </div>
 
-      {/* Rodapé informativo */}
-      <p className="text-center text-xs text-gray-400 mt-10">
-        Todos os planos incluem suporte por e-mail. Cancele quando quiser, sem multas.
-      </p>
     </div>
   );
 }
