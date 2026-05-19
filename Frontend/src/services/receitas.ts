@@ -32,3 +32,13 @@ export const salvarReceita = async (receita: Partial<Receita>) => {
 export const excluirReceita = async (id: string | number) => {
   await api.delete(`/api/receitas/${id}/`);
 };
+
+export const gerarRotulo = async (id: string | number) => {
+  const response = await api.get(`/api/fichas-tecnicas/${id}/rotulo/`);
+  return response.data;
+};
+
+export const gerarTabelaNutricional = async (id: string | number) => {
+  const response = await api.get(`/api/fichas-tecnicas/${id}/tabela-nutricional/`);
+  return response.data;
+};

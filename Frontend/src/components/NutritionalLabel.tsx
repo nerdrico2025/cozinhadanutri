@@ -1,5 +1,7 @@
+import { useEffect, useState } from 'react';
 import { Printer, X } from 'lucide-react';
 import { Receita } from '../types';
+import { gerarRotulo } from '../services/receitas';
 
 interface RotuloNutricionalProps {
   receita: Receita;
@@ -11,9 +13,48 @@ const VD_REFERENCIA = { calorias: 2000, carboidratos: 300, proteinas: 75, gordur
 
 export function RotuloNutricional({ receita, onFechar, onImprimir }: RotuloNutricionalProps) {
   const calcVD = (valor: number, ref: number) => Math.round((valor / ref) * 100);
-  const n = receita.dadosNutricionaisPorPorcao;
+  
+  const [loading, setLoading] = useState(true);
+  const [rotuloData, setRotuloData] = useState<any>(null);
+
+  useEffect(() => {
+    if (receita.id) {
+      setLoading(true);
+      gerarRotulo(receita.id).then((data) => {
+        setRotuloData(data);
+        setLoading(false);
+      }).catch((err: any) => {
+        console.error('Erro ao buscar rotulo do backend:', err);
+        setLoading(false);
+      });
+    } else {
+      setLoading(false);
+    }
+  }, [receita.id]);
 
   const handleImprimir = () => { window.print(); if (onImprimir) onImprimir(); };
+
+  if (loading) {
+    return (
+      <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+        <div className="bg-white rounded-xl shadow-2xl p-8 flex items-center justify-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
+        </div>
+      </div>
+    );
+  }
+
+  // Use backend data if available, fallback to local recipe data (adjusted to absolute since backend gives total)
+  const n = rotuloData ? {
+    calorias: rotuloData.tabela_nutricional.energia_kcal / receita.porcoes,
+    carboidratos: rotuloData.tabela_nutricional.carboidratos / receita.porcoes,
+    proteinas: rotuloData.tabela_nutricional.proteinas / receita.porcoes,
+    gorduras: rotuloData.tabela_nutricional.gorduras_totais / receita.porcoes,
+    saturadas: rotuloData.tabela_nutricional.gorduras_saturadas / receita.porcoes,
+    trans: 0,
+    fibras: rotuloData.tabela_nutricional.fibra_alimentar / receita.porcoes,
+    sodio: rotuloData.tabela_nutricional.sodio / receita.porcoes
+  } : receita.dadosNutricionaisPorPorcao;
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">

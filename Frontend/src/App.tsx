@@ -547,7 +547,7 @@ function App() {
             usuario={usuario}
             onNavegar={setTelaAtiva}
             onAssinarPlano={(planoId) => {
-              setPlanoSelecionado(planoId);
+              setPlanoPreSelecionado(planoId);
               setTelaAtiva('pagamento');
             }}
           />
