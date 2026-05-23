@@ -31,7 +31,8 @@ type TelaAtiva =
   | 'suporte'
   | 'termos'
   | 'pagamento'
-  | 'adm';
+  | 'adm'
+  | 'configuracaovisual';
 
 interface HeaderProps {
   telaAtiva: TelaAtiva;

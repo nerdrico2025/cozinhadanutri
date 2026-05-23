@@ -7,6 +7,12 @@ interface CampoDinamico {
   ativo: boolean;
 }
 
+interface MensagemErro {
+  campoId?: string;
+  tipo: 'nome' | 'valor' | 'geral';
+  mensagem: string;
+}
+
 type LayoutType = 'vertical' | 'horizontal' | 'grade';
 type TamanhoType = 'pequena' | 'media' | 'grande' | 'extra';
 type TemplateType = 'claro' | 'escuro' | 'verde' | 'profissional';
@@ -24,9 +30,13 @@ const ConfiguracaoVisual: React.FC = () => {
   const [layout, setLayout] = useState<LayoutType>('vertical');
   const [tamanho, setTamanho] = useState<TamanhoType>('media');
   const [template, setTemplate] = useState<TemplateType>('claro');
-  
-  // TAREFA 5: Estado para detectar se é celular
   const [isMobile, setIsMobile] = useState(false);
+  
+  // TAREFA 6: Estado para mensagens de erro
+  const [erros, setErros] = useState<MensagemErro[]>([]);
+
+  // TAREFA 6: Estado para mensagens de sucesso
+  const [mensagemSucesso, setMensagemSucesso] = useState<string | null>(null);
 
   // TAREFA 5: Detecta quando a tela redimensiona
   useEffect(() => {
@@ -38,29 +48,129 @@ const ConfiguracaoVisual: React.FC = () => {
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
+  // TAREFA 6: Função para limpar mensagem de sucesso após 3 segundos
+  useEffect(() => {
+    if (mensagemSucesso) {
+      const timer = setTimeout(() => setMensagemSucesso(null), 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [mensagemSucesso]);
+
+  // TAREFA 6: Função para limpar mensagens de erro após 3 segundos
+  useEffect(() => {
+    if (erros.length > 0) {
+      const timer = setTimeout(() => setErros([]), 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [erros]);
+
+  // TAREFA 6: Valida se o nome é válido (apenas letras, números e espaços)
+  const validarNome = (nome: string): boolean => {
+    const regex = /^[a-zA-ZÀ-ÿ\u00f1\u00d1\s\d]+$/;
+    return regex.test(nome);
+  };
+
+  // TAREFA 6: Valida se o valor tem formato correto (número + unidade)
+  const validarValor = (valor: string): boolean => {
+    const regex = /^\d+(\.\d+)?\s*(kcal|g|mg|ml|unidade|porção)$/i;
+    return regex.test(valor);
+  };
+
+  // TAREFA 6: Verifica se já existe um campo com o mesmo nome
+  const verificarNomeDuplicado = (nome: string, idIgnorar?: string): boolean => {
+    return campos.some(campo => 
+      campo.nome.toLowerCase() === nome.toLowerCase() && campo.id !== idIgnorar
+    );
+  };
+
+  // TAREFA 6: Adiciona uma mensagem de erro
+  const adicionarErro = (tipo: 'nome' | 'valor' | 'geral', mensagem: string, campoId?: string) => {
+    setErros(prev => [...prev, { tipo, mensagem, campoId }]);
+  };
+
+  // TAREFA 6: Versão melhorada de adicionar campo com validações
   const adicionarCampo = () => {
-    if (!novoCampoNome.trim()) return;
+    // Limpa erros anteriores
+    setErros([]);
     
+    // Validação 1: Nome não pode estar vazio
+    if (!novoCampoNome.trim()) {
+      adicionarErro('nome', '❌ O nome do campo é obrigatório');
+      return;
+    }
+    
+    // Validação 2: Nome não pode ter caracteres especiais
+    if (!validarNome(novoCampoNome)) {
+      adicionarErro('nome', '❌ Use apenas letras, números e espaços no nome');
+      return;
+    }
+    
+    // Validação 3: Nome não pode ser duplicado
+    if (verificarNomeDuplicado(novoCampoNome)) {
+      adicionarErro('nome', `❌ Já existe um campo com o nome "${novoCampoNome}"`);
+      return;
+    }
+    
+    // Validação 4: Valor deve ter formato correto (se não estiver vazio)
+    if (novoCampoValor.trim() && !validarValor(novoCampoValor)) {
+      adicionarErro('valor', '❌ Use formato: número + unidade (ex: 200 kcal, 15g, 5mg)');
+      return;
+    }
+    
+    // Se passou em todas as validações, adiciona o campo
     const novoCampo: CampoDinamico = {
       id: Date.now().toString(),
-      nome: novoCampoNome,
-      valor: novoCampoValor || '---',
+      nome: novoCampoNome.trim(),
+      valor: novoCampoValor.trim() || '---',
       ativo: true,
     };
     
     setCampos([...campos, novoCampo]);
     setNovoCampoNome('');
     setNovoCampoValor('');
+    setMensagemSucesso(`✅ Campo "${novoCampoNome}" adicionado com sucesso!`);
   };
 
-  const removerCampo = (id: string) => {
-    setCampos(campos.filter(campo => campo.id !== id));
-  };
-
+  // TAREFA 6: Versão melhorada de atualizar campo com validações
   const atualizarCampo = (id: string, chave: keyof CampoDinamico, valor: string) => {
+    // Limpa erros anteriores deste campo
+    setErros(prev => prev.filter(e => e.campoId !== id));
+    
+    const campoAtual = campos.find(c => c.id === id);
+    if (!campoAtual) return;
+    
+    if (chave === 'nome') {
+      // Validação do nome
+      if (!validarNome(valor) && valor.trim() !== '') {
+        adicionarErro('nome', '❌ Use apenas letras, números e espaços', id);
+        return;
+      }
+      
+      // Validação de nome duplicado
+      if (verificarNomeDuplicado(valor, id)) {
+        adicionarErro('nome', `❌ Já existe um campo com o nome "${valor}"`, id);
+        return;
+      }
+    }
+    
+    if (chave === 'valor' && valor.trim() !== '') {
+      // Validação do valor
+      if (!validarValor(valor)) {
+        adicionarErro('valor', '❌ Use formato: número + unidade (ex: 200 kcal)', id);
+        return;
+      }
+    }
+    
+    // Se passou nas validações, atualiza
     setCampos(campos.map(campo => 
       campo.id === id ? { ...campo, [chave]: valor } : campo
     ));
+  };
+
+  const removerCampo = (id: string) => {
+    const campoRemovido = campos.find(c => c.id === id);
+    setCampos(campos.filter(campo => campo.id !== id));
+    setMensagemSucesso(`🗑️ Campo "${campoRemovido?.nome}" removido com sucesso!`);
   };
 
   const toggleAtivo = (id: string) => {
@@ -69,7 +179,6 @@ const ConfiguracaoVisual: React.FC = () => {
     ));
   };
 
-  // TAREFA 5: Largura responsiva (no celular sempre 100%)
   const getTamanhoWidth = (): string => {
     if (isMobile) return '100%';
     
@@ -111,7 +220,6 @@ const ConfiguracaoVisual: React.FC = () => {
     }
   };
 
-  // TAREFA 5: Layout responsivo (no celular força vertical)
   const getLayoutStyle = (): React.CSSProperties => {
     const currentLayout = isMobile ? 'vertical' : layout;
     
@@ -186,6 +294,44 @@ const ConfiguracaoVisual: React.FC = () => {
     );
   };
 
+  // TAREFA 6: Componente para exibir erros
+  const ExibirErros = () => {
+    if (erros.length === 0) return null;
+    return (
+      <div style={{
+        marginBottom: '20px',
+        padding: '12px',
+        backgroundColor: '#ffebee',
+        border: '1px solid #ff4444',
+        borderRadius: '8px',
+        color: '#c62828'
+      }}>
+        {erros.map((erro, index) => (
+          <div key={index} style={{ marginBottom: index < erros.length - 1 ? '5px' : 0 }}>
+            {erro.mensagem}
+          </div>
+        ))}
+      </div>
+    );
+  };
+
+  // TAREFA 6: Componente para exibir sucesso
+  const ExibirSucesso = () => {
+    if (!mensagemSucesso) return null;
+    return (
+      <div style={{
+        marginBottom: '20px',
+        padding: '12px',
+        backgroundColor: '#e8f5e9',
+        border: '1px solid #4caf50',
+        borderRadius: '8px',
+        color: '#2e7d32'
+      }}>
+        {mensagemSucesso}
+      </div>
+    );
+  };
+
   return (
     <div style={{ 
       padding: isMobile ? '10px' : '20px', 
@@ -203,6 +349,10 @@ const ConfiguracaoVisual: React.FC = () => {
         Configuração Visual - Etiqueta Nutricional
       </h1>
       
+      {/* TAREFA 6: Exibe mensagens de erro e sucesso */}
+      <ExibirErros />
+      <ExibirSucesso />
+      
       {/* Seção de edição dinâmica */}
       <div style={{ 
         marginBottom: '30px', 
@@ -212,6 +362,22 @@ const ConfiguracaoVisual: React.FC = () => {
         backgroundColor: '#f9f9f9'
       }}>
         <h2 style={{ marginTop: 0, fontSize: isMobile ? '1.2rem' : '1.5rem' }}>📝 Edição Dinâmica de Campos</h2>
+        
+        {/* TAREFA 6: Dicas de formato */}
+        <div style={{
+          marginBottom: '15px',
+          padding: '10px',
+          backgroundColor: '#e3f2fd',
+          borderRadius: '8px',
+          fontSize: '14px'
+        }}>
+          💡 Dicas de formato:
+          <ul style={{ margin: '5px 0 0 20px', fontSize: '12px' }}>
+            <li>Nome: use apenas letras e números (ex: Fibras, Vitamina C)</li>
+            <li>Valor: número + unidade (ex: 200 kcal, 15g, 5mg, 2 porções)</li>
+            <li>Unidades aceitas: kcal, g, mg, ml, unidade, porção</li>
+          </ul>
+        </div>
         
         <div style={{ marginBottom: '20px' }}>
           <h3>Campos atuais:</h3>
@@ -223,6 +389,12 @@ const ConfiguracaoVisual: React.FC = () => {
               borderRadius: '4px',
               backgroundColor: campo.ativo ? '#fff' : '#e0e0e0'
             }}>
+              {/* TAREFA 6: Exibe erro específico do campo se houver */}
+              {erros.filter(e => e.campoId === campo.id).map((erro, idx) => (
+                <div key={idx} style={{ color: '#ff4444', fontSize: '12px', marginBottom: '5px' }}>
+                  {erro.mensagem}
+                </div>
+              ))}
               <div style={{ 
                 display: 'flex', 
                 gap: '10px', 
@@ -238,7 +410,7 @@ const ConfiguracaoVisual: React.FC = () => {
                     padding: '8px', 
                     flex: 1,
                     width: isMobile ? '100%' : 'auto',
-                    border: '1px solid #ccc',
+                    border: `1px solid ${erros.some(e => e.campoId === campo.id && e.tipo === 'nome') ? '#ff4444' : '#ccc'}`,
                     borderRadius: '4px'
                   }}
                   placeholder="Nome do campo"
@@ -251,10 +423,10 @@ const ConfiguracaoVisual: React.FC = () => {
                     padding: '8px', 
                     flex: 1,
                     width: isMobile ? '100%' : 'auto',
-                    border: '1px solid #ccc',
+                    border: `1px solid ${erros.some(e => e.campoId === campo.id && e.tipo === 'valor') ? '#ff4444' : '#ccc'}`,
                     borderRadius: '4px'
                   }}
-                  placeholder="Valor"
+                  placeholder="Valor (ex: 200 kcal)"
                 />
                 <div style={{ display: 'flex', gap: '10px', width: isMobile ? '100%' : 'auto' }}>
                   <button 
@@ -303,7 +475,7 @@ const ConfiguracaoVisual: React.FC = () => {
                 padding: '10px', 
                 flex: 1,
                 width: isMobile ? '100%' : 'auto',
-                border: '1px solid #ccc',
+                border: `1px solid ${erros.some(e => e.tipo === 'nome') ? '#ff4444' : '#ccc'}`,
                 borderRadius: '4px'
               }}
             />
@@ -316,7 +488,7 @@ const ConfiguracaoVisual: React.FC = () => {
                 padding: '10px', 
                 flex: 1,
                 width: isMobile ? '100%' : 'auto',
-                border: '1px solid #ccc',
+                border: `1px solid ${erros.some(e => e.tipo === 'valor') ? '#ff4444' : '#ccc'}`,
                 borderRadius: '4px'
               }}
             />
@@ -338,7 +510,6 @@ const ConfiguracaoVisual: React.FC = () => {
         </div>
       </div>
 
-      {/* TAREFA 5: Mensagem informativa para celular */}
       {isMobile && (
         <div style={{
           marginBottom: '20px',
