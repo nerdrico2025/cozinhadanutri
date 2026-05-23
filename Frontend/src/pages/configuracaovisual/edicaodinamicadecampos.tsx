@@ -8,6 +8,8 @@ interface CampoDinamico {
 }
 
 type LayoutType = 'vertical' | 'horizontal' | 'grade';
+type TamanhoType = 'pequena' | 'media' | 'grande' | 'extra';
+type TemplateType = 'claro' | 'escuro' | 'verde' | 'profissional';
 
 const ConfiguracaoVisual: React.FC = () => {
   const [campos, setCampos] = useState<CampoDinamico[]>([
@@ -20,6 +22,8 @@ const ConfiguracaoVisual: React.FC = () => {
   const [novoCampoNome, setNovoCampoNome] = useState('');
   const [novoCampoValor, setNovoCampoValor] = useState('');
   const [layout, setLayout] = useState<LayoutType>('vertical');
+  const [tamanho, setTamanho] = useState<TamanhoType>('media');
+  const [template, setTemplate] = useState<TemplateType>('claro');
 
   const adicionarCampo = () => {
     if (!novoCampoNome.trim()) return;
@@ -52,7 +56,45 @@ const ConfiguracaoVisual: React.FC = () => {
     ));
   };
 
-  // Estilos para cada layout
+  const getTamanhoWidth = (): string => {
+    switch (tamanho) {
+      case 'pequena': return '250px';
+      case 'media': return '350px';
+      case 'grande': return '450px';
+      case 'extra': return '550px';
+      default: return '350px';
+    }
+  };
+
+  const getTemplateStyle = (): React.CSSProperties => {
+    switch (template) {
+      case 'escuro':
+        return {
+          backgroundColor: '#1a1a2e',
+          border: '2px solid #16213e',
+          color: '#ffffff',
+        };
+      case 'verde':
+        return {
+          backgroundColor: '#e8f5e9',
+          border: '2px solid #4caf50',
+          color: '#2e7d32',
+        };
+      case 'profissional':
+        return {
+          backgroundColor: '#0d47a1',
+          border: '2px solid #1565c0',
+          color: '#ffffff',
+        };
+      default: // claro
+        return {
+          backgroundColor: '#ffffff',
+          border: '2px solid #333333',
+          color: '#333333',
+        };
+    }
+  };
+
   const getLayoutStyle = (): React.CSSProperties => {
     switch (layout) {
       case 'horizontal':
@@ -68,7 +110,7 @@ const ConfiguracaoVisual: React.FC = () => {
           gridTemplateColumns: 'repeat(2, 1fr)',
           gap: '15px',
         };
-      default: // vertical
+      default:
         return {
           display: 'flex',
           flexDirection: 'column',
@@ -78,37 +120,36 @@ const ConfiguracaoVisual: React.FC = () => {
   };
 
   const getCampoStyle = (): React.CSSProperties => {
-    switch (layout) {
-      case 'horizontal':
-        return {
-          flex: '1',
-          minWidth: '150px',
-          border: '1px solid #eee',
-          padding: '10px',
-          borderRadius: '8px',
-          backgroundColor: '#f9f9f9',
-        };
-      case 'grade':
-        return {
-          border: '1px solid #eee',
-          padding: '10px',
-          borderRadius: '8px',
-          backgroundColor: '#f9f9f9',
-        };
-      default:
-        return {
-          display: 'flex',
-          justifyContent: 'space-between',
-          padding: '8px 0',
-          borderBottom: '1px solid #eee',
-        };
+    const baseStyle: React.CSSProperties = {
+      borderRadius: '8px',
+      padding: '10px',
+    };
+
+    if (layout === 'vertical') {
+      return {
+        ...baseStyle,
+        display: 'flex',
+        justifyContent: 'space-between',
+        borderBottom: template === 'escuro' ? '1px solid #444' : '1px solid #eee',
+      };
     }
+    
+    return {
+      ...baseStyle,
+      backgroundColor: template === 'escuro' ? '#2d2d44' : 
+                      template === 'verde' ? '#c8e6c9' :
+                      template === 'profissional' ? '#1565c0' : '#f9f9f9',
+      color: template === 'escuro' || template === 'profissional' ? '#fff' : '#333',
+      border: '1px solid #ddd',
+    };
   };
 
   const renderCampo = (campo: CampoDinamico) => {
+    const campoStyle = getCampoStyle();
+    
     if (layout === 'vertical') {
       return (
-        <div key={campo.id} style={getCampoStyle()}>
+        <div key={campo.id} style={campoStyle}>
           <strong>{campo.nome}:</strong>
           <span>{campo.valor}</span>
         </div>
@@ -116,7 +157,7 @@ const ConfiguracaoVisual: React.FC = () => {
     }
     
     return (
-      <div key={campo.id} style={getCampoStyle()}>
+      <div key={campo.id} style={campoStyle}>
         <div style={{ fontWeight: 'bold', marginBottom: '5px' }}>{campo.nome}</div>
         <div>{campo.valor}</div>
       </div>
@@ -259,48 +300,43 @@ const ConfiguracaoVisual: React.FC = () => {
       }}>
         <h2 style={{ marginTop: 0 }}>🎨 Escolha o Layout</h2>
         <div style={{ display: 'flex', gap: '15px', flexWrap: 'wrap' }}>
-          <button
-            onClick={() => setLayout('vertical')}
-            style={{
-              padding: '10px 20px',
-              backgroundColor: layout === 'vertical' ? '#4CAF50' : '#ddd',
-              color: layout === 'vertical' ? 'white' : '#333',
-              border: 'none',
-              borderRadius: '5px',
-              cursor: 'pointer',
-              fontWeight: 'bold'
-            }}
-          >
-            📋 Vertical (Empilhado)
-          </button>
-          <button
-            onClick={() => setLayout('horizontal')}
-            style={{
-              padding: '10px 20px',
-              backgroundColor: layout === 'horizontal' ? '#4CAF50' : '#ddd',
-              color: layout === 'horizontal' ? 'white' : '#333',
-              border: 'none',
-              borderRadius: '5px',
-              cursor: 'pointer',
-              fontWeight: 'bold'
-            }}
-          >
-            ↔️ Horizontal (Lado a lado)
-          </button>
-          <button
-            onClick={() => setLayout('grade')}
-            style={{
-              padding: '10px 20px',
-              backgroundColor: layout === 'grade' ? '#4CAF50' : '#ddd',
-              color: layout === 'grade' ? 'white' : '#333',
-              border: 'none',
-              borderRadius: '5px',
-              cursor: 'pointer',
-              fontWeight: 'bold'
-            }}
-          >
-            🔲 Grade (2 colunas)
-          </button>
+          <button onClick={() => setLayout('vertical')} style={{ padding: '10px 20px', backgroundColor: layout === 'vertical' ? '#4CAF50' : '#ddd', color: layout === 'vertical' ? 'white' : '#333', border: 'none', borderRadius: '5px', cursor: 'pointer' }}>📋 Vertical</button>
+          <button onClick={() => setLayout('horizontal')} style={{ padding: '10px 20px', backgroundColor: layout === 'horizontal' ? '#4CAF50' : '#ddd', color: layout === 'horizontal' ? 'white' : '#333', border: 'none', borderRadius: '5px', cursor: 'pointer' }}>↔️ Horizontal</button>
+          <button onClick={() => setLayout('grade')} style={{ padding: '10px 20px', backgroundColor: layout === 'grade' ? '#4CAF50' : '#ddd', color: layout === 'grade' ? 'white' : '#333', border: 'none', borderRadius: '5px', cursor: 'pointer' }}>🔲 Grade</button>
+        </div>
+      </div>
+
+      {/* Seção de seleção de tamanho */}
+      <div style={{ 
+        marginBottom: '30px', 
+        border: '1px solid #ddd', 
+        padding: '20px', 
+        borderRadius: '8px',
+        backgroundColor: '#f9f9f9'
+      }}>
+        <h2 style={{ marginTop: 0 }}>📏 Tamanho da Etiqueta</h2>
+        <div style={{ display: 'flex', gap: '15px', flexWrap: 'wrap' }}>
+          <button onClick={() => setTamanho('pequena')} style={{ padding: '10px 20px', backgroundColor: tamanho === 'pequena' ? '#4CAF50' : '#ddd', border: 'none', borderRadius: '5px', cursor: 'pointer' }}>Pequena (250px)</button>
+          <button onClick={() => setTamanho('media')} style={{ padding: '10px 20px', backgroundColor: tamanho === 'media' ? '#4CAF50' : '#ddd', border: 'none', borderRadius: '5px', cursor: 'pointer' }}>Média (350px)</button>
+          <button onClick={() => setTamanho('grande')} style={{ padding: '10px 20px', backgroundColor: tamanho === 'grande' ? '#4CAF50' : '#ddd', border: 'none', borderRadius: '5px', cursor: 'pointer' }}>Grande (450px)</button>
+          <button onClick={() => setTamanho('extra')} style={{ padding: '10px 20px', backgroundColor: tamanho === 'extra' ? '#4CAF50' : '#ddd', border: 'none', borderRadius: '5px', cursor: 'pointer' }}>Extra (550px)</button>
+        </div>
+      </div>
+
+      {/* Seção de seleção de templates */}
+      <div style={{ 
+        marginBottom: '30px', 
+        border: '1px solid #ddd', 
+        padding: '20px', 
+        borderRadius: '8px',
+        backgroundColor: '#f9f9f9'
+      }}>
+        <h2 style={{ marginTop: 0 }}>🎨 Templates</h2>
+        <div style={{ display: 'flex', gap: '15px', flexWrap: 'wrap' }}>
+          <button onClick={() => setTemplate('claro')} style={{ padding: '10px 20px', backgroundColor: template === 'claro' ? '#4CAF50' : '#f0f0f0', color: '#333', border: '1px solid #ccc', borderRadius: '5px', cursor: 'pointer' }}>⬜ Claro</button>
+          <button onClick={() => setTemplate('escuro')} style={{ padding: '10px 20px', backgroundColor: template === 'escuro' ? '#4CAF50' : '#1a1a2e', color: 'white', border: 'none', borderRadius: '5px', cursor: 'pointer' }}>⬛ Escuro</button>
+          <button onClick={() => setTemplate('verde')} style={{ padding: '10px 20px', backgroundColor: template === 'verde' ? '#4CAF50' : '#e8f5e9', color: '#2e7d32', border: '1px solid #4caf50', borderRadius: '5px', cursor: 'pointer' }}>🟢 Verde Saudável</button>
+          <button onClick={() => setTemplate('profissional')} style={{ padding: '10px 20px', backgroundColor: template === 'profissional' ? '#4CAF50' : '#0d47a1', color: 'white', border: 'none', borderRadius: '5px', cursor: 'pointer' }}>🔵 Profissional</button>
         </div>
       </div>
 
@@ -313,16 +349,17 @@ const ConfiguracaoVisual: React.FC = () => {
       }}>
         <h2 style={{ marginTop: 0 }}>👁️ Preview da Etiqueta</h2>
         <div style={{ 
-          border: '2px solid #333', 
-          padding: '20px', 
-          backgroundColor: 'white',
+          ...getTemplateStyle(),
+          padding: '20px',
           borderRadius: '8px',
-          transition: 'all 0.3s ease'
+          width: getTamanhoWidth(),
+          transition: 'all 0.3s ease',
+          margin: '0 auto'
         }}>
           <h3 style={{ 
             margin: '0 0 15px 0', 
             textAlign: 'center',
-            borderBottom: '2px solid #333',
+            borderBottom: `2px solid ${template === 'escuro' ? '#fff' : '#333'}`,
             paddingBottom: '10px'
           }}>
             Informações Nutricionais
