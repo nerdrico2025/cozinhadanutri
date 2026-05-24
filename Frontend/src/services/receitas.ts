@@ -42,3 +42,8 @@ export const gerarTabelaNutricional = async (id: string | number) => {
   const response = await api.get(`/api/fichas-tecnicas/${id}/tabela-nutricional/`);
   return response.data;
 };
+
+export const obterReceita = async (id: string | number) => {
+  const response = await api.get(`/api/receitas/${id}/`);
+  return response.data;
+};

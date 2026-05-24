@@ -179,7 +179,7 @@ export function CriarReceita({ receitaInicial, onSalvar, onCancelar, onSolicitar
             id: String(item.id),
             tacoId: item.numero,
             nome: item.descricao,
-            unidade: item.unidade_medida || 'g',
+            unidade: item.unidade_medida === 'un' ? 'unidade' : (item.unidade_medida || 'g'),
             preco: item.preco !== null ? parseFloat(item.preco) : 0,
             dadosNutricionais: {
               calorias: parseFloat(item.energia_kcal) || 0,

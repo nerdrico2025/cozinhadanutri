@@ -34,8 +34,8 @@ type TelaAtiva =
   | 'adm';
 
 interface HeaderProps {
-  telaAtiva: TelaAtiva;
-  onNavegar: (tela: TelaAtiva) => void;
+  telaAtiva: any;
+  onNavegar: (tela: any) => void;
   onSair?: () => void;
   usuario?: UsuarioLogado | null;
 }

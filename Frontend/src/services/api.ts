@@ -10,7 +10,8 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     // Exemplo: se der 401 e não estivermos na rota de login, podemos redirecionar ou limpar dados
-    if (error.response && error.response.status === 401) {
+    const url: string = error.config?.url ?? '';
+    if (error.response && error.response.status === 401 && !url.includes('/api/profile/') && !url.includes('/api/fichas-tecnicas/')) {
       console.error('Não autorizado ou sessão expirada');
       // Opcional: emitir evento ou redirecionar
     }

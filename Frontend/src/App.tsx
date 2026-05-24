@@ -22,6 +22,7 @@ import { RotuloNutricional } from './components/NutritionalLabel';
 import { PostRegisterPlans } from './pages/PostRegisterPlans';
 import { Terms } from './pages/Terms';
 import { Privacy } from './pages/Privacy';
+import { Etiqueta } from './pages/Etiqueta';
 import { UsuarioLogado, Receita, Ingrediente } from './types';
 import { login, registrar, getSessao, encerrarSessao, atualizarPerfil, requestPasswordReset, validateResetCode, resetPassword, apagarConta } from './services/auth';
 import { listarAlimentos, salvarAlimento, excluirAlimento } from './services/alimentos';
@@ -52,19 +53,21 @@ type TelaAtiva =
   | 'contato'
   | 'recibo'
   | 'boas-vindas'
+  | 'etiqueta'
   | 'not-found';
 
 
 const validTelas: TelaAtiva[] = [
   'home', 'login', 'register', 'esqueci-senha', 'perfil',
   'dashboard', 'receitas', 'criar-receita', 'cadastro-ingrediente',
-  'lista-ingredientes', 'planos', 'faq', 'suporte', 'contato', 'recibo', 'termos', 'privacidade', 'pagamento', 'adm', 'boas-vindas', 'not-found'
+  'lista-ingredientes', 'planos', 'faq', 'suporte', 'contato', 'recibo', 'termos', 'privacidade', 'pagamento', 'adm', 'boas-vindas', 'etiqueta', 'not-found'
 ];
 
 const getTelaFromHash = (): TelaAtiva => {
-  const hash = window.location.hash.replace('#', '') as TelaAtiva;
-  if (!hash) return 'home';
-  return validTelas.includes(hash) ? hash : 'not-found';
+  const hashPart = window.location.hash.replace('#', '');
+  const path = hashPart.split('?')[0].replace(/^\//, '') as TelaAtiva;
+  if (!path) return 'home';
+  return validTelas.includes(path) ? path : 'not-found';
 };
 
 function App() {
@@ -148,7 +151,7 @@ function App() {
           id: item.id,
           tacoId: item.numero,
           nome: item.descricao,
-          unidade: item.unidade_medida || 'g',
+          unidade: item.unidade_medida === 'un' ? 'unidade' : (item.unidade_medida || 'g'),
           preco: parseFloat(item.preco) || 0,
           dadosNutricionais: {
             calorias: parseFloat(item.energia_kcal) || 0,
@@ -380,7 +383,7 @@ function App() {
         id: itemSalvo.id,
         tacoId: itemSalvo.numero,
         nome: itemSalvo.descricao,
-        unidade: itemSalvo.unidade_medida || 'g',
+        unidade: itemSalvo.unidade_medida === 'un' ? 'unidade' : (itemSalvo.unidade_medida || 'g'),
         preco: parseFloat(itemSalvo.preco) || 0,
         dadosNutricionais: {
           calorias: parseFloat(itemSalvo.energia_kcal) || 0,
@@ -487,7 +490,7 @@ function App() {
             receitas={receitas}
             onEditar={(r) => { setReceitaEmEdicao(r); setTelaAtiva('criar-receita'); }}
             onRemover={handleRemoverReceita}
-            onGerarRotulo={(r) => setReceitaParaRotulo(r)}
+            onGerarRotulo={(r) => { window.location.hash = `#etiqueta?id=${r.id}`; }}
           />
         );
       case 'cadastro-ingrediente':
@@ -628,6 +631,8 @@ function App() {
         return <Privacy onVoltar={() => window.history.back()} />;
       case 'adm':
         return <Adm />;
+      case 'etiqueta':
+        return <Etiqueta onVoltar={() => setTelaAtiva('receitas')} usuario={usuario} />;
       default:
         return <Home />;
     }

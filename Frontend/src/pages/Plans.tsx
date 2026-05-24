@@ -5,8 +5,8 @@ import React from 'react';
 type TelaAtiva = 'home' | 'dashboard' | 'receitas' | 'criar-receita' | 'cadastro-ingrediente' | 'lista-ingredientes' | 'login' | 'register' | 'planos' | 'faq' | 'suporte' | 'termos' | 'pagamento' | 'adm';
 
 interface PlanosProps {
-  onNavegar?: (tela: TelaAtiva) => void;
-  onAssinarPlano?: (planoId: string) => void;
+  onNavegar?: (tela: any) => void;
+  onAssinarPlano?: (planoId: any) => void;
   usuario?: UsuarioLogado | null;
 }
 

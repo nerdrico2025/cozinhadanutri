@@ -15,7 +15,7 @@ export const salvarAlimento = async (ingrediente: Partial<Ingrediente>, numeroEx
   // Converte de "Ingrediente" do frontend para o formato do backend "Alimento"
   const payload = {
     descricao: ingrediente.nome,
-    unidade_medida: ingrediente.unidade,
+    unidade_medida: ingrediente.unidade === 'unidade' ? 'un' : ingrediente.unidade,
     preco: ingrediente.preco,
     energia_kcal: ingrediente.dadosNutricionais?.calorias || 0,
     proteina: ingrediente.dadosNutricionais?.proteinas || 0,

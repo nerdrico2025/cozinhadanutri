@@ -12,18 +12,18 @@ import { buscarAlimentosBackend } from '../services/alimentos';
 
 const numField = z.preprocess(
   (val) => (typeof val === 'number' && isNaN(val) ? undefined : val),
-  z.number({ required_error: 'Campo não pode ficar vazio', invalid_type_error: 'Campo não pode ficar vazio' })
+  z.number({ message: 'Campo não pode ficar vazio' })
     .min(0, 'Inválido')
-);
+) as any;
 
 const ingredienteSchema = z.object({
   nome: z.string().min(1, 'Nome é obrigatório'),
   unidade: z.enum(['g', 'kg', 'ml', 'l', 'unidade']),
   preco: z.preprocess(
     (val) => (typeof val === 'number' && isNaN(val) ? undefined : val),
-    z.number({ required_error: 'Campo não pode ficar vazio', invalid_type_error: 'Campo não pode ficar vazio' })
+    z.number({ message: 'Campo não pode ficar vazio' })
       .min(0.01, 'Preço deve ser maior que zero')
-  ),
+  ) as any,
   calorias: numField,
   proteinas: numField,
   carboidratos: numField,
@@ -152,7 +152,7 @@ export function CadastroIngrediente({ ingredienteInicial, onSalvar, onCancelar, 
     setModalAcucarAberto(false);
     try {
       await onSalvar({
-        id: tacoDbId ?? ingredienteInicial?.id ?? '', // App.tsx vai lidar com isso e salvarAlimento também
+        id: String(tacoDbId ?? ingredienteInicial?.id ?? ''), // App.tsx vai lidar com isso e salvarAlimento também
         tacoId: tacoNumeroSelecionado,
         nome: data.nome,
         unidade: data.unidade,
@@ -332,7 +332,7 @@ export function CadastroIngrediente({ ingredienteInicial, onSalvar, onCancelar, 
                       className={`${inputCls(!!errors.preco)} pl-8`}
                     />
                   </div>
-                  {errors.preco && <p className="text-red-500 text-xs mt-1">{errors.preco.message}</p>}
+                  {errors.preco && <p className="text-red-500 text-xs mt-1">{errors.preco.message as string}</p>}
                 </div>
               </div>
             </div>
@@ -372,7 +372,7 @@ export function CadastroIngrediente({ ingredienteInicial, onSalvar, onCancelar, 
                   { field: 'minerais',             label: 'Minerais',          unit: 'g',    Icon: PackagePlus,color: 'text-indigo-500', bg: 'bg-indigo-50'      },
                 ] as const).map(({ field, label, unit, Icon, color, bg }) => {
                   const isSugarField = field === 'acucares_totais' || field === 'acucares_adicionados';
-                  const isReadOnly = tacoNumeroSelecionado && !isSugarField;
+                  const isReadOnly = !!tacoNumeroSelecionado && !isSugarField;
                   return (
                   <div key={field}>
                     <label className="flex items-center gap-1.5 text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">
@@ -399,7 +399,7 @@ export function CadastroIngrediente({ ingredienteInicial, onSalvar, onCancelar, 
                       readOnly={isReadOnly}
                       className={`${inputCls(!!errors[field])} ${isReadOnly ? 'bg-gray-100 text-gray-400 cursor-not-allowed select-none' : ''}`}
                     />
-                    {errors[field] && <p className="text-red-500 text-xs mt-1">{errors[field]?.message}</p>}
+                    {errors[field] && <p className="text-red-500 text-xs mt-1">{errors[field]?.message as string}</p>}
                   </div>
                 );})}
               </div>

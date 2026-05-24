@@ -23,7 +23,7 @@ export const registrar = async (
       username: dados.email.split('@')[0] + Math.floor(Math.random() * 1000), // Evita duplicação de username baseando-se no email
       razao_social: dados.nomeEmpresarial || dados.nomeFantasia || 'User',
       nome_fantasia: dados.nomeFantasia || 'User',
-      cnpj: dados.cnpj || '00.000.000/0000-00', // Mock caso n venha pra evitar erro no DRF caso obrigatório
+      cnpj: (dados.cnpj || '00000000000000').replace(/\D/g, '').slice(0, 14),
       inscricao_estadual: dados.inscricaoEstadual || '',
       telefone: dados.telefone || ''
     };
