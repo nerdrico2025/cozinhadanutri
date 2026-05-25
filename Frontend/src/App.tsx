@@ -26,6 +26,7 @@ import { listarAlimentos, salvarAlimento, excluirAlimento } from './services/ali
 import { salvarReceita, excluirReceita, listarReceitas } from './services/receitas';
 import { calcularCustosReceita, calcularNutrientesTotais, calcularDadosNutricionaisPorPorcao } from './utils/calculations';
 import {Footer} from './components/Footer';
+import ConfiguracaoVisual from './pages/configuracaovisual/edicaodinamicadecampos';
 import './App.css';
 
 
@@ -48,13 +49,14 @@ type TelaAtiva =
   | 'pagamento'
   | 'adm'
   | 'boas-vindas'
-  | 'not-found';
+  | 'not-found'
+  | 'configuracaovisual';
 
 
 const validTelas: TelaAtiva[] = [
   'home', 'login', 'register', 'esqueci-senha', 'perfil',
   'dashboard', 'receitas', 'criar-receita', 'cadastro-ingrediente',
-  'lista-ingredientes', 'planos', 'faq', 'suporte', 'termos', 'privacidade', 'pagamento', 'adm', 'boas-vindas', 'not-found'
+  'lista-ingredientes', 'planos', 'faq', 'suporte', 'termos', 'privacidade', 'pagamento', 'adm', 'boas-vindas', 'not-found', 'configuracaovisual'
 ];
 
 const getTelaFromHash = (): TelaAtiva => {
@@ -620,6 +622,8 @@ function App() {
         return <Privacy onVoltar={() => window.history.back()} />;
       case 'adm':
         return <Adm />;
+      case 'configuracaovisual':
+        return <ConfiguracaoVisual />;
       default:
         return <Home />;
     }
