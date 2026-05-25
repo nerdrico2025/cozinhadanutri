@@ -1,7 +1,25 @@
-from rest_framework.routers import DefaultRouter
-from .views import FichaTecnicaViewSet
+from django.urls import path
 
-router = DefaultRouter()
-router.register(r'fichas', FichaTecnicaViewSet)
+from .views import TabelaNutricionalView
 
-urlpatterns = router.urls
+
+from django.urls import path
+
+from .views import (
+    TabelaNutricionalView,
+    RotuloView
+)
+
+urlpatterns = [
+    path(
+        'fichas-tecnicas/<int:id>/tabela-nutricional/',
+        TabelaNutricionalView.as_view(),
+        name='tabela-nutricional'
+    ),
+
+    path(
+        'fichas-tecnicas/<int:id>/rotulo/',
+        RotuloView.as_view(),
+        name='rotulo'
+    ),
+]

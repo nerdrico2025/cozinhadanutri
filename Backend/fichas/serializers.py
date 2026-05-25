@@ -1,20 +1,22 @@
 from rest_framework import serializers
-from .models import FichaTecnica, IngredienteFichaTecnica
 
 
-class IngredienteFichaTecnicaSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = IngredienteFichaTecnica
-        fields = '__all__'
+class TabelaNutricionalSerializer(serializers.Serializer):
+    gorduras_totais = serializers.FloatField()
+    energia_kcal = serializers.FloatField()
+    proteinas = serializers.FloatField()
+    gorduras_saturadas = serializers.FloatField()
+    carboidratos = serializers.FloatField()
+    acucares_totais = serializers.FloatField()
+    acucares_adicionados = serializers.FloatField()
+    fibra_alimentar = serializers.FloatField()
+    sodio = serializers.FloatField()
 
 
-class FichaTecnicaSerializer(serializers.ModelSerializer):
-    ingredientes = IngredienteFichaTecnicaSerializer(
-        source='ingredientefichatecnica_set',
-        many=True,
-        read_only=True
+class RotuloSerializer(serializers.Serializer):
+    nome_produto = serializers.CharField()
+    porcao = serializers.CharField()
+    ingredientes = serializers.ListField(
+        child=serializers.CharField()
     )
-
-    class Meta:
-        model = FichaTecnica
-        fields = '__all__'
+    tabela_nutricional = TabelaNutricionalSerializer()
