@@ -1,5 +1,6 @@
 from rest_framework import serializers
-
+from .models import ConfiguracaoEtiqueta
+from .models import Etiqueta
 
 class TabelaNutricionalSerializer(serializers.Serializer):
     gorduras_totais = serializers.FloatField()
@@ -20,3 +21,22 @@ class RotuloSerializer(serializers.Serializer):
         child=serializers.CharField()
     )
     tabela_nutricional = TabelaNutricionalSerializer()
+
+class ConfiguracaoEtiquetaSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = ConfiguracaoEtiqueta
+
+        fields = [
+            'id',
+            'nome_personalizado',
+            'porcao',
+            'informacoes_complementares',
+            'tamanho_etiqueta'
+        ]
+
+class EtiquetaSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = Etiqueta
+        fields = '__all__'
