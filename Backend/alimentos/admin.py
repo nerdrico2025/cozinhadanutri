@@ -5,7 +5,7 @@ from .models import Alimento
 
 
 class AlimentoAdmin(admin.ModelAdmin):
-    list_display = ('numero', 'descricao', 'energia_kcal', 'carboidratos', 'proteinas', 'gorduras_totais', 'fibra_alimentar', 'sodio')
+    list_display = ('numero', 'descricao', 'energia_kcal', 'carboidratos', 'acucares_totais', 'acucares_adicionados', 'proteinas', 'gorduras_totais', 'gorduras_saturadas', 'gorduras_trans', 'fibra_alimentar', 'sodio')
     search_fields = ('descricao',)
 
 admin.site.register(Alimento, AlimentoAdmin)
