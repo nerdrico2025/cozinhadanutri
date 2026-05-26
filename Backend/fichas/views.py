@@ -5,16 +5,16 @@ from django.shortcuts import get_object_or_404
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
-from .models import Etiqueta
-from .serializers import EtiquetaSerializer
 
 from .models import (
+    Etiqueta,
     FichaTecnica,
     IngredienteFichaTecnica,
     ConfiguracaoEtiqueta,
 )
 
 from .serializers import (
+    EtiquetaSerializer,
     TabelaNutricionalSerializer,
     RotuloSerializer,
     ConfiguracaoEtiquetaSerializer
@@ -188,7 +188,8 @@ class RotuloView(APIView):
         serializer = RotuloSerializer(dados)
 
         return Response(serializer.data)
-    
+
+
 class ConfiguracaoEtiquetaView(APIView):
 
     permission_classes = [IsAuthenticated]
@@ -223,9 +224,24 @@ class ConfiguracaoEtiquetaView(APIView):
         serializer.save()
 
         return Response(serializer.data)
-    
+
+
 class EtiquetaView(APIView):
     permission_classes = [IsAuthenticated]
+
+    def get(self, request, id):
+
+        etiqueta = get_object_or_404(Etiqueta, id=id)
+
+        if etiqueta.ficha.usuario != request.user:
+            return Response(
+                {"erro": "Acesso negado"},
+                status=403
+            )
+
+        serializer = EtiquetaSerializer(etiqueta)
+
+        return Response(serializer.data)
 
     def patch(self, request, id):
 
