@@ -19,7 +19,6 @@ import { RotuloNutricional } from './components/NutritionalLabel';
 import { UsuarioLogado, Receita, Ingrediente } from './types';
 import { login } from './services/auth';
 import {Footer} from './components/Footer';
-import ConfiguracaoVisual from './pages/configuracaovisual/edicaodinamicadecampos';
 import './App.css';
 
 
@@ -39,14 +38,13 @@ type TelaAtiva =
   | 'suporte'
   | 'termos'
   | 'pagamento'
-  | 'adm'
-  | 'configuracaovisual';
+  | 'adm';
 
 
 const validTelas: TelaAtiva[] = [
   'home', 'login', 'register', 'esqueci-senha', 'perfil',
   'dashboard', 'receitas', 'criar-receita', 'cadastro-ingrediente',
-  'lista-ingredientes', 'planos', 'faq', 'suporte', 'termos', 'pagamento', 'adm', 'configuracaovisual'
+  'lista-ingredientes', 'planos', 'faq', 'suporte', 'termos', 'pagamento', 'adm',
 ];
 
 const getTelaFromHash = (): TelaAtiva => {
@@ -254,8 +252,6 @@ function App() {
         );
       case 'adm':
         return <Adm />;
-        case 'configuracaovisual':
-        return <ConfiguracaoVisual />;
       default:
         return <Home />;
     }
@@ -278,6 +274,5 @@ function App() {
     </div>
   );
 }
-
 
 export default App;
