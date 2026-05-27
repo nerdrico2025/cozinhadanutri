@@ -30,8 +30,12 @@ type TelaAtiva =
   | 'faq'
   | 'suporte'
   | 'termos'
+  | 'privacidade'
   | 'pagamento'
-  | 'adm';
+  | 'adm'
+  | 'boas-vindas'
+  | 'not-found'
+  | 'configuracaovisual';
 
 interface HeaderProps {
   telaAtiva: any;

@@ -12,8 +12,6 @@ import { FAQ } from './pages/FAQ';
 import { Dashboard } from './pages/Dashboard';
 import { Adm } from './pages/Adm';
 import { NotFound } from './pages/NotFound';
-import { ContactForm } from './pages/ContactForm';
-import { Receipt } from './pages/receipt';
 import { CriarReceita } from './components/CreateRecipe';
 import { ListaReceitas } from './components/RecipeList';
 import { CadastroIngrediente } from './components/IngredientRegistration';
@@ -22,13 +20,13 @@ import { RotuloNutricional } from './components/NutritionalLabel';
 import { PostRegisterPlans } from './pages/PostRegisterPlans';
 import { Terms } from './pages/Terms';
 import { Privacy } from './pages/Privacy';
-import { Etiqueta } from './pages/Etiqueta';
 import { UsuarioLogado, Receita, Ingrediente } from './types';
 import { login, registrar, getSessao, encerrarSessao, atualizarPerfil, requestPasswordReset, validateResetCode, resetPassword, apagarConta } from './services/auth';
 import { listarAlimentos, salvarAlimento, excluirAlimento } from './services/alimentos';
 import { salvarReceita, excluirReceita, listarReceitas } from './services/receitas';
 import { calcularCustosReceita, calcularNutrientesTotais, calcularDadosNutricionaisPorPorcao } from './utils/calculations';
 import {Footer} from './components/Footer';
+import ConfiguracaoVisual from './pages/configuracaovisual/edicaodinamicadecampos';
 import './App.css';
 
 
@@ -50,24 +48,21 @@ type TelaAtiva =
   | 'privacidade'
   | 'pagamento'
   | 'adm'
-  | 'contato'
-  | 'recibo'
   | 'boas-vindas'
-  | 'etiqueta'
-  | 'not-found';
+  | 'not-found'
+  | 'configuracaovisual';
 
 
 const validTelas: TelaAtiva[] = [
   'home', 'login', 'register', 'esqueci-senha', 'perfil',
   'dashboard', 'receitas', 'criar-receita', 'cadastro-ingrediente',
-  'lista-ingredientes', 'planos', 'faq', 'suporte', 'contato', 'recibo', 'termos', 'privacidade', 'pagamento', 'adm', 'boas-vindas', 'etiqueta', 'not-found'
+  'lista-ingredientes', 'planos', 'faq', 'suporte', 'termos', 'privacidade', 'pagamento', 'adm', 'boas-vindas', 'not-found', 'configuracaovisual'
 ];
 
 const getTelaFromHash = (): TelaAtiva => {
-  const hashPart = window.location.hash.replace('#', '');
-  const path = hashPart.split('?')[0].replace(/^\//, '') as TelaAtiva;
-  if (!path) return 'home';
-  return validTelas.includes(path) ? path : 'not-found';
+  const hash = window.location.hash.replace('#', '') as TelaAtiva;
+  if (!hash) return 'home';
+  return validTelas.includes(hash) ? hash : 'not-found';
 };
 
 function App() {
@@ -81,8 +76,9 @@ function App() {
   const [ingredienteEmEdicao, setIngredienteEmEdicao] = useState<Ingrediente | undefined>(undefined);
   const [rascunhoReceita, setRascunhoReceita] = useState<Receita | undefined>(undefined);
   const [carregandoSessao, setCarregandoSessao] = useState(true);
+  const [planoSelecionado, setPlanoSelecionado] = useState<'profissional' | 'empresarial' | undefined>(undefined);
 
-  const publicTelas: TelaAtiva[] = ['home', 'login', 'register', 'esqueci-senha', 'faq', 'suporte', 'contato', 'recibo', 'termos', 'privacidade', 'not-found', 'planos'];
+  const publicTelas: TelaAtiva[] = ['home', 'login', 'register', 'esqueci-senha', 'faq', 'suporte', 'termos', 'privacidade', 'not-found', 'planos'];
 
   const setTelaAtiva = (tela: TelaAtiva) => {
     window.history.pushState({ tela }, '', `#${tela}`);
@@ -151,7 +147,7 @@ function App() {
           id: item.id,
           tacoId: item.numero,
           nome: item.descricao,
-          unidade: item.unidade_medida === 'un' ? 'unidade' : (item.unidade_medida || 'g'),
+          unidade: item.unidade_medida || 'g',
           preco: parseFloat(item.preco) || 0,
           dadosNutricionais: {
             calorias: parseFloat(item.energia_kcal) || 0,
@@ -383,7 +379,7 @@ function App() {
         id: itemSalvo.id,
         tacoId: itemSalvo.numero,
         nome: itemSalvo.descricao,
-        unidade: itemSalvo.unidade_medida === 'un' ? 'unidade' : (itemSalvo.unidade_medida || 'g'),
+        unidade: itemSalvo.unidade_medida || 'g',
         preco: parseFloat(itemSalvo.preco) || 0,
         dadosNutricionais: {
           calorias: parseFloat(itemSalvo.energia_kcal) || 0,
@@ -490,7 +486,7 @@ function App() {
             receitas={receitas}
             onEditar={(r) => { setReceitaEmEdicao(r); setTelaAtiva('criar-receita'); }}
             onRemover={handleRemoverReceita}
-            onGerarRotulo={(r) => { window.location.hash = `#etiqueta?id=${r.id}`; }}
+            onGerarRotulo={(r) => setReceitaParaRotulo(r)}
           />
         );
       case 'cadastro-ingrediente':
@@ -550,7 +546,7 @@ function App() {
             usuario={usuario}
             onNavegar={setTelaAtiva}
             onAssinarPlano={(planoId) => {
-              setPlanoPreSelecionado(planoId);
+              setPlanoSelecionado(planoId);
               setTelaAtiva('pagamento');
             }}
           />
@@ -609,11 +605,7 @@ function App() {
       case 'planos':
         return <Planos onNavegar={setTelaAtiva} onAssinarPlano={handleAssinarPlano} usuario={usuario} />;
       case 'suporte':
-        return <Support onNavegar={setTelaAtiva} />;
-      case 'contato':
-        return <ContactForm onCancelar={() => setTelaAtiva('suporte')} />;
-      case 'recibo':
-        return <Receipt onDashboard={() => setTelaAtiva('dashboard')} onSuporte={() => setTelaAtiva('suporte')} />;
+        return <Support />;
       case 'faq':
         return <FAQ onNavegar={setTelaAtiva} />;
       case 'pagamento':
@@ -631,8 +623,8 @@ function App() {
         return <Privacy onVoltar={() => window.history.back()} />;
       case 'adm':
         return <Adm />;
-      case 'etiqueta':
-        return <Etiqueta onVoltar={() => setTelaAtiva('receitas')} usuario={usuario} />;
+      case 'configuracaovisual':
+        return <ConfiguracaoVisual />;
       default:
         return <Home />;
     }

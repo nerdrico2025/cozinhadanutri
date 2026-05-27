@@ -69,23 +69,21 @@ for _, row in df.iterrows(): # percorrer cada linha da planilha
 
                 # nutrientes
                 'energia_kcal': limpar_valor(row.get('Energia (kcal)')),
-                'proteina': limpar_valor(row.get('Proteína (g)')),
-                'lipideos': limpar_valor(row.get('Lipídeos (g)')),
-                'carboidrato': limpar_valor(row.get('Carboidrato (g)')),
+                'proteinas': limpar_valor(row.get('Proteína (g)')),
+                'gorduras_totais': limpar_valor(row.get('Lipídeos (g)')),
+                'carboidratos': limpar_valor(row.get('Carboidrato (g)')),
                 'fibra_alimentar': limpar_valor(row.get('Fibra Alimentar (g)')),
-                'umidade': limpar_valor(row.get('Umidade (%)')),
-
+                
                 # gorduras e sódio
-                'saturados': limpar_valor(row.get('Saturados (g)')),
+                'gorduras_saturadas': limpar_valor(row.get('Saturados (g)')),
                 'sodio': limpar_valor(row.get('Sódio (mg)')),
-                'AG18_1t': limpar_valor(row.get('18:1t (g)')),
-                'AG18_2t': limpar_valor(row.get('18:2t (g)')),
-
+                'gorduras_trans': (
+                    (limpar_valor(row.get('18:1t (g)')) or 0) + (limpar_valor(row.get('18:2t (g)')) or 0)
+                ),
+                
                 # totais
                 'acucares_totais': 0,
                 'acucares_adicionados': 0,
-                'vitaminas': 0,
-                'minerais': 0,
             }
         )
 
