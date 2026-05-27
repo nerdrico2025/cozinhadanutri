@@ -11,7 +11,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { getSessao } from '../../services/auth';
-import { api } from '../../services/api';
+import  api  from '../../services/api';
 
 // ============================================
 // TIPAGENS (TypeScript)
