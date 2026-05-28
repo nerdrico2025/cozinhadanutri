@@ -10,8 +10,7 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { getSessao } from '../../services/auth';
-import  api  from '../../services/api';
+import api from '../../services/api';
 
 // ============================================
 // TIPAGENS (TypeScript)
@@ -72,16 +71,12 @@ const ConfiguracaoVisual: React.FC = () => {
   // FUNÇÕES DE INTEGRAÇÃO COM BACKEND (TAREFA 7)
   // ==========================================
 
-  /**
-   * Busca as configurações salvas no backend
-   */
   const carregarConfiguracoes = async () => {
     setCarregando(true);
     try {
       const response = await api.get(`/etiquetas/${ETIQUETA_ID}/`);
       const data = response.data;
       
-      // Aplica as configurações carregadas
       if (data.layout) setLayout(data.layout);
       if (data.tamanho) setTamanho(data.tamanho);
       if (data.template) setTemplate(data.template);
@@ -91,10 +86,10 @@ const ConfiguracaoVisual: React.FC = () => {
       
       setMensagemSucesso('✅ Configurações carregadas com sucesso!');
       setTimeout(() => setMensagemSucesso(null), 3000);
-    } catch (error: any) {
+    } catch (error) {
       console.error('Erro ao carregar configurações:', error);
+      // @ts-expect-error
       if (error.response?.status === 404) {
-        // Etiqueta não existe ainda, tudo bem
         console.log('Nenhuma configuração salva ainda');
       } else {
         setErros([{ tipo: 'geral', mensagem: '❌ Erro ao carregar configurações' }]);
@@ -105,9 +100,6 @@ const ConfiguracaoVisual: React.FC = () => {
     }
   };
 
-  /**
-   * Salva as configurações no backend
-   */
   const salvarConfiguracoes = async () => {
     setSalvando(true);
     setErros([]);
@@ -123,7 +115,7 @@ const ConfiguracaoVisual: React.FC = () => {
       await api.patch(`/etiquetas/${ETIQUETA_ID}/`, dados);
       setMensagemSucesso('✅ Configurações salvas com sucesso!');
       setTimeout(() => setMensagemSucesso(null), 3000);
-    } catch (error: any) {
+    } catch (error) {
       console.error('Erro ao salvar configurações:', error);
       setErros([{ tipo: 'geral', mensagem: '❌ Erro ao salvar configurações. Tente novamente.' }]);
       setTimeout(() => setErros([]), 3000);
@@ -350,7 +342,6 @@ const ConfiguracaoVisual: React.FC = () => {
         Configuração Visual - Etiqueta Nutricional
       </h1>
       
-      {/* TAREFA 7: Indicador de carregamento */}
       {carregando && (
         <div style={{
           textAlign: 'center',
@@ -363,7 +354,6 @@ const ConfiguracaoVisual: React.FC = () => {
         </div>
       )}
       
-      {/* TAREFA 6: Exibe mensagens de erro e sucesso */}
       {erros.map((erro, index) => (
         <div key={index} style={{
           marginBottom: '20px',
@@ -390,9 +380,7 @@ const ConfiguracaoVisual: React.FC = () => {
         </div>
       )}
       
-      {/* ========================================== */}
-      {/* SEÇÃO 1: EDIÇÃO DINÂMICA DE CAMPOS (TAREFA 1) */}
-      {/* ========================================== */}
+      {/* SEÇÃO 1: EDIÇÃO DINÂMICA DE CAMPOS */}
       <div style={{ 
         marginBottom: '30px', 
         border: '1px solid #ddd', 
@@ -527,9 +515,7 @@ const ConfiguracaoVisual: React.FC = () => {
         </div>
       </div>
 
-      {/* ========================================== */}
-      {/* SEÇÃO 2: SELEÇÃO DE LAYOUT (TAREFA 2) */}
-      {/* ========================================== */}
+      {/* SEÇÃO 2: SELEÇÃO DE LAYOUT */}
       <div style={{ 
         marginBottom: '30px', 
         border: '1px solid #ddd', 
@@ -569,9 +555,7 @@ const ConfiguracaoVisual: React.FC = () => {
         </div>
       </div>
 
-      {/* ========================================== */}
-      {/* SEÇÃO 3: TAMANHO DA ETIQUETA (TAREFA 3) */}
-      {/* ========================================== */}
+      {/* SEÇÃO 3: TAMANHO DA ETIQUETA */}
       <div style={{ 
         marginBottom: '30px', 
         border: '1px solid #ddd', 
@@ -588,9 +572,7 @@ const ConfiguracaoVisual: React.FC = () => {
         </div>
       </div>
 
-      {/* ========================================== */}
-      {/* SEÇÃO 4: TEMPLATES (TAREFA 4) */}
-      {/* ========================================== */}
+      {/* SEÇÃO 4: TEMPLATES */}
       <div style={{ 
         marginBottom: '30px', 
         border: '1px solid #ddd', 
@@ -607,9 +589,7 @@ const ConfiguracaoVisual: React.FC = () => {
         </div>
       </div>
 
-      {/* ========================================== */}
-      {/* SEÇÃO 5: BOTÃO SALVAR (TAREFA 7) */}
-      {/* ========================================== */}
+      {/* SEÇÃO 5: BOTÃO SALVAR */}
       <div style={{ 
         marginBottom: '30px', 
         display: 'flex', 
@@ -635,9 +615,7 @@ const ConfiguracaoVisual: React.FC = () => {
         </button>
       </div>
 
-      {/* ========================================== */}
       {/* SEÇÃO 6: PREVIEW EM TEMPO REAL */}
-      {/* ========================================== */}
       <div style={{ 
         border: '1px solid #ddd', 
         padding: isMobile ? '15px' : '20px', 
