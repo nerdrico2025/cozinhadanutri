@@ -3,7 +3,7 @@ import { UsuarioLogado } from '../types';
 
 export const login = async (email: string, senha: string): Promise<UsuarioLogado | null> => {
   try {
-    await api.post('/api/token/', { email, password: senha });
+    await api.post('/api/login/', { email, password: senha });
     // Após o login gerar os cookies, buscamos o perfil completo que tem os dados da empresa
     return await getSessao();
   } catch (error) {
