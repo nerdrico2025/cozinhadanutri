@@ -95,29 +95,17 @@ export const atualizarPerfil = async (dados: any): Promise<boolean> => {
   }
 };
 
-export const requestPasswordReset = async (email: string) => {
+export const resetPassword = async (email: string, codigo?: string, novaSenha?: string): Promise<boolean> => {
   try {
-    await api.post('/api/password-reset/request/', { email });
+    const payload: any = { email };
+    if (codigo && novaSenha) {
+      payload.codigo = codigo;
+      payload.nova_senha = novaSenha;
+    }
+    await api.post('/api/password-reset/', payload);
     return true;
   } catch (error) {
-    return false;
-  }
-};
-
-export const validateResetCode = async (email: string, codigo: string) => {
-  try {
-    await api.post('/api/password-reset/validate/', { email, codigo });
-    return true;
-  } catch (error) {
-    return false;
-  }
-};
-
-export const resetPassword = async (email: string, codigo: string, novaSenha: string) => {
-  try {
-    await api.post('/api/password-reset/confirm/', { email, codigo, novaSenha });
-    return true;
-  } catch (error) {
+    console.error('Erro na recuperação de senha:', error);
     return false;
   }
 };
