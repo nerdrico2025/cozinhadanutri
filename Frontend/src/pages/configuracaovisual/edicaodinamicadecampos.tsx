@@ -88,7 +88,7 @@ const ConfiguracaoVisual: React.FC = () => {
       setTimeout(() => setMensagemSucesso(null), 3000);
     } catch (error) {
       console.error('Erro ao carregar configurações:', error);
-      // @ts-expect-error
+      // @ts-expect-error - error.response pode não existir em todos os tipos de erro
       if (error.response?.status === 404) {
         console.log('Nenhuma configuração salva ainda');
       } else {
