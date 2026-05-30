@@ -21,7 +21,7 @@ import { PostRegisterPlans } from './pages/PostRegisterPlans';
 import { Terms } from './pages/Terms';
 import { Privacy } from './pages/Privacy';
 import { UsuarioLogado, Receita, Ingrediente } from './types';
-import { login, registrar, getSessao, encerrarSessao, atualizarPerfil, requestPasswordReset, validateResetCode, resetPassword, apagarConta } from './services/auth';
+import { login, registrar, getSessao, encerrarSessao, atualizarPerfil, resetPassword, apagarConta } from './services/auth';
 import { listarAlimentos, salvarAlimento, excluirAlimento } from './services/alimentos';
 import { salvarReceita, excluirReceita, listarReceitas } from './services/receitas';
 import { calcularCustosReceita, calcularNutrientesTotais, calcularDadosNutricionaisPorPorcao } from './utils/calculations';
@@ -535,9 +535,7 @@ function App() {
         return (
           <ForgotMyPassword 
             onVoltar={() => setTelaAtiva('login')} 
-            onEnviarEmail={requestPasswordReset}
-            onVerificarCodigo={validateResetCode}
-            onRedefinirSenha={resetPassword}
+            onResetPassword={resetPassword}
           />
         );
       case 'boas-vindas':
