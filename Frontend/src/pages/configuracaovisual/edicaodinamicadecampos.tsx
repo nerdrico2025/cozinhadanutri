@@ -1,12 +1,20 @@
 /**
- * CONFIGURAÇÃO VISUAL - ETIQUETA NUTRICIONAL
+ * CONFIGURAÇÃO VISUAL - ETIQUETA NUTRICIONAL (MODELO ANVISA/TACO)
  * 
- * TAREFA 7: Integração com Backend
- * - GET /api/etiquetas/{id}/ -> Carregar configurações
- * - PATCH /api/etiquetas/{id}/ -> Salvar configurações
- * - Autenticação: Bearer Token
+ * Campos obrigatórios segundo a RDC ANVISA:
+ * - Valor Energético (kcal)
+ * - Carboidratos (g)
+ * - Açúcares Totais (g)
+ * - Açúcares Adicionados (g)
+ * - Proteínas (g)
+ * - Gorduras Totais (g)
+ * - Gorduras Saturadas (g)
+ * - Gorduras Trans (g)
+ * - Fibra Alimentar (g)
+ * - Sódio (mg)
  * 
  * Tarefas concluídas: 1, 2, 3, 4, 5, 6, 7
+ * Padrão de cores: #04585a (verde da marca)
  */
 
 import React, { useState, useEffect } from 'react';
@@ -20,6 +28,7 @@ interface CampoDinamico {
   id: string;
   nome: string;
   valor: string;
+  unidade: string;
   ativo: boolean;
 }
 
@@ -27,69 +36,79 @@ interface ConfiguracoesEtiqueta {
   id?: number;
   layout: string;
   tamanho: string;
-  template: string;
   campos: CampoDinamico[];
+  porcoesEmbalagem: number;
+  porcaoGramas: number;
+  medidaCaseira: string;
 }
 
 type LayoutType = 'vertical' | 'horizontal' | 'grade';
 type TamanhoType = 'pequena' | 'media' | 'grande' | 'extra';
-type TemplateType = 'claro' | 'escuro' | 'verde' | 'profissional';
 
-// ID fixo da etiqueta (pode ser do usuário ou fixo)
 const ETIQUETA_ID = 1;
 
-// ============================================
-// COMPONENTE PRINCIPAL
-// ============================================
+// Cores da marca
+const COR_PRIMARIA = '#04585a';
+const COR_BORDA = '#04585a';
+const FUNDO_BRANCO = '#ffffff';
+const TEXTO_PADRAO = '#333333';
+
+// Campos obrigatórios ANVISA/TACO
+const CAMPOS_OBRIGATORIOS: CampoDinamico[] = [
+  { id: '1', nome: 'Valor Energético', valor: '200', unidade: 'kcal', ativo: true },
+  { id: '2', nome: 'Carboidratos', valor: '25', unidade: 'g', ativo: true },
+  { id: '3', nome: 'Açúcares Totais', valor: '10', unidade: 'g', ativo: true },
+  { id: '4', nome: 'Açúcares Adicionados', valor: '5', unidade: 'g', ativo: true },
+  { id: '5', nome: 'Proteínas', valor: '15', unidade: 'g', ativo: true },
+  { id: '6', nome: 'Gorduras Totais', valor: '8', unidade: 'g', ativo: true },
+  { id: '7', nome: 'Gorduras Saturadas', valor: '3', unidade: 'g', ativo: true },
+  { id: '8', nome: 'Gorduras Trans', valor: '0', unidade: 'g', ativo: true },
+  { id: '9', nome: 'Fibras Alimentares', valor: '6', unidade: 'g', ativo: true },
+  { id: '10', nome: 'Sódio', valor: '200', unidade: 'mg', ativo: true },
+];
 
 const ConfiguracaoVisual: React.FC = () => {
-  // ==========================================
-  // ESTADOS (STATES)
-  // ==========================================
-  
-  const [campos, setCampos] = useState<CampoDinamico[]>([
-    { id: '1', nome: 'Calorias', valor: '200 kcal', ativo: true },
-    { id: '2', nome: 'Proteínas', valor: '15g', ativo: true },
-    { id: '3', nome: 'Carboidratos', valor: '25g', ativo: true },
-    { id: '4', nome: 'Gorduras', valor: '8g', ativo: true },
-  ]);
-
-  const [novoCampoNome, setNovoCampoNome] = useState('');
-  const [novoCampoValor, setNovoCampoValor] = useState('');
+  const [campos, setCampos] = useState<CampoDinamico[]>(CAMPOS_OBRIGATORIOS);
   const [layout, setLayout] = useState<LayoutType>('vertical');
   const [tamanho, setTamanho] = useState<TamanhoType>('media');
-  const [template, setTemplate] = useState<TemplateType>('claro');
   const [isMobile, setIsMobile] = useState(false);
+  const [porcoesEmbalagem, setPorcoesEmbalagem] = useState(10);
+  const [porcaoGramas, setPorcaoGramas] = useState(50);
+  const [medidaCaseira, setMedidaCaseira] = useState('1 colher de sopa');
   
-  // TAREFA 6: Estado para mensagens
   const [erros, setErros] = useState<{ tipo: string; mensagem: string; campoId?: string }[]>([]);
   const [mensagemSucesso, setMensagemSucesso] = useState<string | null>(null);
   const [carregando, setCarregando] = useState(false);
   const [salvando, setSalvando] = useState(false);
 
-  // ==========================================
-  // FUNÇÕES DE INTEGRAÇÃO COM BACKEND (TAREFA 7)
-  // ==========================================
+  // Calcula %VD baseado nos valores de referência ANVISA
+  const calcularVD = (valor: number, unidade: string): number => {
+    const referencias: Record<string, number> = {
+      kcal: 2000,
+      g: 300,
+      mg: 2400,
+    };
+    const ref = referencias[unidade] || 100;
+    return (valor / ref) * 100;
+  };
 
   const carregarConfiguracoes = async () => {
     setCarregando(true);
     try {
       const response = await api.get(`/etiquetas/${ETIQUETA_ID}/`);
       const data = response.data;
-      
       if (data.layout) setLayout(data.layout);
       if (data.tamanho) setTamanho(data.tamanho);
-      if (data.template) setTemplate(data.template);
-      if (data.campos && data.campos.length > 0) {
-        setCampos(data.campos);
-      }
+      if (data.campos && data.campos.length > 0) setCampos(data.campos);
+      if (data.porcoesEmbalagem) setPorcoesEmbalagem(data.porcoesEmbalagem);
+      if (data.porcaoGramas) setPorcaoGramas(data.porcaoGramas);
+      if (data.medidaCaseira) setMedidaCaseira(data.medidaCaseira);
       
       setMensagemSucesso('✅ Configurações carregadas com sucesso!');
       setTimeout(() => setMensagemSucesso(null), 3000);
     } catch (error) {
       console.error('Erro ao carregar configurações:', error);
-      // @ts-expect-error - error.response pode não existir em todos os tipos de erro
-      if (error.response?.status === 404) {
+      if ((error as any).response?.status === 404) {
         console.log('Nenhuma configuração salva ainda');
       } else {
         setErros([{ tipo: 'geral', mensagem: '❌ Erro ao carregar configurações' }]);
@@ -104,11 +123,13 @@ const ConfiguracaoVisual: React.FC = () => {
     setSalvando(true);
     setErros([]);
     
-    const dados: ConfiguracoesEtiqueta = {
+    const dados = {
       layout,
       tamanho,
-      template,
-      campos: campos.filter(c => c.ativo),
+      campos,
+      porcoesEmbalagem,
+      porcaoGramas,
+      medidaCaseira,
     };
     
     try {
@@ -124,30 +145,19 @@ const ConfiguracaoVisual: React.FC = () => {
     }
   };
 
-  // TAREFA 7: Carrega as configurações ao iniciar
+  useEffect(() => { carregarConfiguracoes(); }, []);
   useEffect(() => {
-    carregarConfiguracoes();
-  }, []);
-
-  // TAREFA 5: Detecta quando a tela redimensiona
-  useEffect(() => {
-    const checkMobile = () => {
-      setIsMobile(window.innerWidth < 768);
-    };
+    const checkMobile = () => setIsMobile(window.innerWidth < 768);
     checkMobile();
     window.addEventListener('resize', checkMobile);
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
-
-  // TAREFA 6: Limpa mensagem de sucesso após 3 segundos
   useEffect(() => {
     if (mensagemSucesso) {
       const timer = setTimeout(() => setMensagemSucesso(null), 3000);
       return () => clearTimeout(timer);
     }
   }, [mensagemSucesso]);
-
-  // TAREFA 6: Limpa mensagens de erro após 3 segundos
   useEffect(() => {
     if (erros.length > 0) {
       const timer = setTimeout(() => setErros([]), 3000);
@@ -155,367 +165,154 @@ const ConfiguracaoVisual: React.FC = () => {
     }
   }, [erros]);
 
-  // ==========================================
-  // FUNÇÕES DA TAREFA 1 (Edição de campos)
-  // ==========================================
-  
-  const adicionarCampo = () => {
-    if (!novoCampoNome.trim()) {
-      setErros([{ tipo: 'nome', mensagem: '❌ O nome do campo é obrigatório' }]);
-      setTimeout(() => setErros([]), 3000);
-      return;
-    }
-    
-    const novoCampo: CampoDinamico = {
-      id: Date.now().toString(),
-      nome: novoCampoNome.trim(),
-      valor: novoCampoValor.trim() || '---',
-      ativo: true,
-    };
-    
-    setCampos([...campos, novoCampo]);
-    setNovoCampoNome('');
-    setNovoCampoValor('');
-  };
-
-  const removerCampo = (id: string) => {
-    setCampos(campos.filter(campo => campo.id !== id));
-  };
-
-  const atualizarCampo = (id: string, chave: keyof CampoDinamico, valor: string) => {
-    setCampos(campos.map(campo => 
-      campo.id === id ? { ...campo, [chave]: valor } : campo
-    ));
-  };
-
-  const toggleAtivo = (id: string) => {
-    setCampos(campos.map(campo =>
-      campo.id === id ? { ...campo, ativo: !campo.ativo } : campo
-    ));
-  };
-
-  // ==========================================
-  // FUNÇÕES DA TAREFA 3 (Tamanho)
-  // ==========================================
-  
   const getTamanhoWidth = (): string => {
     if (isMobile) return '100%';
-    
     switch (tamanho) {
-      case 'pequena': return '250px';
-      case 'media': return '350px';
-      case 'grande': return '450px';
-      case 'extra': return '550px';
-      default: return '350px';
+      case 'pequena': return '350px';
+      case 'media': return '500px';
+      case 'grande': return '700px';
+      case 'extra': return '900px';
+      default: return '500px';
     }
   };
 
-  // ==========================================
-  // FUNÇÕES DA TAREFA 4 (Templates)
-  // ==========================================
-  
+  // Estilo fixo da etiqueta (padrão da marca)
   const getTemplateStyle = (): React.CSSProperties => {
-    switch (template) {
-      case 'escuro':
-        return {
-          backgroundColor: '#1a1a2e',
-          border: '2px solid #16213e',
-          color: '#ffffff',
-        };
-      case 'verde':
-        return {
-          backgroundColor: '#e8f5e9',
-          border: '2px solid #4caf50',
-          color: '#2e7d32',
-        };
-      case 'profissional':
-        return {
-          backgroundColor: '#0d47a1',
-          border: '2px solid #1565c0',
-          color: '#ffffff',
-        };
-      default:
-        return {
-          backgroundColor: '#ffffff',
-          border: '2px solid #333333',
-          color: '#333333',
-        };
-    }
-  };
-
-  // ==========================================
-  // FUNÇÕES DA TAREFA 2 (Layout)
-  // ==========================================
-  
-  const getLayoutStyle = (): React.CSSProperties => {
-    const currentLayout = isMobile ? 'vertical' : layout;
-    
-    switch (currentLayout) {
-      case 'horizontal':
-        return {
-          display: 'flex',
-          flexWrap: 'wrap',
-          gap: '15px',
-          justifyContent: 'space-between',
-        };
-      case 'grade':
-        return {
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
-          gap: '15px',
-        };
-      default:
-        return {
-          display: 'flex',
-          flexDirection: 'column',
-          gap: '10px',
-        };
-    }
-  };
-
-  const getCampoStyle = (): React.CSSProperties => {
-    const baseStyle: React.CSSProperties = {
-      borderRadius: '8px',
-      padding: '10px',
-    };
-
-    const currentLayout = isMobile ? 'vertical' : layout;
-
-    if (currentLayout === 'vertical') {
-      return {
-        ...baseStyle,
-        display: 'flex',
-        justifyContent: 'space-between',
-        borderBottom: template === 'escuro' ? '1px solid #444' : '1px solid #eee',
-      };
-    }
-    
     return {
-      ...baseStyle,
-      backgroundColor: template === 'escuro' ? '#2d2d44' : 
-                      template === 'verde' ? '#c8e6c9' :
-                      template === 'profissional' ? '#1565c0' : '#f9f9f9',
-      color: template === 'escuro' || template === 'profissional' ? '#fff' : '#333',
-      border: '1px solid #ddd',
+      backgroundColor: FUNDO_BRANCO,
+      border: `2px solid ${COR_BORDA}`,
+      color: TEXTO_PADRAO,
     };
   };
 
-  const renderCampo = (campo: CampoDinamico) => {
-    const campoStyle = getCampoStyle();
-    const currentLayout = isMobile ? 'vertical' : layout;
-    
-    if (currentLayout === 'vertical') {
-      return (
-        <div key={campo.id} style={campoStyle}>
-          <strong>{campo.nome}:</strong>
-          <span>{campo.valor}</span>
-        </div>
-      );
-    }
-    
+  const renderPreview = () => {
+    const camposAtivos = campos.filter(c => c.ativo);
+    const valoresPorcao = camposAtivos.map(campo => {
+      const valor = parseFloat(campo.valor);
+      const valorPorcao = (valor * porcaoGramas) / 100;
+      return { ...campo, valorPorcao, vd: calcularVD(valorPorcao, campo.unidade) };
+    });
+
     return (
-      <div key={campo.id} style={campoStyle}>
-        <div style={{ fontWeight: 'bold', marginBottom: '5px' }}>{campo.nome}</div>
-        <div>{campo.valor}</div>
+      <div style={{ 
+        ...getTemplateStyle(),
+        padding: '20px',
+        borderRadius: '8px',
+        width: getTamanhoWidth(),
+        transition: 'all 0.3s ease',
+        margin: '0 auto',
+        boxSizing: 'border-box',
+        fontFamily: 'Arial, sans-serif',
+        fontSize: '12px'
+      }}>
+        <h3 style={{ textAlign: 'center', margin: '0 0 10px 0', borderBottom: `2px solid ${COR_BORDA}`, paddingBottom: '8px', color: COR_PRIMARIA }}>
+          INFORMAÇÃO NUTRICIONAL
+        </h3>
+        <div style={{ marginBottom: '10px', fontSize: '10px' }}>
+          <div>Porções por embalagem: {porcoesEmbalagem}</div>
+          <div>Porção: {porcaoGramas}g ({medidaCaseira})</div>
+        </div>
+        
+        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '10px' }}>
+          <thead>
+            <tr>
+              <th style={{ textAlign: 'left', borderBottom: `1px solid ${COR_BORDA}`, padding: '4px' }}></th>
+              <th style={{ textAlign: 'center', borderBottom: `1px solid ${COR_BORDA}`, padding: '4px' }}>100g</th>
+              <th style={{ textAlign: 'center', borderBottom: `1px solid ${COR_BORDA}`, padding: '4px' }}>{porcaoGramas}g</th>
+              <th style={{ textAlign: 'center', borderBottom: `1px solid ${COR_BORDA}`, padding: '4px' }}>%VD*</th>
+            </tr>
+          </thead>
+          <tbody>
+            {valoresPorcao.map((campo) => (
+              <tr key={campo.id}>
+                <td style={{ textAlign: 'left', borderBottom: '1px solid #eee', padding: '4px' }}>{campo.nome} ({campo.unidade})</td>
+                <td style={{ textAlign: 'center', borderBottom: '1px solid #eee', padding: '4px' }}>{parseFloat(campo.valor).toFixed(1)}</td>
+                <td style={{ textAlign: 'center', borderBottom: '1px solid #eee', padding: '4px' }}>{campo.valorPorcao.toFixed(1)}</td>
+                <td style={{ textAlign: 'center', borderBottom: '1px solid #eee', padding: '4px' }}>{campo.vd.toFixed(0)}%</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        
+        <div style={{ fontSize: '8px', marginTop: '10px', textAlign: 'center' }}>
+          *Percentual de valores diários fornecidos pela porção.
+        </div>
       </div>
     );
   };
 
-  // ==========================================
-  // RENDERIZAÇÃO DA TELA
-  // ==========================================
-  
   return (
-    <div style={{ 
-      padding: isMobile ? '10px' : '20px', 
-      maxWidth: '1200px', 
-      margin: '0 auto',
-      width: '100%',
-      boxSizing: 'border-box'
-    }}>
-      <h1 style={{ 
-        color: '#333', 
-        marginBottom: '20px',
-        fontSize: isMobile ? '1.5rem' : '2rem',
-        textAlign: 'center'
-      }}>
-        Configuração Visual - Etiqueta Nutricional
+    <div style={{ padding: isMobile ? '10px' : '20px', maxWidth: '1200px', margin: '0 auto', width: '100%', boxSizing: 'border-box' }}>
+      <h1 style={{ color: COR_PRIMARIA, marginBottom: '20px', fontSize: isMobile ? '1.5rem' : '2rem', textAlign: 'center' }}>
+        Configuração Visual - Etiqueta Nutricional (ANVISA)
       </h1>
       
-      {carregando && (
-        <div style={{
-          textAlign: 'center',
-          padding: '20px',
-          backgroundColor: '#e3f2fd',
-          borderRadius: '8px',
-          marginBottom: '20px'
-        }}>
-          ⏳ Carregando configurações salvas...
-        </div>
-      )}
+      {carregando && <div style={{ textAlign: 'center', padding: '20px', backgroundColor: '#e3f2fd', borderRadius: '8px', marginBottom: '20px' }}>⏳ Carregando...</div>}
+      {erros.map((erro, idx) => <div key={idx} style={{ marginBottom: '20px', padding: '12px', backgroundColor: '#ffebee', border: '1px solid #ff4444', borderRadius: '8px', color: '#c62828' }}>{erro.mensagem}</div>)}
+      {mensagemSucesso && <div style={{ marginBottom: '20px', padding: '12px', backgroundColor: '#e8f5e9', border: '1px solid #4caf50', borderRadius: '8px', color: '#2e7d32' }}>{mensagemSucesso}</div>}
       
-      {erros.map((erro, index) => (
-        <div key={index} style={{
-          marginBottom: '20px',
-          padding: '12px',
-          backgroundColor: '#ffebee',
-          border: '1px solid #ff4444',
-          borderRadius: '8px',
-          color: '#c62828'
-        }}>
-          {erro.mensagem}
-        </div>
-      ))}
-      
-      {mensagemSucesso && (
-        <div style={{
-          marginBottom: '20px',
-          padding: '12px',
-          backgroundColor: '#e8f5e9',
-          border: '1px solid #4caf50',
-          borderRadius: '8px',
-          color: '#2e7d32'
-        }}>
-          {mensagemSucesso}
-        </div>
-      )}
-      
-      {/* SEÇÃO 1: EDIÇÃO DINÂMICA DE CAMPOS */}
-      <div style={{ 
-        marginBottom: '30px', 
-        border: '1px solid #ddd', 
-        padding: isMobile ? '15px' : '20px', 
-        borderRadius: '8px',
-        backgroundColor: '#f9f9f9'
-      }}>
-        <h2 style={{ marginTop: 0 }}>📝 Edição Dinâmica de Campos</h2>
-        
-        <div style={{ marginBottom: '20px' }}>
-          <h3>Campos atuais:</h3>
-          {campos.map(campo => (
-            <div key={campo.id} style={{ 
-              border: '1px solid #ddd', 
-              padding: '10px', 
-              marginBottom: '10px',
-              borderRadius: '4px',
-              backgroundColor: campo.ativo ? '#fff' : '#e0e0e0'
-            }}>
-              <div style={{ 
-                display: 'flex', 
-                gap: '10px', 
-                alignItems: 'center', 
-                flexWrap: 'wrap',
-                flexDirection: isMobile ? 'column' : 'row'
-              }}>
-                <input
-                  type="text"
-                  value={campo.nome}
-                  onChange={(e) => atualizarCampo(campo.id, 'nome', e.target.value)}
-                  style={{ 
-                    padding: '8px', 
-                    flex: 1,
-                    width: isMobile ? '100%' : 'auto',
-                    border: '1px solid #ccc',
-                    borderRadius: '4px'
-                  }}
-                  placeholder="Nome do campo"
-                />
-                <input
-                  type="text"
-                  value={campo.valor}
-                  onChange={(e) => atualizarCampo(campo.id, 'valor', e.target.value)}
-                  style={{ 
-                    padding: '8px', 
-                    flex: 1,
-                    width: isMobile ? '100%' : 'auto',
-                    border: '1px solid #ccc',
-                    borderRadius: '4px'
-                  }}
-                  placeholder="Valor (ex: 200 kcal)"
-                />
-                <div style={{ display: 'flex', gap: '10px', width: isMobile ? '100%' : 'auto' }}>
-                  <button 
-                    onClick={() => toggleAtivo(campo.id)}
-                    style={{
-                      padding: '8px 15px',
-                      flex: 1,
-                      backgroundColor: campo.ativo ? '#4CAF50' : '#999',
-                      color: 'white',
-                      border: 'none',
-                      borderRadius: '4px',
-                      cursor: 'pointer'
-                    }}
-                  >
-                    {campo.ativo ? '✓ Ativo' : '✗ Inativo'}
-                  </button>
-                  <button 
-                    onClick={() => removerCampo(campo.id)} 
-                    style={{ 
-                      padding: '8px 15px',
-                      flex: 1,
-                      backgroundColor: '#ff4444', 
-                      color: 'white',
-                      border: 'none',
-                      borderRadius: '4px',
-                      cursor: 'pointer'
-                    }}
-                  >
-                    Remover
-                  </button>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-        
-        <div style={{ borderTop: '2px solid #ddd', paddingTop: '20px' }}>
-          <h3>➕ Adicionar novo campo:</h3>
-          <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', flexDirection: isMobile ? 'column' : 'row' }}>
-            <input
-              type="text"
-              placeholder="Nome do campo (ex: Fibras)"
-              value={novoCampoNome}
-              onChange={(e) => setNovoCampoNome(e.target.value)}
-              style={{ 
-                padding: '10px', 
-                flex: 1,
-                width: isMobile ? '100%' : 'auto',
-                border: '1px solid #ccc',
-                borderRadius: '4px'
-              }}
-            />
-            <input
-              type="text"
-              placeholder="Valor (ex: 5g)"
-              value={novoCampoValor}
-              onChange={(e) => setNovoCampoValor(e.target.value)}
-              style={{ 
-                padding: '10px', 
-                flex: 1,
-                width: isMobile ? '100%' : 'auto',
-                border: '1px solid #ccc',
-                borderRadius: '4px'
-              }}
-            />
-            <button 
-              onClick={adicionarCampo} 
-              style={{ 
-                padding: '10px 20px',
-                width: isMobile ? '100%' : 'auto',
-                backgroundColor: '#2196F3', 
-                color: 'white',
-                border: 'none',
-                borderRadius: '4px',
-                cursor: 'pointer'
-              }}
-            >
-              Adicionar Campo
-            </button>
+      {/* Informações da Embalagem */}
+      <div style={{ marginBottom: '30px', border: '1px solid #ddd', padding: isMobile ? '15px' : '20px', borderRadius: '8px', backgroundColor: '#f9f9f9' }}>
+        <h2 style={{ marginTop: 0, color: COR_PRIMARIA }}>📦 Informações da Embalagem</h2>
+        <div style={{ display: 'flex', gap: '20px', flexWrap: 'wrap' }}>
+          <div>
+            <label style={{ fontWeight: 'bold' }}>Porções por embalagem:</label>
+            <input type="number" value={porcoesEmbalagem} onChange={(e) => setPorcoesEmbalagem(Number(e.target.value))} style={{ padding: '8px', marginLeft: '10px', width: '80px', border: `1px solid ${COR_PRIMARIA}`, borderRadius: '4px' }} />
+          </div>
+          <div>
+            <label style={{ fontWeight: 'bold' }}>Porção (g):</label>
+            <input type="number" value={porcaoGramas} onChange={(e) => setPorcaoGramas(Number(e.target.value))} style={{ padding: '8px', marginLeft: '10px', width: '80px', border: `1px solid ${COR_PRIMARIA}`, borderRadius: '4px' }} />
+          </div>
+          <div>
+            <label style={{ fontWeight: 'bold' }}>Medida caseira:</label>
+            <input type="text" value={medidaCaseira} onChange={(e) => setMedidaCaseira(e.target.value)} style={{ padding: '8px', marginLeft: '10px', width: '150px', border: `1px solid ${COR_PRIMARIA}`, borderRadius: '4px' }} />
           </div>
         </div>
       </div>
 
-      {/* SEÇÃO 2: SELEÇÃO DE LAYOUT */}
+      {/* Edição dos Campos Obrigatórios */}
+      <div style={{ marginBottom: '30px', border: '1px solid #ddd', padding: isMobile ? '15px' : '20px', borderRadius: '8px', backgroundColor: '#f9f9f9' }}>
+        <h2 style={{ marginTop: 0, color: COR_PRIMARIA }}>📝 Valores Nutricionais (por 100g)</h2>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '15px' }}>
+          {campos.map(campo => (
+            <div key={campo.id} style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap', backgroundColor: '#fff', padding: '10px', borderRadius: '8px', border: `1px solid ${COR_PRIMARIA}` }}>
+              <span style={{ width: '120px', fontWeight: 'bold' }}>{campo.nome}</span>
+              <input type="number" value={campo.valor} onChange={(e) => {
+                const novoValor = e.target.value;
+                setCampos(campos.map(c => c.id === campo.id ? { ...c, valor: novoValor } : c));
+              }} style={{ padding: '6px', width: '80px', border: `1px solid ${COR_PRIMARIA}`, borderRadius: '4px' }} step="0.1" />
+              <span>{campo.unidade}</span>
+              <button onClick={() => setCampos(campos.map(c => c.id === campo.id ? { ...c, ativo: !c.ativo } : c))} style={{ padding: '4px 8px', backgroundColor: campo.ativo ? COR_PRIMARIA : '#999', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>
+                {campo.ativo ? '✓' : '✗'}
+              </button>
+            </div>
+          ))}
+        </div>
+        <p style={{ fontSize: '12px', color: '#666', marginTop: '10px' }}>
+          💡 Valores baseados em 100g do produto. O sistema calcula automaticamente os valores para a porção e o %VD.
+        </p>
+      </div>
+
+      {/* Seção Layout */}
+      <div style={{ marginBottom: '30px', border: '1px solid #ddd', padding: isMobile ? '15px' : '20px', borderRadius: '8px', backgroundColor: '#f9f9f9' }}>
+        <h2 style={{ marginTop: 0, color: COR_PRIMARIA }}>🎨 Layout</h2>
+        <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', justifyContent: 'center' }}>
+          <button onClick={() => setLayout('vertical')} style={{ padding: '10px 20px', backgroundColor: layout === 'vertical' ? COR_PRIMARIA : '#ddd', color: layout === 'vertical' ? 'white' : '#333', border: 'none', borderRadius: '5px', cursor: 'pointer' }}>📋 Padrão</button>
+        </div>
+      </div>
+
+      {/* Seção Tamanho */}
+      <div style={{ marginBottom: '30px', border: '1px solid #ddd', padding: isMobile ? '15px' : '20px', borderRadius: '8px', backgroundColor: '#f9f9f9' }}>
+        <h2 style={{ marginTop: 0, color: COR_PRIMARIA }}>📏 Tamanho da Etiqueta</h2>
+        <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', justifyContent: 'center' }}>
+          <button onClick={() => setTamanho('pequena')} style={{ padding: '10px 15px', backgroundColor: tamanho === 'pequena' ? COR_PRIMARIA : '#ddd', color: tamanho === 'pequena' ? 'white' : '#333', border: 'none', borderRadius: '5px', cursor: 'pointer' }}>Pequena (350px)</button>
+          <button onClick={() => setTamanho('media')} style={{ padding: '10px 15px', backgroundColor: tamanho === 'media' ? COR_PRIMARIA : '#ddd', color: tamanho === 'media' ? 'white' : '#333', border: 'none', borderRadius: '5px', cursor: 'pointer' }}>Média (500px)</button>
+          <button onClick={() => setTamanho('grande')} style={{ padding: '10px 15px', backgroundColor: tamanho === 'grande' ? COR_PRIMARIA : '#ddd', color: tamanho === 'grande' ? 'white' : '#333', border: 'none', borderRadius: '5px', cursor: 'pointer' }}>Grande (700px)</button>
+          <button onClick={() => setTamanho('extra')} style={{ padding: '10px 15px', backgroundColor: tamanho === 'extra' ? COR_PRIMARIA : '#ddd', color: tamanho === 'extra' ? 'white' : '#333', border: 'none', borderRadius: '5px', cursor: 'pointer' }}>Extra (900px)</button>
+        </div>
+      </div>
+
+      {/* SEÇÃO 4: CORES DA ETIQUETA - APENAS PADRÃO DA MARCA */}
       <div style={{ 
         marginBottom: '30px', 
         border: '1px solid #ddd', 
@@ -523,127 +320,36 @@ const ConfiguracaoVisual: React.FC = () => {
         borderRadius: '8px',
         backgroundColor: '#f9f9f9'
       }}>
-        <h2 style={{ marginTop: 0 }}>🎨 Escolha o Layout</h2>
+        <h2 style={{ marginTop: 0, color: COR_PRIMARIA }}>🎨 Cores da Etiqueta</h2>
         <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', justifyContent: 'center' }}>
-          <button onClick={() => setLayout('vertical')} style={{ 
+          <button style={{ 
             padding: '10px 20px', 
-            flex: isMobile ? '1' : 'auto',
-            backgroundColor: layout === 'vertical' ? '#4CAF50' : '#ddd', 
-            color: layout === 'vertical' ? 'white' : '#333', 
+            backgroundColor: COR_PRIMARIA, 
+            color: 'white', 
             border: 'none', 
             borderRadius: '5px', 
-            cursor: 'pointer' 
-          }}>📋 Vertical</button>
-          <button onClick={() => setLayout('horizontal')} style={{ 
-            padding: '10px 20px', 
-            flex: isMobile ? '1' : 'auto',
-            backgroundColor: layout === 'horizontal' ? '#4CAF50' : '#ddd', 
-            color: layout === 'horizontal' ? 'white' : '#333', 
-            border: 'none', 
-            borderRadius: '5px', 
-            cursor: 'pointer' 
-          }}>↔️ Horizontal</button>
-          <button onClick={() => setLayout('grade')} style={{ 
-            padding: '10px 20px', 
-            flex: isMobile ? '1' : 'auto',
-            backgroundColor: layout === 'grade' ? '#4CAF50' : '#ddd', 
-            color: layout === 'grade' ? 'white' : '#333', 
-            border: 'none', 
-            borderRadius: '5px', 
-            cursor: 'pointer' 
-          }}>🔲 Grade</button>
+            cursor: 'pointer',
+            fontWeight: 'bold'
+          }}>
+            Padrão (verde da marca)
+          </button>
         </div>
+        <p style={{ textAlign: 'center', marginTop: '10px', fontSize: '12px', color: '#666' }}>
+          ✅ Etiqueta no padrão institucional da marca
+        </p>
       </div>
 
-      {/* SEÇÃO 3: TAMANHO DA ETIQUETA */}
-      <div style={{ 
-        marginBottom: '30px', 
-        border: '1px solid #ddd', 
-        padding: isMobile ? '15px' : '20px', 
-        borderRadius: '8px',
-        backgroundColor: '#f9f9f9'
-      }}>
-        <h2 style={{ marginTop: 0 }}>📏 Tamanho da Etiqueta</h2>
-        <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', justifyContent: 'center' }}>
-          <button onClick={() => setTamanho('pequena')} style={{ padding: '10px 15px', flex: isMobile ? '1' : 'auto', backgroundColor: tamanho === 'pequena' ? '#4CAF50' : '#ddd', border: 'none', borderRadius: '5px', cursor: 'pointer' }}>Pequena</button>
-          <button onClick={() => setTamanho('media')} style={{ padding: '10px 15px', flex: isMobile ? '1' : 'auto', backgroundColor: tamanho === 'media' ? '#4CAF50' : '#ddd', border: 'none', borderRadius: '5px', cursor: 'pointer' }}>Média</button>
-          <button onClick={() => setTamanho('grande')} style={{ padding: '10px 15px', flex: isMobile ? '1' : 'auto', backgroundColor: tamanho === 'grande' ? '#4CAF50' : '#ddd', border: 'none', borderRadius: '5px', cursor: 'pointer' }}>Grande</button>
-          <button onClick={() => setTamanho('extra')} style={{ padding: '10px 15px', flex: isMobile ? '1' : 'auto', backgroundColor: tamanho === 'extra' ? '#4CAF50' : '#ddd', border: 'none', borderRadius: '5px', cursor: 'pointer' }}>Extra</button>
-        </div>
-      </div>
-
-      {/* SEÇÃO 4: TEMPLATES */}
-      <div style={{ 
-        marginBottom: '30px', 
-        border: '1px solid #ddd', 
-        padding: isMobile ? '15px' : '20px', 
-        borderRadius: '8px',
-        backgroundColor: '#f9f9f9'
-      }}>
-        <h2 style={{ marginTop: 0 }}>🎨 Templates</h2>
-        <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', justifyContent: 'center' }}>
-          <button onClick={() => setTemplate('claro')} style={{ padding: '10px 15px', flex: isMobile ? '1' : 'auto', backgroundColor: template === 'claro' ? '#4CAF50' : '#f0f0f0', color: '#333', border: '1px solid #ccc', borderRadius: '5px', cursor: 'pointer' }}>⬜ Claro</button>
-          <button onClick={() => setTemplate('escuro')} style={{ padding: '10px 15px', flex: isMobile ? '1' : 'auto', backgroundColor: template === 'escuro' ? '#4CAF50' : '#1a1a2e', color: 'white', border: 'none', borderRadius: '5px', cursor: 'pointer' }}>⬛ Escuro</button>
-          <button onClick={() => setTemplate('verde')} style={{ padding: '10px 15px', flex: isMobile ? '1' : 'auto', backgroundColor: template === 'verde' ? '#4CAF50' : '#e8f5e9', color: '#2e7d32', border: '1px solid #4caf50', borderRadius: '5px', cursor: 'pointer' }}>🟢 Verde</button>
-          <button onClick={() => setTemplate('profissional')} style={{ padding: '10px 15px', flex: isMobile ? '1' : 'auto', backgroundColor: template === 'profissional' ? '#4CAF50' : '#0d47a1', color: 'white', border: 'none', borderRadius: '5px', cursor: 'pointer' }}>🔵 Profissional</button>
-        </div>
-      </div>
-
-      {/* SEÇÃO 5: BOTÃO SALVAR */}
-      <div style={{ 
-        marginBottom: '30px', 
-        display: 'flex', 
-        justifyContent: 'center'
-      }}>
-        <button
-          onClick={salvarConfiguracoes}
-          disabled={salvando}
-          style={{
-            padding: '12px 30px',
-            backgroundColor: '#04585a',
-            color: 'white',
-            border: 'none',
-            borderRadius: '8px',
-            fontSize: '16px',
-            fontWeight: 'bold',
-            cursor: salvando ? 'not-allowed' : 'pointer',
-            opacity: salvando ? 0.7 : 1,
-            transition: 'all 0.3s ease'
-          }}
-        >
+      {/* Botão Salvar */}
+      <div style={{ marginBottom: '30px', display: 'flex', justifyContent: 'center' }}>
+        <button onClick={salvarConfiguracoes} disabled={salvando} style={{ padding: '12px 30px', backgroundColor: COR_PRIMARIA, color: 'white', border: 'none', borderRadius: '8px', fontSize: '16px', fontWeight: 'bold', cursor: salvando ? 'not-allowed' : 'pointer', opacity: salvando ? 0.7 : 1 }}>
           {salvando ? '💾 Salvando...' : '💾 Salvar Configurações'}
         </button>
       </div>
 
-      {/* SEÇÃO 6: PREVIEW EM TEMPO REAL */}
-      <div style={{ 
-        border: '1px solid #ddd', 
-        padding: isMobile ? '15px' : '20px', 
-        borderRadius: '8px',
-        backgroundColor: '#f9f9f9'
-      }}>
-        <h2 style={{ marginTop: 0 }}>👁️ Preview da Etiqueta</h2>
-        <div style={{ 
-          ...getTemplateStyle(),
-          padding: '20px',
-          borderRadius: '8px',
-          width: getTamanhoWidth(),
-          transition: 'all 0.3s ease',
-          margin: '0 auto',
-          boxSizing: 'border-box'
-        }}>
-          <h3 style={{ 
-            margin: '0 0 15px 0', 
-            textAlign: 'center',
-            borderBottom: `2px solid ${template === 'escuro' ? '#fff' : '#333'}`,
-            paddingBottom: '10px'
-          }}>
-            Informações Nutricionais
-          </h3>
-          <div style={getLayoutStyle()}>
-            {campos.filter(c => c.ativo).map(campo => renderCampo(campo))}
-          </div>
-        </div>
+      {/* Preview */}
+      <div style={{ border: '1px solid #ddd', padding: isMobile ? '15px' : '20px', borderRadius: '8px', backgroundColor: '#f9f9f9' }}>
+        <h2 style={{ marginTop: 0, color: COR_PRIMARIA }}>👁️ Preview da Etiqueta</h2>
+        {renderPreview()}
       </div>
     </div>
   );
