@@ -9,7 +9,16 @@ from .views import (
     DeleteUserByIdView,
     EsqueciSenhaView,
     MeuPlanoView,
-    TrocarPlanoView
+    TrocarPlanoView,
+    AdminUsersView,
+    AdminActivitiesView,
+    FAQView,
+    SupportConfigView,
+    ConsultaCNPJView,
+    PaymentPreferenceView,
+    PaymentStatusView,
+    UpdateProfileView,
+    LogoutView, 
 )
 
 urlpatterns = [
@@ -20,7 +29,7 @@ urlpatterns = [
         'register/',
         RegisterView.as_view()
     ),
-
+        
     path(
         'login/',
         LoginView.as_view()
@@ -55,4 +64,58 @@ urlpatterns = [
         'trocar-plano/',
         TrocarPlanoView.as_view()
     ),
+    
+    path(
+    'admin/users/',
+    AdminUsersView.as_view()
+    ),
+    path(
+    'admin/activities/',
+    AdminActivitiesView.as_view()
+    ),
+    path(
+        'faq/',
+        FAQView.as_view()
+    ),
+
+    path(
+    'support-config/',
+    SupportConfigView.as_view()
+    ),
+
+    path(
+    'cnpj/<str:cnpj>/',
+    ConsultaCNPJView.as_view()
+    ),
+    path(
+    'payments/preference/',
+    PaymentPreferenceView.as_view()
+    ),
+
+    path(
+    'payments/status/<int:id>/',
+    PaymentStatusView.as_view()
+    ),
+
+    path(
+    'profile/update/',
+    UpdateProfileView.as_view()
+    ),
+
+    path(
+    'profile/update/',
+    UpdateProfileView.as_view()
+    ),
+
+    path(
+    'logout/',
+    LogoutView.as_view()
+    ),
+
+
+
+
+
+
+
 ]

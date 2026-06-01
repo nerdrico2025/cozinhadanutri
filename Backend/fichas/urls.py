@@ -1,17 +1,11 @@
 from django.urls import path
 
-from .views import TabelaNutricionalView
-
-
-from django.urls import path
-
 from .views import (
     TabelaNutricionalView,
     RotuloView,
     ConfiguracaoEtiquetaView,
-    EtiquetaView
+    EtiquetaView,
 )
-
 
 urlpatterns = [
     path(
@@ -25,14 +19,16 @@ urlpatterns = [
         RotuloView.as_view(),
         name='rotulo'
     ),
+
     path(
         'fichas-tecnicas/<int:id>/configuracao-etiqueta/',
         ConfiguracaoEtiquetaView.as_view(),
         name='configuracao-etiqueta'
     ),
-    path(
-    'etiquetas/<int:id>/',
-    EtiquetaView.as_view()
-    ),
 
+    path(
+        'etiquetas/<int:id>/',
+        EtiquetaView.as_view(),
+        name='etiqueta'
+    ),
 ]
