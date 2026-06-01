@@ -2,12 +2,15 @@ from rest_framework import generics, status, permissions
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
-
 from rest_framework_simplejwt.views import TokenObtainPairView
-
 from drf_spectacular.utils import extend_schema
-
 from django.http import HttpResponse
+from rest_framework.generics import ListAPIView
+from rest_framework.permissions import IsAdminUser
+from .models import User
+from .serializer import AdminUserSerializer
+from .models import Auditoria
+from .serializer import AuditoriaSerializer
 
 from .models import (
     User,
@@ -280,5 +283,118 @@ class TrocarPlanoView(APIView):
             {
                 "message": "Plano alterado.",
                 "plano": plano.nome
+            }
+        )
+
+
+class AdminUsersView(ListAPIView):
+
+    queryset = User.objects.all()
+    serializer_class = AdminUserSerializer
+    permission_classes = [IsAdminUser]
+
+
+
+class AdminActivitiesView(ListAPIView):
+
+    queryset = Auditoria.objects.all()
+    serializer_class = AuditoriaSerializer
+    permission_classes = [IsAdminUser]
+
+class FAQView(APIView):
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+
+        return Response([
+            {
+                "pergunta": "Como criar uma ficha técnica?",
+                "resposta": "Acesse o módulo de fichas."
+            },
+            {
+                "pergunta": "Como gerar rótulo?",
+                "resposta": "Abra uma ficha técnica."
+            }
+        ])
+    
+class SupportConfigView(APIView):
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+
+        return Response({
+            "email": "suporte@cozinhadanutri.com",
+            "telefone": "(81) 99999-9999",
+            "horario": "08:00 às 18:00"
+        })
+    
+class ConsultaCNPJView(APIView):
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, cnpj):
+
+        return Response({
+            "cnpj": cnpj,
+            "razao_social": "Consulta não implementada",
+            "status": "pendente"
+        })
+    
+class PaymentPreferenceView(APIView):
+
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+
+        return Response({
+            "detail": "Mercado Pago ainda não implementado"
+        })
+
+
+class PaymentStatusView(APIView):
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, id):
+
+        return Response({
+            "payment_id": id,
+            "status": "pending"
+        })
+    
+class UpdateProfileView(APIView):
+
+    permission_classes = [IsAuthenticated]
+
+    def patch(self, request):
+
+        serializer = UserProfileSerializer(
+            request.user,
+            data=request.data,
+            partial=True
+        )
+
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+
+        return Response(serializer.data)
+    
+class LogoutView(APIView):
+
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+
+        Auditoria.log(
+            usuario=request.user,
+            acao='Logout',
+            tipo='logout'
+        )
+
+        return Response(
+            {
+                "message": "Logout realizado com sucesso."
             }
         )

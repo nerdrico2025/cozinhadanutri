@@ -260,7 +260,7 @@ class EtiquetaView(APIView):
         )
 
         if serializer.is_valid():
-            serializer.save()
+            serialiACzer.save()
             return Response(serializer.data)
 
         return Response(
