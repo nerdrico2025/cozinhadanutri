@@ -385,16 +385,51 @@ class LogoutView(APIView):
 
     permission_classes = [IsAuthenticated]
 
-    def post(self, request):
-
-        Auditoria.log(
-            usuario=request.user,
-            acao='Logout',
-            tipo='logout'
-        )
-
-        return Response(
-            {
-                "message": "Logout realizado com sucesso."
+    @extend_schema(
+        request={
+            "application/json": {
+                "type": "object",
+                "properties": {
+                    "refresh_token": {"type": "string"}
+                },
+                "required": ["refresh_token"]
             }
-        )
+        },
+        responses={200: None}
+    )
+    def post(self, request):
+        try:
+            refresh_token = request.data.get("refresh_token")
+            
+            if not refresh_token:
+                return Response(
+                    {"detail": "O refresh_token é obrigatório para efetuar o logout."}, 
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+           
+            from rest_framework_simplejwt.tokens import RefreshToken
+            
+            
+            token = RefreshToken(refresh_token)
+            token.blacklist()
+
+          
+            Auditoria.log(
+                usuario=request.user,
+                acao='Logout',
+                tipo='logout'
+            )
+
+            return Response(
+                {"message": "Logout realizado com sucesso no servidor."},
+                status=status.HTTP_200_OK
+            )
+
+        except Exception:
+          
+            return Response(
+                {"detail": "Token inválido ou já expirado."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+ 
