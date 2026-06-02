@@ -57,3 +57,14 @@ export const listarAtividadesAdmin = async (): Promise<AtividadeAdmin[]> => {
     return [];
   }
 };
+
+export const excluirUsuarioAdmin = async (id: string): Promise<boolean> => {
+  try {
+    await api.delete(`/api/delete/${id}/`);
+    return true;
+  } catch (error) {
+    console.error('Erro ao excluir usuário admin:', error);
+    return false;
+  }
+};
+

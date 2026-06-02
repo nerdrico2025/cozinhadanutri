@@ -60,3 +60,32 @@ export const savePlans = (plans: Record<Plano, PlanData>) => {
   // Disparar evento para outros componentes (como Plans.tsx) saberem que mudou
   window.dispatchEvent(new Event('plans_updated'));
 };
+
+import api from './api';
+
+export interface EmpresaPlanoResponse {
+  id: number;
+  razao_social: string;
+  plano: number | null;
+  plano_ativo: boolean;
+}
+
+export const MAP_PLANO_FRONTEND_TO_DB: Record<string, number> = {
+  'gratis': 1,
+  'iniciante': 1,
+  'profissional': 2,
+  'basico': 2,
+  'empresarial': 3,
+  'premium': 3
+};
+
+export const obterMeuPlano = async (): Promise<EmpresaPlanoResponse> => {
+  const response = await api.get('/api/meu-plano/');
+  return response.data;
+};
+
+export const trocarPlano = async (planoId: number): Promise<{ message: string; plano: string }> => {
+  const response = await api.patch('/api/trocar-plano/', { plano: planoId });
+  return response.data;
+};
+

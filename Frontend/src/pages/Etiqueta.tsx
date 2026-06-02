@@ -4,6 +4,7 @@ import { obterReceita } from '../services/receitas';
 import { listarAlimentos } from '../services/alimentos';
 import { calcularNutrientesTotais, calcularDadosNutricionaisPorPorcao } from '../utils/calculations';
 import { Receita, Ingrediente } from '../types';
+import { salvarConfiguracaoEtiqueta } from '../services/etiqueta';
 
 interface EtiquetaProps {
   onVoltar: () => void;
@@ -41,6 +42,9 @@ export function Etiqueta({ onVoltar, usuario }: EtiquetaProps): JSX.Element {
   const [outrosAlergenicos, setOutrosAlergenicos] = useState('');
   const [instrucoesConservacao, setInstrucoesConservacao] = useState('Manter congelado a -18°C.');
   const [pesoPorcaoCustom, setPesoPorcaoCustom] = useState<number | ''>('');
+
+  const [salvandoConfig, setSalvandoConfig] = useState(false);
+  const [sucessoConfig, setSucessoConfig] = useState(false);
 
   const parseIdFromHash = (): string | null => {
     const hash = window.location.hash;
@@ -144,6 +148,37 @@ export function Etiqueta({ onVoltar, usuario }: EtiquetaProps): JSX.Element {
         };
 
         setReceita(receitaMapeada);
+
+        // Tenta carregar as configurações salvas no banco
+        try {
+          const config = await salvarConfiguracaoEtiqueta(id, {});
+          if (config) {
+            if (config.nome_personalizado) setLote(config.nome_personalizado);
+            if (config.porcao) setPesoPorcaoCustom(config.porcao === '100g' ? '' : parseFloat(config.porcao) || '');
+            if (config.tamanho_etiqueta) {
+              aplicarPreset(config.tamanho_etiqueta as any);
+            }
+            if (config.informacoes_complementares) {
+              try {
+                const parsed = JSON.parse(config.informacoes_complementares);
+                if (parsed.dataFabricacao) setDataFabricacao(parsed.dataFabricacao);
+                if (parsed.dataValidade) setDataValidade(parsed.dataValidade);
+                if (parsed.contemGluten !== undefined) setContemGluten(parsed.contemGluten);
+                if (parsed.contemLactose !== undefined) setContemLactose(parsed.contemLactose);
+                if (parsed.outrosAlergenicos) setOutrosAlergenicos(parsed.outrosAlergenicos);
+                if (parsed.instrucoesConservacao) setInstrucoesConservacao(parsed.instrucoesConservacao);
+                if (parsed.larguraMm) setLarguraMm(parsed.larguraMm);
+                if (parsed.alturaMm) setAlturaMm(parsed.alturaMm);
+                if (parsed.escalaFonte) setEscalaFonte(parsed.escalaFonte);
+                if (parsed.alturaAutomatica !== undefined) setAlturaAutomatica(parsed.alturaAutomatica);
+              } catch {
+                // Fallback
+              }
+            }
+          }
+        } catch (configErr) {
+          console.error('Erro ao obter configurações da etiqueta:', configErr);
+        }
       } catch (err: any) {
         console.error('Erro ao buscar dados da receita:', err);
         setError('Não foi possível carregar a receita. Verifique se a receita existe.');
@@ -157,6 +192,43 @@ export function Etiqueta({ onVoltar, usuario }: EtiquetaProps): JSX.Element {
 
   const handlePrint = () => {
     window.print();
+  };
+
+  const handleSalvarConfiguracao = async () => {
+    const id = parseIdFromHash();
+    if (!id) return;
+
+    setSalvandoConfig(true);
+    setSucessoConfig(false);
+
+    try {
+      const payload = {
+        nome_personalizado: lote,
+        porcao: pesoPorcaoCustom !== '' ? `${pesoPorcaoCustom}g` : '100g',
+        tamanho_etiqueta: tamanhoPreset,
+        informacoes_complementares: JSON.stringify({
+          dataFabricacao,
+          dataValidade,
+          contemGluten,
+          contemLactose,
+          outrosAlergenicos,
+          instrucoesConservacao,
+          larguraMm,
+          alturaMm,
+          escalaFonte,
+          alturaAutomatica
+        })
+      };
+
+      await salvarConfiguracaoEtiqueta(id, payload);
+      setSucessoConfig(true);
+      setTimeout(() => setSucessoConfig(false), 3000);
+    } catch (err) {
+      console.error('Erro ao salvar configurações da etiqueta:', err);
+      alert('Erro ao salvar configurações no servidor.');
+    } finally {
+      setSalvandoConfig(false);
+    }
   };
 
   if (loading) {
@@ -402,14 +474,25 @@ export function Etiqueta({ onVoltar, usuario }: EtiquetaProps): JSX.Element {
               <p className="text-xs text-gray-500 font-medium">Personalize e imprima as etiquetas para embalagem</p>
             </div>
           </div>
-          <button
-            onClick={handlePrint}
-            style={{ backgroundColor: '#04585a' }}
-            className="flex items-center gap-2 py-3 px-6 text-white rounded-xl font-bold hover:brightness-95 transition shadow-sm border-0 cursor-pointer text-sm animate-pulse"
-          >
-            <Printer size={18} />
-            Imprimir Etiqueta
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleSalvarConfiguracao}
+              disabled={salvandoConfig}
+              className={`flex items-center gap-2 py-3 px-6 text-white rounded-xl font-bold transition shadow-sm border-0 cursor-pointer text-sm ${
+                sucessoConfig ? 'bg-green-600 hover:bg-green-700' : 'bg-orange-500 hover:bg-orange-600'
+              }`}
+            >
+              {salvandoConfig ? 'Salvando...' : (sucessoConfig ? '✓ Salvo!' : 'Salvar Configuração')}
+            </button>
+            <button
+              onClick={handlePrint}
+              style={{ backgroundColor: '#04585a' }}
+              className="flex items-center gap-2 py-3 px-6 text-white rounded-xl font-bold hover:brightness-95 transition shadow-sm border-0 cursor-pointer text-sm animate-pulse"
+            >
+              <Printer size={18} />
+              Imprimir Etiqueta
+            </button>
+          </div>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 print:block print:w-full print:gap-0">

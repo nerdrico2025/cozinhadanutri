@@ -95,24 +95,41 @@ const ConfiguracaoVisual: React.FC = () => {
   const carregarConfiguracoes = async () => {
     setCarregando(true);
     try {
-      const response = await api.get(`/etiquetas/${ETIQUETA_ID}/`);
+      const response = await api.get(`/api/etiquetas/${ETIQUETA_ID}/`);
       const data = response.data;
-      if (data.layout) setLayout(data.layout);
-      if (data.tamanho) setTamanho(data.tamanho);
-      if (data.campos && data.campos.length > 0) setCampos(data.campos);
-      if (data.porcoesEmbalagem) setPorcoesEmbalagem(data.porcoesEmbalagem);
-      if (data.porcaoGramas) setPorcaoGramas(data.porcaoGramas);
-      if (data.medidaCaseira) setMedidaCaseira(data.medidaCaseira);
+      if (data.nome_personalizado) setMedidaCaseira(data.nome_personalizado);
+      if (data.tamanho_porcao) setPorcaoGramas(parseInt(data.tamanho_porcao) || 50);
+      if (data.informacoes_complementares) {
+        try {
+          const parsed = JSON.parse(data.informacoes_complementares);
+          if (parsed.layout) setLayout(parsed.layout);
+          if (parsed.tamanho) setTamanho(parsed.tamanho);
+          if (parsed.campos && parsed.campos.length > 0) setCampos(parsed.campos);
+          if (parsed.porcoesEmbalagem) setPorcoesEmbalagem(parsed.porcoesEmbalagem);
+        } catch {
+          // Fallback se não for JSON
+        }
+      }
       
       setMensagemSucesso('✅ Configurações carregadas com sucesso!');
       setTimeout(() => setMensagemSucesso(null), 3000);
     } catch (error) {
-      console.error('Erro ao carregar configurações:', error);
-      if ((error as any).response?.status === 404) {
-        console.log('Nenhuma configuração salva ainda');
-      } else {
-        setErros([{ tipo: 'geral', mensagem: '❌ Erro ao carregar configurações' }]);
-        setTimeout(() => setErros([]), 3000);
+      console.log('Erro ao obter do backend ou endpoint inexistente, tentando localStorage:', error);
+      
+      // Fallback para localStorage
+      const localSaved = localStorage.getItem(`config_etiqueta_${ETIQUETA_ID}`);
+      if (localSaved) {
+        try {
+          const data = JSON.parse(localSaved);
+          if (data.layout) setLayout(data.layout);
+          if (data.tamanho) setTamanho(data.tamanho);
+          if (data.campos && data.campos.length > 0) setCampos(data.campos);
+          if (data.porcoesEmbalagem) setPorcoesEmbalagem(data.porcoesEmbalagem);
+          if (data.porcaoGramas) setPorcaoGramas(data.porcaoGramas);
+          if (data.medidaCaseira) setMedidaCaseira(data.medidaCaseira);
+        } catch (e) {
+          console.error('Erro ao parsear dados do localStorage:', e);
+        }
       }
     } finally {
       setCarregando(false);
@@ -124,22 +141,48 @@ const ConfiguracaoVisual: React.FC = () => {
     setErros([]);
     
     const dados = {
-      layout,
-      tamanho,
-      campos,
-      porcoesEmbalagem,
-      porcaoGramas,
-      medidaCaseira,
+      nome_personalizado: medidaCaseira,
+      tamanho_porcao: `${porcaoGramas}g`,
+      mostrar_sodio: campos.find(c => c.id === '10')?.ativo ?? true,
+      mostrar_acucar: campos.find(c => c.id === '4')?.ativo ?? true,
+      informacoes_complementares: JSON.stringify({
+        layout,
+        tamanho,
+        campos,
+        porcoesEmbalagem
+      })
     };
     
     try {
-      await api.patch(`/etiquetas/${ETIQUETA_ID}/`, dados);
+      await api.patch(`/api/etiquetas/${ETIQUETA_ID}/`, dados);
+      
+      // Salva no localStorage também para consistência local
+      localStorage.setItem(`config_etiqueta_${ETIQUETA_ID}`, JSON.stringify({
+        layout,
+        tamanho,
+        campos,
+        porcoesEmbalagem,
+        porcaoGramas,
+        medidaCaseira
+      }));
+
       setMensagemSucesso('✅ Configurações salvas com sucesso!');
       setTimeout(() => setMensagemSucesso(null), 3000);
     } catch (error) {
-      console.error('Erro ao salvar configurações:', error);
-      setErros([{ tipo: 'geral', mensagem: '❌ Erro ao salvar configurações. Tente novamente.' }]);
-      setTimeout(() => setErros([]), 3000);
+      console.log('Erro ao salvar no backend, salvando localmente:', error);
+      
+      // Fallback para localStorage
+      localStorage.setItem(`config_etiqueta_${ETIQUETA_ID}`, JSON.stringify({
+        layout,
+        tamanho,
+        campos,
+        porcoesEmbalagem,
+        porcaoGramas,
+        medidaCaseira
+      }));
+
+      setMensagemSucesso('✅ Configurações salvas localmente!');
+      setTimeout(() => setMensagemSucesso(null), 3000);
     } finally {
       setSalvando(false);
     }

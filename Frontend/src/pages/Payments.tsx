@@ -15,6 +15,7 @@ import {
 import { criarPreferencia, PlanoId, MetodoPagamento } from '../services/mercadoPagoApi';
 import { UsuarioLogado } from '../types';
 import { initMercadoPago, Wallet } from '@mercadopago/sdk-react';
+import { trocarPlano, MAP_PLANO_FRONTEND_TO_DB } from '../services/planService';
 
 // Inicializa o Mercado Pago com a chave pública
 // IMPORTANTE: Adicione VITE_MP_PUBLIC_KEY no seu arquivo .env do Frontend
@@ -131,6 +132,13 @@ export function Payments({ usuario, planoPreSelecionado, onVoltar, onLogin }: Pa
       // O SDK do Mercado Pago usa o preferenceId para renderizar o botão Wallet (Checkout Pro),
       // em vez de redirecionar manualmente o usuário pelo window.location.
       setPreferenceId(resposta.preferenceId);
+      
+      // Atualiza o plano localmente e no banco de dados para fins de simulação/teste local
+      const dbPlanoId = MAP_PLANO_FRONTEND_TO_DB[planoAtual.id];
+      if (dbPlanoId) {
+        await trocarPlano(dbPlanoId);
+        window.dispatchEvent(new Event('session_updated'));
+      }
       
       // Obs: a lógica de redirecionamento manual abaixo foi substituída pelo componente Wallet.
       // const isSandbox = import.meta.env.DEV;

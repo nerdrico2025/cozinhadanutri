@@ -118,10 +118,14 @@ function App() {
   useEffect(() => {
     checkSession();
     
-    // Re-verifica sessão quando a aba ganha foco (ajuda com múltiplas abas)
+    // Re-verifica sessão quando a aba ganha foco ou a sessão é atualizada (ex: troca de plano)
     const handleFocus = () => checkSession();
     window.addEventListener('focus', handleFocus);
-    return () => window.removeEventListener('focus', handleFocus);
+    window.addEventListener('session_updated', handleFocus);
+    return () => {
+      window.removeEventListener('focus', handleFocus);
+      window.removeEventListener('session_updated', handleFocus);
+    };
   }, []);
 
   // Proteção de Rotas

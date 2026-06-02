@@ -11,7 +11,7 @@ import {
 import { login } from '../services/auth';
 import { 
   listarUsuariosAdmin, UsuarioAdmin, atualizarUsuarioAdmin, 
-  listarAtividadesAdmin, AtividadeAdmin 
+  listarAtividadesAdmin, AtividadeAdmin, excluirUsuarioAdmin 
 } from '../services/admin';
 import { getPlans, savePlans, PlanData } from '../services/planService';
 import { 
@@ -322,8 +322,12 @@ export function Adm() {
     }
   };
 
-  const excluir = (id: string) =>
-    setUsuarios(prev => prev.filter(u => u.id !== id));
+  const excluir = async (id: string) => {
+    const sucesso = await excluirUsuarioAdmin(id);
+    if (sucesso) {
+      setUsuarios(prev => prev.filter(u => u.id !== id));
+    }
+  };
 
   const alterarPlano = async (id: string, plano: Plano) => {
     const u = usuarios.find(x => x.id === id);

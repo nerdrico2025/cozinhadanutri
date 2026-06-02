@@ -55,13 +55,21 @@ export const getSessao = async (): Promise<UsuarioLogado | null> => {
   try {
     const response = await api.get('/api/profile/');
     const user = response.data;
-    console.log('DADOS DO PERFIL RECEBIDOS:', user);
+/*     console.log('DADOS DO PERFIL RECEBIDOS:', user); */
+    let planoAtual: 'gratis' | 'profissional' | 'empresarial' = 'gratis';
+    const planoId = user.empresa?.plano;
+    if (planoId === 2) {
+      planoAtual = 'profissional';
+    } else if (planoId === 3) {
+      planoAtual = 'empresarial';
+    }
+
     return {
       id: user.id.toString(),
       nome: user.empresa?.nome_fantasia || user.username,
       email: user.email,
       role: user.is_superuser ? 'admin' : 'user',
-      planoAtual: user.empresa?.plano || 'gratis',
+      planoAtual: planoAtual,
       empresa: user.empresa,
     };
   } catch {
