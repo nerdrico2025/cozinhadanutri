@@ -10,7 +10,7 @@ import { ConfirmModal } from './ConfirmModal';
 interface ListaIngredientesProps {
   ingredientes: Ingrediente[];
   onEditar?: (ingrediente: Ingrediente) => void;
-  onRemover: (id: string) => void;
+  onRemover: (id: string, senha?: string) => void;
 }
 
 const resumoNutrientes = [
@@ -48,9 +48,9 @@ export function ListaIngredientes({ ingredientes, onEditar, onRemover }: ListaIn
     setExpandido(expandido === id ? null : id);
   };
 
-  const confirmarRemocao = () => {
+  const confirmarRemocao = (senha?: string) => {
     if (itemParaRemover) {
-      onRemover(itemParaRemover.id);
+      onRemover(itemParaRemover.id, senha);
       setItemParaRemover(null);
     }
   };
