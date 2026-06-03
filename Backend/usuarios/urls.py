@@ -11,6 +11,7 @@ from .views import (
     MeuPlanoView,
     TrocarPlanoView,
     AdminUsersView,
+    AdminUserDetailView,
     AdminActivitiesView,
     FAQView,
     SupportConfigView,
@@ -70,6 +71,10 @@ urlpatterns = [
     AdminUsersView.as_view()
     ),
     path(
+    'admin/users/<int:id>/',
+    AdminUserDetailView.as_view()
+    ),
+    path(
     'admin/activities/',
     AdminActivitiesView.as_view()
     ),
@@ -111,11 +116,4 @@ urlpatterns = [
     'logout/',
     LogoutView.as_view()
     ),
-
-
-
-
-
-
-
 ]

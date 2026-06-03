@@ -45,6 +45,8 @@ EMAILJS_TEMPLATE_ID = os.environ.get('EMAILJS_TEMPLATE_ID')
 EMAILJS_PUBLIC_KEY = os.environ.get('EMAILJS_PUBLIC_KEY')
 EMAILJS_PRIVATE_KEY = os.environ.get('EMAILJS_PRIVATE_KEY')
 SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-dev-fallback-key')
+RECEITAWS_API_TOKEN = os.environ.get('RECEITAWS_API_TOKEN')
+
 
 
 # Quick-start development settings - unsuitable for production

@@ -60,8 +60,18 @@ class DeleteUserView(generics.DestroyAPIView):
     def destroy(self, request, *args, **kwargs):
 
         user = self.get_object()
+        empresa = user.empresa
 
-        user.delete()
+        import time
+        suffix = f"_deleted_{int(time.time())}"
+        user.is_active = False
+        user.username = f"{user.username}{suffix}"[:150]
+        user.email = f"{user.email}{suffix}"[:254]
+        user.save()
+
+        if empresa:
+            empresa.plano_ativo = False
+            empresa.save()
 
         return Response(
             {"message": "Usuário deletado com sucesso."},
@@ -80,8 +90,18 @@ class DeleteUserByIdView(generics.DestroyAPIView):
     def destroy(self, request, *args, **kwargs):
 
         user = self.get_object()
+        empresa = user.empresa
 
-        user.delete()
+        import time
+        suffix = f"_deleted_{int(time.time())}"
+        user.is_active = False
+        user.username = f"{user.username}{suffix}"[:150]
+        user.email = f"{user.email}{suffix}"[:254]
+        user.save()
+
+        if empresa:
+            empresa.plano_ativo = False
+            empresa.save()
 
         return Response(
             {"message": "Usuário deletado com sucesso."},
@@ -294,6 +314,66 @@ class AdminUsersView(ListAPIView):
     permission_classes = [IsAdminUser]
 
 
+class AdminUserDetailView(generics.RetrieveUpdateDestroyAPIView):
+    queryset = User.objects.all()
+    serializer_class = AdminUserSerializer
+    permission_classes = [IsAdminUser]
+    lookup_field = 'id'
+
+    def patch(self, request, *args, **kwargs):
+        user = self.get_object()
+        
+        is_active = request.data.get('is_active')
+        if is_active is not None:
+            user.is_active = is_active
+            user.save()
+            
+        plano_str = request.data.get('plano')
+        if plano_str and user.empresa:
+            from .models import Plano
+            plano = None
+            if plano_str == 'gratis':
+                plano = Plano.objects.filter(id=1).first() or Plano.objects.filter(nome__iexact='grátis').first()
+            elif plano_str == 'profissional':
+                plano = Plano.objects.filter(id=2).first() or Plano.objects.filter(nome__iexact='profissional').first()
+            elif plano_str == 'empresarial':
+                plano = Plano.objects.filter(id=3).first() or Plano.objects.filter(nome__iexact='empresarial').first()
+            
+            if plano:
+                user.empresa.plano = plano
+                user.empresa.save()
+
+        # Log audit log
+        from .models import Auditoria
+        Auditoria.log(
+            usuario=user,
+            acao=f"Usuário atualizado pelo administrador. Ativo: {user.is_active}, Plano: {user.empresa.plano.nome if user.empresa and user.empresa.plano else 'Nenhum'}",
+            tipo='plano'
+        )
+
+        return Response(AdminUserSerializer(user).data)
+
+    def destroy(self, request, *args, **kwargs):
+        user = self.get_object()
+        empresa = user.empresa
+        
+        import time
+        suffix = f"_deleted_{int(time.time())}"
+        user.is_active = False
+        user.username = f"{user.username}{suffix}"[:150]
+        user.email = f"{user.email}{suffix}"[:254]
+        user.save()
+
+        if empresa:
+            empresa.plano_ativo = False
+            empresa.save()
+            
+        return Response(
+            {"message": "Conta encerrada com sucesso (soft delete)."},
+            status=status.HTTP_200_OK
+        )
+
+
 
 class AdminActivitiesView(ListAPIView):
 
@@ -331,15 +411,100 @@ class SupportConfigView(APIView):
         })
     
 class ConsultaCNPJView(APIView):
-
-    permission_classes = [IsAuthenticated]
+    """
+    Consulta dados de um CNPJ na API ReceitaWS.
+    Endpoint público (AllowAny) pois é usado na tela de cadastro,
+    antes do usuário possuir um token JWT.
+    """
+    permission_classes = [permissions.AllowAny]
 
     def get(self, request, cnpj):
+        import re
+        import requests as http_requests
+        from django.conf import settings
 
+        # Sanitiza: aceita apenas dígitos
+        cnpj_digits = re.sub(r'\D', '', cnpj)
+        if len(cnpj_digits) != 14:
+            return Response(
+                {"status": "ERROR", "message": "CNPJ deve conter 14 dígitos."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        token = getattr(settings, 'RECEITAWS_API_TOKEN', None)
+
+        headers = {
+            "Accept": "application/json",
+            "User-Agent": "CozinhaDaNutri/1.0",
+        }
+        if token:
+            headers["Authorization"] = f"Bearer {token}"
+
+        url = f"https://www.receitaws.com.br/v1/cnpj/{cnpj_digits}"
+
+        try:
+            resp = http_requests.get(url, headers=headers, timeout=10)
+        except http_requests.exceptions.ConnectionError as exc:
+            print(f"[ReceitaWS] ConnectionError: {exc}")
+            return Response(
+                {"status": "ERROR", "message": "Não foi possível conectar à ReceitaWS. Verifique sua conexão."},
+                status=status.HTTP_502_BAD_GATEWAY
+            )
+        except http_requests.exceptions.Timeout:
+            print("[ReceitaWS] Timeout ao consultar CNPJ.")
+            return Response(
+                {"status": "ERROR", "message": "A consulta ao ReceitaWS expirou. Tente novamente."},
+                status=status.HTTP_504_GATEWAY_TIMEOUT
+            )
+
+        print(f"[ReceitaWS] HTTP {resp.status_code} para CNPJ {cnpj_digits}")
+
+        # Rate-limit da ReceitaWS (plano gratuito: 3 req/min)
+        if resp.status_code == 429:
+            return Response(
+                {"status": "ERROR", "message": "Muitas consultas em pouco tempo. Aguarde alguns segundos e tente novamente."},
+                status=status.HTTP_429_TOO_MANY_REQUESTS
+            )
+
+        # Tenta ler o JSON independente do status HTTP.
+        # A ReceitaWS retorna HTTP 4xx com corpo JSON {"status":"ERROR","message":"..."}
+        # para CNPJs inválidos/não encontrados — não devemos tratar isso como 502.
+        try:
+            data = resp.json()
+        except ValueError:
+            print(f"[ReceitaWS] Resposta não-JSON: {resp.text[:200]}")
+            return Response(
+                {"status": "ERROR", "message": f"ReceitaWS retornou erro inesperado (HTTP {resp.status_code})."},
+                status=status.HTTP_502_BAD_GATEWAY
+            )
+
+        # ReceitaWS retorna status "ERROR" para CNPJs inexistentes/inválidos
+        if data.get("status") == "ERROR":
+            return Response(
+                {"status": "ERROR", "message": data.get("message", "CNPJ não encontrado.")},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        # Mapeia para o formato esperado pelo frontend
         return Response({
-            "cnpj": cnpj,
-            "razao_social": "Consulta não implementada",
-            "status": "pendente"
+            "status": "OK",
+            "cnpj": data.get("cnpj", cnpj),
+            "nome": data.get("nome", ""),
+            "fantasia": data.get("fantasia", ""),
+            "email": data.get("email", ""),
+            "telefone": data.get("telefone", ""),
+            "situacao": data.get("situacao", ""),
+            "tipo": data.get("tipo", ""),
+            "porte": data.get("porte", ""),
+            "abertura": data.get("abertura", ""),
+            "natureza_juridica": data.get("natureza_juridica", ""),
+            "logradouro": data.get("logradouro", ""),
+            "numero": data.get("numero", ""),
+            "complemento": data.get("complemento", ""),
+            "bairro": data.get("bairro", ""),
+            "municipio": data.get("municipio", ""),
+            "uf": data.get("uf", ""),
+            "cep": data.get("cep", ""),
         })
     
 class PaymentPreferenceView(APIView):

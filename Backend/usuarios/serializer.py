@@ -42,8 +42,10 @@ class RegisterSerializer(serializers.ModelSerializer):
         return value
 
     def validate_cnpj(self, value):
-        if empresa.objects.filter(cnpj=value).exists():
-            raise serializers.ValidationError("Este CNPJ já está cadastrado.")
+        emp = empresa.objects.filter(cnpj=value).first()
+        if emp:
+            if User.objects.filter(empresa=emp, is_active=True).exists():
+                raise serializers.ValidationError("Este CNPJ já está cadastrado e ativo.")
         return value
 
     def validate_username(self, value):
@@ -61,22 +63,47 @@ class RegisterSerializer(serializers.ModelSerializer):
         username = validated_data.pop('username')
         email = validated_data.pop('email')
 
-        empresa_instance = empresa.objects.create(
-            razao_social=razao_social,
-            nome_fantasia=nome_fantasia,
-            cnpj=cnpj,
-            inscricao_estadual=inscricao_estadual,
-            telefone=telefone
-        )
+        emp = empresa.objects.filter(cnpj=cnpj).first()
+        if emp:
+            emp.razao_social = razao_social
+            emp.nome_fantasia = nome_fantasia
+            emp.inscricao_estadual = inscricao_estadual
+            emp.telefone = telefone
+            emp.save()
 
-        user = User.objects.create_user(
-            username=username,
-            email=email,
-            password=password,
-            empresa=empresa_instance
-        )
+            user = User.objects.filter(empresa=emp).first()
+            if user:
+                user.username = username
+                user.email = email
+                user.set_password(password)
+                user.is_active = True
+                user.save()
+                return user
+            else:
+                user = User.objects.create_user(
+                    username=username,
+                    email=email,
+                    password=password,
+                    empresa=emp
+                )
+                return user
+        else:
+            empresa_instance = empresa.objects.create(
+                razao_social=razao_social,
+                nome_fantasia=nome_fantasia,
+                cnpj=cnpj,
+                inscricao_estadual=inscricao_estadual,
+                telefone=telefone
+            )
 
-        return user
+            user = User.objects.create_user(
+                username=username,
+                email=email,
+                password=password,
+                empresa=empresa_instance
+            )
+
+            return user
 
 
 class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):

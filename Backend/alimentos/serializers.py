@@ -4,9 +4,24 @@ from rest_framework import serializers
 from .models import Alimento, Receita, IngredienteReceita
 
 class AlimentoSerializer(serializers.ModelSerializer):
+    proteina = serializers.DecimalField(source='proteinas', max_digits=20, decimal_places=4, required=False, allow_null=True)
+    carboidrato = serializers.DecimalField(source='carboidratos', max_digits=20, decimal_places=4, required=False, allow_null=True)
+    lipideos = serializers.DecimalField(source='gorduras_totais', max_digits=20, decimal_places=4, required=False, allow_null=True)
+    saturados = serializers.DecimalField(source='gorduras_saturadas', max_digits=20, decimal_places=4, required=False, allow_null=True)
+    AG18_1t = serializers.DecimalField(source='gorduras_trans', max_digits=20, decimal_places=4, required=False, allow_null=True)
+    AG18_2t = serializers.SerializerMethodField()
+
     class Meta:
         model = Alimento
-        fields = '__all__'
+        fields = [
+            'id', 'numero', 'descricao', 'energia_kcal', 'carboidrato', 'acucares_totais',
+            'acucares_adicionados', 'proteina', 'lipideos', 'saturados', 'AG18_1t', 'AG18_2t',
+            'fibra_alimentar', 'sodio', 'minerais', 'vitaminas', 'preco', 'unidade_medida',
+            'criado_em', 'atualizado_em'
+        ]
+
+    def get_AG18_2t(self, obj):
+        return 0
 
     def validate_numero(self, value):
         if value is None:
@@ -67,7 +82,7 @@ class AlimentoSerializer(serializers.ModelSerializer):
             'fibra_alimentar',
             'sodio',
             'preco',
-            'unidade_medida',
+            'gorduras_trans',
         ]
 
         for campo in campos:
@@ -123,7 +138,7 @@ class ReceitaSerializer(serializers.ModelSerializer):
         for ing_data in ingredientes_data:
             IngredienteReceita.objects.create(receita=receita, **ing_data)
             
-        return rec
+        return receita
 
     def update(self, instance, validated_data):
         ingredientes_data = validated_data.pop('ingredientes', None)
@@ -140,4 +155,3 @@ class ReceitaSerializer(serializers.ModelSerializer):
                 IngredienteReceita.objects.create(receita=instance, **ing_data)
         
         return instance
-        
