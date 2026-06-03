@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -97,6 +97,50 @@ export function CadastroIngrediente({ ingredienteInicial, onSalvar, onCancelar, 
         }
       : { unidade: 'g', calorias: 0, proteinas: 0, carboidratos: 0, gorduras: 0, acucares_totais: 0, acucares_adicionados: 0, gorduras_saturadas: 0, gorduras_trans: 0, fibras: 0, sodio: 0, vitaminas: 0, minerais: 0 },
   });
+
+  useEffect(() => {
+    if (ingredienteInicial) {
+      reset({
+        nome: ingredienteInicial.nome,
+        unidade: ingredienteInicial.unidade as 'g' | 'kg' | 'ml' | 'l' | 'unidade',
+        preco: ingredienteInicial.preco,
+        calorias: ingredienteInicial.dadosNutricionais.calorias,
+        proteinas: ingredienteInicial.dadosNutricionais.proteinas,
+        carboidratos: ingredienteInicial.dadosNutricionais.carboidratos,
+        gorduras: ingredienteInicial.dadosNutricionais.gorduras,
+        acucares_totais: ingredienteInicial.dadosNutricionais.acucares_totais || 0,
+        acucares_adicionados: ingredienteInicial.dadosNutricionais.acucares_adicionados || 0,
+        gorduras_saturadas: ingredienteInicial.dadosNutricionais.gorduras_saturadas || 0,
+        gorduras_trans: ingredienteInicial.dadosNutricionais.gorduras_trans || 0,
+        fibras: ingredienteInicial.dadosNutricionais.fibras || 0,
+        sodio: ingredienteInicial.dadosNutricionais.sodio || 0,
+        vitaminas: ingredienteInicial.dadosNutricionais.vitaminas || 0,
+        minerais: ingredienteInicial.dadosNutricionais.minerais || 0,
+      });
+      setTacoNumeroSelecionado(ingredienteInicial.tacoId);
+      setTacoDbId(ingredienteInicial.id);
+    } else {
+      reset({
+        nome: '',
+        unidade: 'g',
+        preco: 0,
+        calorias: 0,
+        proteinas: 0,
+        carboidratos: 0,
+        gorduras: 0,
+        acucares_totais: 0,
+        acucares_adicionados: 0,
+        gorduras_saturadas: 0,
+        gorduras_trans: 0,
+        fibras: 0,
+        sodio: 0,
+        vitaminas: 0,
+        minerais: 0,
+      });
+      setTacoNumeroSelecionado(undefined);
+      setTacoDbId(undefined);
+    }
+  }, [ingredienteInicial, reset]);
 
   const buscarSugestoes = (nome: string) => {
     if (nome.length < 2) { setSugestoesTaco([]); setMostrarSugestoes(false); return; }
@@ -258,11 +302,11 @@ export function CadastroIngrediente({ ingredienteInicial, onSalvar, onCancelar, 
                   <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
                   <input
                     type="text"
-                    {...register('nome')}
-                    onChange={(e) => {
-                      register('nome').onChange(e);
-                      buscarSugestoes(e.target.value);
-                    }}
+                    {...register('nome', {
+                      onChange: (e) => {
+                        buscarSugestoes(e.target.value);
+                      }
+                    })}
                     onBlur={() => setTimeout(() => setMostrarSugestoes(false), 200)}
                     onFocus={() => sugestoesTaco.length > 0 && setMostrarSugestoes(true)}
                     placeholder="Digite para pesquisar na tabela TACO…"

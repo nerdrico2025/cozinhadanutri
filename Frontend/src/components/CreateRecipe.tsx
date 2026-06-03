@@ -115,19 +115,26 @@ export function CriarReceita({ receitaInicial, onSalvar, onCancelar, onSolicitar
   const watchedPorcoes = watch("porcoes");
   const watchedMargemLucro = watch("margemLucro");
 
-  useEffect(() => {
-    const validos = watchedIngredientes.filter(
-      (i) => i.tacoId && i.quantidade > 0 && i.preco >= 0
+  const executarCalculos = useCallback(() => {
+    const currentValues = getValues();
+    const porcoesVal = currentValues.porcoes ?? 1;
+    const margemLucroVal = currentValues.margemLucro ?? 0;
+    const ingredientesList = currentValues.ingredientes ?? [];
+
+    const validos = ingredientesList.filter(
+      (i) => i && i.tacoId && i.quantidade > 0 && i.preco >= 0
     );
-    if (validos.length === 0 || watchedPorcoes <= 0) { setCalculos(null); return; }
+    if (validos.length === 0 || porcoesVal <= 0) {
+      setCalculos(null);
+      return;
+    }
 
     const custos = calcularCustosReceita(
       validos.map(v => ({ quantidade: v.quantidade, preco: v.preco })), 
-      watchedPorcoes, 
-      watchedMargemLucro
+      porcoesVal, 
+      margemLucroVal
     );
 
-    // Cálculo nutricional local baseado nos ingredientes selecionados
     const totais: DadosNutricionais = {
       calorias: 0, proteinas: 0, carboidratos: 0, gorduras: 0,
       acucares_totais: 0, acucares_adicionados: 0, gorduras_saturadas: 0,
@@ -135,10 +142,9 @@ export function CriarReceita({ receitaInicial, onSalvar, onCancelar, onSolicitar
     };
 
     validos.forEach((item) => {
-      // Busca o ingrediente original nos resultados da busca
       const searchResult = rowSearches
         .flatMap(rs => rs.results)
-        .find(r => r.cadastrado && String(r.id) === String(item.tacoId));
+        .find(r => String(r.id) === String(item.tacoId));
       
       const ingredienteCompleto = searchResult?.originalData as Ingrediente | undefined;
       
@@ -157,9 +163,13 @@ export function CriarReceita({ receitaInicial, onSalvar, onCancelar, onSolicitar
     setCalculos({ 
       ...custos, 
       dadosNutricionaisTotais: totais, 
-      dadosNutricionaisPorPorcao: calcularDadosNutricionaisPorPorcao(totais, watchedPorcoes) 
+      dadosNutricionaisPorPorcao: calcularDadosNutricionaisPorPorcao(totais, porcoesVal) 
     });
-  }, [watchedIngredientes, watchedPorcoes, watchedMargemLucro]);
+  }, [rowSearches, getValues]);
+
+  useEffect(() => {
+    executarCalculos();
+  }, [watchedIngredientes, watchedPorcoes, watchedMargemLucro, executarCalculos]);
 
   const updateRow = useCallback((index: number, patch: Partial<RowSearch>) => {
     setRowSearches((prev) => prev.map((r, i) => (i === index ? { ...r, ...patch } : r)));
@@ -227,7 +237,7 @@ export function CriarReceita({ receitaInicial, onSalvar, onCancelar, onSolicitar
 
     setValue(`ingredientes.${index}.tacoId`, Number(result.id), { shouldValidate: true });
     setValue(`ingredientes.${index}.nome`, result.nome, { shouldValidate: true });
-    setValue(`ingredientes.${index}.preco`, result.preco || 0, { shouldValidate: true });
+    setValue(`ingredientes.${index}.preco`, result.preco || 0.00, { shouldValidate: true });
     updateRow(index, { query: result.nome, results: [result], open: false });
   };
 
@@ -236,17 +246,30 @@ export function CriarReceita({ receitaInicial, onSalvar, onCancelar, onSolicitar
     if (result && onSolicitarCadastro) {
       const currentData = getValues();
       const rascunho: Receita = {
-        id: receitaInicial?.id ?? "rascunho",
+        id: receitaInicial?.id,
         nome: currentData.nome,
         descricao: currentData.descricao,
         porcoes: currentData.porcoes,
         margemLucro: currentData.margemLucro,
-        ingredientes: currentData.ingredientes as IngredienteReceita[],
-        custoTotal: calculos?.custoTotal ?? 0,
-        custoPorPorcao: calculos?.custoPorPorcao ?? 0,
-        precoSugerido: calculos?.precoSugerido ?? 0,
-        dadosNutricionaisTotais: calculos?.dadosNutricionaisTotais ?? { calorias: 0, proteinas: 0, carboidratos: 0, gorduras: 0, acucares_totais: 0, acucares_adicionados: 0, gorduras_saturadas: 0, gorduras_trans: 0, fibras: 0, sodio: 0, vitaminas: 0, minerais: 0 },
-        dadosNutricionaisPorPorcao: calculos?.dadosNutricionaisPorPorcao ?? { calorias: 0, proteinas: 0, carboidratos: 0, gorduras: 0, acucares_totais: 0, acucares_adicionados: 0, gorduras_saturadas: 0, gorduras_trans: 0, fibras: 0, sodio: 0, vitaminas: 0, minerais: 0 },
+        ingredientes: (currentData.ingredientes || []).map((ing) => ({
+          tacoId: ing.tacoId,
+          nome: ing.nome,
+          quantidade: ing.quantidade,
+          preco: ing.preco
+        })),
+        custoTotal: calculos?.custoTotal || 0,
+        custoPorPorcao: calculos?.custoPorPorcao || 0,
+        precoSugerido: calculos?.precoSugerido || 0,
+        dadosNutricionaisTotais: calculos?.dadosNutricionaisTotais || {
+          calorias: 0, proteinas: 0, carboidratos: 0, gorduras: 0,
+          acucares_totais: 0, acucares_adicionados: 0, gorduras_saturadas: 0,
+          gorduras_trans: 0, fibras: 0, sodio: 0, vitaminas: 0, minerais: 0
+        },
+        dadosNutricionaisPorPorcao: calculos?.dadosNutricionaisPorPorcao || {
+          calorias: 0, proteinas: 0, carboidratos: 0, gorduras: 0,
+          acucares_totais: 0, acucares_adicionados: 0, gorduras_saturadas: 0,
+          gorduras_trans: 0, fibras: 0, sodio: 0, vitaminas: 0, minerais: 0
+        },
         createdAt: receitaInicial?.createdAt ?? new Date()
       };
       onSolicitarCadastro(result.originalData as Ingrediente, rascunho);
@@ -412,13 +435,6 @@ export function CriarReceita({ receitaInicial, onSalvar, onCancelar, onSolicitar
                       <span className="ml-2 text-xs font-normal text-gray-400">({fields.length})</span>
                     </h2>
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => append({ tacoId: 0, nome: "", quantidade: 0, preco: 0 })}
-                    className="flex items-center gap-1.5 text-xs font-semibold text-brand bg-brand/8 hover:bg-brand/15 px-3 py-1.5 rounded-lg transition-colors focus:outline-none border-0 cursor-pointer"
-                  >
-                    <Plus size={13} /> Adicionar
-                  </button>
                 </div>
 
                 {typeof errors.ingredientes?.root?.message === "string" && (
@@ -570,7 +586,7 @@ export function CriarReceita({ receitaInicial, onSalvar, onCancelar, onSolicitar
                       append({ tacoId: 0, nome: "", quantidade: 0, preco: 0 });
                       setRowSearches((prev) => [...prev, emptyRow()]);
                     }}
-                    className="w-full flex items-center justify-center gap-2 text-sm text-gray-400 hover:text-brand hover:bg-brand/5 py-2 rounded-lg transition-colors border-0 bg-transparent cursor-pointer focus:outline-none"
+                    className="w-full flex items-center justify-center gap-2 text-sm text-white bg-emerald-600 hover:bg-emerald-700 py-2.5 rounded-xl border-0 transition-colors cursor-pointer focus:outline-none font-bold shadow-sm"
                   >
                     <Plus size={14} />
                     Adicionar ingrediente
@@ -605,8 +621,15 @@ export function CriarReceita({ receitaInicial, onSalvar, onCancelar, onSolicitar
 
                {/* Card: financeiro */}
               <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-                <div className="px-5 py-4 border-b border-gray-50 bg-gray-50/50">
+                <div className="px-5 py-4 border-b border-gray-50 bg-gray-50/50 flex items-center justify-between">
                   <p className="text-sm font-bold text-gray-800">Resumo Financeiro</p>
+                  <button
+                    type="button"
+                    onClick={() => executarCalculos()}
+                    className="flex items-center gap-1 px-2.5 py-1 text-xs font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg hover:bg-emerald-100 transition cursor-pointer"
+                  >
+                    Atualizar
+                  </button>
                 </div>
 
                 {calculos ? (
@@ -624,20 +647,45 @@ export function CriarReceita({ receitaInicial, onSalvar, onCancelar, onSolicitar
 
                     <div className="space-y-3">
                       <div className="flex items-center justify-between py-2 border-b border-gray-50">
-                        <span className="text-xs text-gray-500">Custo por Porção</span>
+                        <span className="text-xs text-gray-500 font-medium">Custo por Porção</span>
                         <span className="text-sm font-bold text-gray-700">R$ {calculos.custoPorPorcao.toFixed(2)}</span>
                       </div>
+                      
                       <div className="flex items-center justify-between py-2 border-b border-gray-50">
-                        <span className="text-xs text-gray-500">Sugestão de Venda</span>
+                        <div className="flex flex-col">
+                          <span className="text-xs text-gray-500 font-medium">Sugestão de Venda</span>
+                          <span className="text-[10px] text-gray-400">Por porção</span>
+                        </div>
                         <span className="text-sm font-black text-emerald-600">R$ {calculos.precoSugerido.toFixed(2)}</span>
                       </div>
-                        <div className="flex items-center justify-between py-2 bg-emerald-50/50 px-3 rounded-lg">
+
+                      {watchedPorcoes > 1 && (
+                        <div className="flex items-center justify-between py-2 border-b border-gray-50">
+                          <div className="flex flex-col">
+                            <span className="text-xs text-gray-500 font-medium">Sugestão de Venda (Total)</span>
+                            <span className="text-[10px] text-gray-400">Total da receita ({watchedPorcoes} porções)</span>
+                          </div>
+                          <span className="text-sm font-bold text-gray-700">R$ {(calculos.precoSugerido * watchedPorcoes).toFixed(2)}</span>
+                        </div>
+                      )}
+                      
+                      <div className="flex items-center justify-between py-2 bg-emerald-50/50 px-3 rounded-lg">
                         <div className="flex flex-col">
-                          <span className="text-[10px] text-emerald-600 uppercase font-bold">Lucro Previsto</span>
+                          <span className="text-[10px] text-emerald-600 uppercase font-bold">Lucro / Porção</span>
                           <span className="text-xs text-emerald-500 font-medium">Margem de {watchedMargemLucro}%</span>
                         </div>
                         <span className="text-base font-black text-emerald-600">R$ {calculos.margemLucroReal.toFixed(2)}</span>
                       </div>
+
+                      {watchedPorcoes > 1 && (
+                        <div className="flex items-center justify-between py-2 bg-[#04585a] text-white px-3 rounded-lg shadow-sm">
+                          <div className="flex flex-col">
+                            <span className="text-[10px] text-teal-100 uppercase font-bold">Lucro Total</span>
+                            <span className="text-xs text-teal-50/70 font-medium">Receita inteira</span>
+                          </div>
+                          <span className="text-base font-black">R$ {(calculos.margemLucroReal * watchedPorcoes).toFixed(2)}</span>
+                        </div>
+                      )}
                     </div>
                   </div>
                 ) : (
@@ -711,40 +759,33 @@ export function CriarReceita({ receitaInicial, onSalvar, onCancelar, onSolicitar
         </form>
       </div>
 
-      {/* Modal de Alerta de Cadastro */}
-      {modalCadastro.aberto && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-          <div className="bg-white rounded-3xl p-8 max-w-sm w-full shadow-2xl animate-in fade-in zoom-in-95 duration-200">
-            <div className="flex items-center justify-center w-20 h-20 rounded-full bg-amber-100 mb-6 mx-auto">
-              <AlertCircle className="text-amber-600" size={40} />
+      {/* Modal Cadastro de Ingrediente não cadastrado */}
+      {modalCadastro.aberto && modalCadastro.ingrediente && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-2xl p-6 max-w-sm w-full shadow-2xl animate-in fade-in zoom-in-95 duration-200">
+            <div className="flex items-center justify-center w-12 h-12 rounded-full bg-amber-100 mb-4 mx-auto">
+              <AlertCircle className="text-amber-600" size={24} />
             </div>
-            
-            <h3 className="text-xl font-black text-gray-800 text-center mb-3">
+            <h3 className="text-lg font-bold text-gray-800 text-center mb-2">
               Ingrediente não cadastrado
             </h3>
-            
-            <p className="text-sm text-gray-500 text-center mb-8 leading-relaxed">
-              O item <span className="font-bold text-gray-700">"{modalCadastro.ingrediente?.nome}"</span> ainda não possui preço ou unidade definidos. 
-              <br/><br/>
-              Deseja cadastrá-lo agora? Seu rascunho da receita será <span className="text-brand font-bold">preservado automaticamente</span>.
+            <p className="text-sm text-gray-600 text-center mb-6">
+              O ingrediente <strong>"{modalCadastro.ingrediente.nome}"</strong> ainda não possui preço ou unidade cadastrados. Deseja cadastrar agora?
             </p>
-            
-            <div className="flex flex-col gap-3">
-              <button
-                type="button"
-                onClick={handleConfirmarRedirecionamento}
-                className="w-full flex items-center justify-center gap-2 py-4 rounded-2xl bg-brand text-white text-sm font-black hover:brightness-110 transition-all shadow-lg shadow-brand/20 border-0 cursor-pointer"
-              >
-                Sim, cadastrar agora
-                <PlusCircle size={18} />
-              </button>
-              
+            <div className="flex gap-3">
               <button
                 type="button"
                 onClick={() => setModalCadastro({ aberto: false })}
-                className="w-full py-3 rounded-2xl border border-gray-100 text-xs font-bold text-gray-400 bg-white hover:bg-gray-50 transition-colors border-0 cursor-pointer"
+                className="flex-1 py-2.5 rounded-xl border border-gray-200 text-sm font-medium text-gray-600 bg-white hover:bg-gray-50 transition-colors focus:outline-none cursor-pointer"
               >
-                Agora não
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmarRedirecionamento}
+                className="flex-1 py-2.5 rounded-xl bg-brand text-white text-sm font-bold hover:brightness-110 transition-colors focus:outline-none cursor-pointer border-0"
+              >
+                Sim, Cadastrar
               </button>
             </div>
           </div>

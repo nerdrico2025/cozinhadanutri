@@ -4,7 +4,6 @@ import { obterReceita } from '../services/receitas';
 import { listarAlimentos } from '../services/alimentos';
 import { calcularNutrientesTotais, calcularDadosNutricionaisPorPorcao } from '../utils/calculations';
 import { Receita, Ingrediente } from '../types';
-import { salvarConfiguracaoEtiqueta } from '../services/etiqueta';
 
 interface EtiquetaProps {
   onVoltar: () => void;
@@ -26,6 +25,17 @@ export function Etiqueta({ onVoltar, usuario }: EtiquetaProps): JSX.Element {
   const [alturaMm, setAlturaMm] = useState(130);
   const [escalaFonte, setEscalaFonte] = useState(100);
   const [alturaAutomatica, setAlturaAutomatica] = useState(true);
+  const [modoQuantidade, setModoQuantidade] = useState<'auto' | 'manual'>('auto');
+  const [quantidadeManual, setQuantidadeManual] = useState<number>(1);
+
+  const obterQuantidadeSugerida = (): number => {
+    const cols = Math.max(1, Math.floor(200 / (larguraMm + 4)));
+    const estimadoAltura = alturaAutomatica ? (larguraMm > alturaMm ? 90 : 130) : alturaMm;
+    const rows = Math.max(1, Math.floor(285 / (estimadoAltura + 4)));
+    return cols * rows;
+  };
+
+  const quantidadeEtiquetas = modoQuantidade === 'auto' ? obterQuantidadeSugerida() : quantidadeManual;
 
   // Custom inputs for label configuration
   const [lote, setLote] = useState(() => 'LOT-' + Math.floor(Math.random() * 100000));
@@ -42,9 +52,6 @@ export function Etiqueta({ onVoltar, usuario }: EtiquetaProps): JSX.Element {
   const [outrosAlergenicos, setOutrosAlergenicos] = useState('');
   const [instrucoesConservacao, setInstrucoesConservacao] = useState('Manter congelado a -18°C.');
   const [pesoPorcaoCustom, setPesoPorcaoCustom] = useState<number | ''>('');
-
-  const [salvandoConfig, setSalvandoConfig] = useState(false);
-  const [sucessoConfig, setSucessoConfig] = useState(false);
 
   const parseIdFromHash = (): string | null => {
     const hash = window.location.hash;
@@ -113,7 +120,7 @@ export function Etiqueta({ onVoltar, usuario }: EtiquetaProps): JSX.Element {
 
         // Calculate values just like App.tsx does
         const ingredientesComNutrientes = rData.ingredientes.map((ing: any) => {
-          const base = parsedIngredientes.find(i => i.tacoId === ing.alimento);
+          const base = parsedIngredientes.find(i => String(i.id) === String(ing.alimento));
           return {
             quantidade: parseFloat(ing.quantidade),
             dadosNutricionais: base?.dadosNutricionais || {
@@ -148,37 +155,6 @@ export function Etiqueta({ onVoltar, usuario }: EtiquetaProps): JSX.Element {
         };
 
         setReceita(receitaMapeada);
-
-        // Tenta carregar as configurações salvas no banco
-        try {
-          const config = await salvarConfiguracaoEtiqueta(id, {});
-          if (config) {
-            if (config.nome_personalizado) setLote(config.nome_personalizado);
-            if (config.porcao) setPesoPorcaoCustom(config.porcao === '100g' ? '' : parseFloat(config.porcao) || '');
-            if (config.tamanho_etiqueta) {
-              aplicarPreset(config.tamanho_etiqueta as any);
-            }
-            if (config.informacoes_complementares) {
-              try {
-                const parsed = JSON.parse(config.informacoes_complementares);
-                if (parsed.dataFabricacao) setDataFabricacao(parsed.dataFabricacao);
-                if (parsed.dataValidade) setDataValidade(parsed.dataValidade);
-                if (parsed.contemGluten !== undefined) setContemGluten(parsed.contemGluten);
-                if (parsed.contemLactose !== undefined) setContemLactose(parsed.contemLactose);
-                if (parsed.outrosAlergenicos) setOutrosAlergenicos(parsed.outrosAlergenicos);
-                if (parsed.instrucoesConservacao) setInstrucoesConservacao(parsed.instrucoesConservacao);
-                if (parsed.larguraMm) setLarguraMm(parsed.larguraMm);
-                if (parsed.alturaMm) setAlturaMm(parsed.alturaMm);
-                if (parsed.escalaFonte) setEscalaFonte(parsed.escalaFonte);
-                if (parsed.alturaAutomatica !== undefined) setAlturaAutomatica(parsed.alturaAutomatica);
-              } catch {
-                // Fallback
-              }
-            }
-          }
-        } catch (configErr) {
-          console.error('Erro ao obter configurações da etiqueta:', configErr);
-        }
       } catch (err: any) {
         console.error('Erro ao buscar dados da receita:', err);
         setError('Não foi possível carregar a receita. Verifique se a receita existe.');
@@ -192,43 +168,6 @@ export function Etiqueta({ onVoltar, usuario }: EtiquetaProps): JSX.Element {
 
   const handlePrint = () => {
     window.print();
-  };
-
-  const handleSalvarConfiguracao = async () => {
-    const id = parseIdFromHash();
-    if (!id) return;
-
-    setSalvandoConfig(true);
-    setSucessoConfig(false);
-
-    try {
-      const payload = {
-        nome_personalizado: lote,
-        porcao: pesoPorcaoCustom !== '' ? `${pesoPorcaoCustom}g` : '100g',
-        tamanho_etiqueta: tamanhoPreset,
-        informacoes_complementares: JSON.stringify({
-          dataFabricacao,
-          dataValidade,
-          contemGluten,
-          contemLactose,
-          outrosAlergenicos,
-          instrucoesConservacao,
-          larguraMm,
-          alturaMm,
-          escalaFonte,
-          alturaAutomatica
-        })
-      };
-
-      await salvarConfiguracaoEtiqueta(id, payload);
-      setSucessoConfig(true);
-      setTimeout(() => setSucessoConfig(false), 3000);
-    } catch (err) {
-      console.error('Erro ao salvar configurações da etiqueta:', err);
-      alert('Erro ao salvar configurações no servidor.');
-    } finally {
-      setSalvandoConfig(false);
-    }
   };
 
   if (loading) {
@@ -313,22 +252,24 @@ export function Etiqueta({ onVoltar, usuario }: EtiquetaProps): JSX.Element {
   const hasLupa = isHighSaturates || isHighSodium || isHighSugars;
 
   const isHorizontalLayout = larguraMm > alturaMm;
+  const cols = Math.max(1, Math.floor(200 / (larguraMm + 4)));
+  const fs = (baseCqw: number) => `calc(${baseCqw}cqw * ${escalaFonte / 100})`;
 
   const renderAlergenicos = () => {
     const alerts: JSX.Element[] = [];
     
     // Gluten
     if (contemGluten) {
-      alerts.push(<strong key="gluten" className="block text-[9px] uppercase">CONTÉM GLÚTEN</strong>);
+      alerts.push(<strong key="gluten" className="block uppercase" style={{ fontSize: fs(2.4) }}>CONTÉM GLÚTEN</strong>);
     } else {
-      alerts.push(<strong key="gluten" className="block text-[9px] uppercase">NÃO CONTÉM GLÚTEN</strong>);
+      alerts.push(<strong key="gluten" className="block uppercase" style={{ fontSize: fs(2.4) }}>NÃO CONTÉM GLÚTEN</strong>);
     }
 
     // Lactose
     if (contemLactose) {
-      alerts.push(<strong key="lactose" className="block text-[9px] uppercase">CONTÉM LACTOSE</strong>);
+      alerts.push(<strong key="lactose" className="block uppercase" style={{ fontSize: fs(2.4) }}>CONTÉM LACTOSE</strong>);
     } else {
-      alerts.push(<strong key="lactose" className="block text-[9px] uppercase">NÃO CONTÉM LACTOSE</strong>);
+      alerts.push(<strong key="lactose" className="block uppercase" style={{ fontSize: fs(2.4) }}>NÃO CONTÉM LACTOSE</strong>);
     }
 
     // Other custom allergens
@@ -336,7 +277,7 @@ export function Etiqueta({ onVoltar, usuario }: EtiquetaProps): JSX.Element {
       const cleaned = outrosAlergenicos.trim().toUpperCase();
       const prefix = cleaned.startsWith('CONTÉM') || cleaned.startsWith('CONTEM') ? '' : 'CONTÉM ';
       alerts.push(
-        <strong key="outros" className="block text-[9px] uppercase mt-0.5">
+        <strong key="outros" className="block uppercase mt-0.5" style={{ fontSize: fs(2.4) }}>
           ALÉRGICOS: {prefix}{cleaned}
         </strong>
       );
@@ -354,9 +295,9 @@ export function Etiqueta({ onVoltar, usuario }: EtiquetaProps): JSX.Element {
             <circle cx="11" cy="9" r="5" />
             <line x1="18" y1="16" x2="14.5" y2="12.5" />
           </svg>
-          <span className="text-[7.5px] font-black leading-none tracking-tighter">ALTO EM</span>
+          <span className="font-black leading-none tracking-tighter" style={{ fontSize: fs(2.0) }}>ALTO EM</span>
         </div>
-        <div className="flex flex-col gap-0.5 text-[7px] font-extrabold uppercase leading-none justify-center">
+        <div className="flex flex-col gap-0.5 font-extrabold uppercase leading-none justify-center" style={{ fontSize: fs(1.8) }}>
           {isHighSugars && <span>Açúcar Adicionado</span>}
           {isHighSaturates && <span>Gordura Saturada</span>}
           {isHighSodium && <span>Sódio</span>}
@@ -367,7 +308,7 @@ export function Etiqueta({ onVoltar, usuario }: EtiquetaProps): JSX.Element {
 
   const renderTabelaNutricional = (tamanhoFonteTitulo: string, tamanhoFonteTabela: string, tamanhoFonteNota: string) => {
     return (
-      <div className="border-2 border-black p-1 font-sans bg-white w-full text-black select-none">
+      <div className="border border-black p-1 font-sans bg-white w-full text-black select-none">
         <p className="text-center font-black tracking-wider uppercase mb-0.5" style={{ fontSize: tamanhoFonteTitulo }}>
           Informação Nutricional
         </p>
@@ -474,25 +415,14 @@ export function Etiqueta({ onVoltar, usuario }: EtiquetaProps): JSX.Element {
               <p className="text-xs text-gray-500 font-medium">Personalize e imprima as etiquetas para embalagem</p>
             </div>
           </div>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={handleSalvarConfiguracao}
-              disabled={salvandoConfig}
-              className={`flex items-center gap-2 py-3 px-6 text-white rounded-xl font-bold transition shadow-sm border-0 cursor-pointer text-sm ${
-                sucessoConfig ? 'bg-green-600 hover:bg-green-700' : 'bg-orange-500 hover:bg-orange-600'
-              }`}
-            >
-              {salvandoConfig ? 'Salvando...' : (sucessoConfig ? '✓ Salvo!' : 'Salvar Configuração')}
-            </button>
-            <button
-              onClick={handlePrint}
-              style={{ backgroundColor: '#04585a' }}
-              className="flex items-center gap-2 py-3 px-6 text-white rounded-xl font-bold hover:brightness-95 transition shadow-sm border-0 cursor-pointer text-sm animate-pulse"
-            >
-              <Printer size={18} />
-              Imprimir Etiqueta
-            </button>
-          </div>
+          <button
+            onClick={handlePrint}
+            style={{ backgroundColor: '#04585a' }}
+            className="flex items-center gap-2 py-3 px-6 text-white rounded-xl font-bold hover:brightness-95 transition shadow-sm border-0 cursor-pointer text-sm animate-pulse"
+          >
+            <Printer size={18} />
+            Imprimir Etiqueta
+          </button>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 print:block print:w-full print:gap-0">
@@ -583,6 +513,47 @@ export function Etiqueta({ onVoltar, usuario }: EtiquetaProps): JSX.Element {
                     className="w-full accent-[#04585a]"
                   />
                 </div>
+              </div>
+
+              <div className="pt-2 border-t border-gray-100 flex flex-col gap-2">
+                <label className="block text-xs font-semibold text-gray-500 uppercase">Quantidade de Etiquetas</label>
+                <div className="flex flex-col gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setModoQuantidade('auto')}
+                    className={`w-full py-2.5 text-xs font-bold rounded-lg border transition-all cursor-pointer flex items-center justify-center gap-2 ${
+                      modoQuantidade === 'auto'
+                        ? 'bg-teal-50 border-teal-500 text-[#04585a] shadow-sm'
+                        : 'bg-white border-gray-200 text-gray-600 hover:bg-slate-50'
+                    }`}
+                  >
+                    ✨ Auto-preencher folha A4 ({obterQuantidadeSugerida()} {obterQuantidadeSugerida() === 1 ? 'etiqueta' : 'etiquetas'})
+                  </button>
+                  
+                  <div className="grid grid-cols-4 gap-2">
+                    {[1, 2, 4, 8].map((q) => (
+                      <button
+                        key={q}
+                        type="button"
+                        onClick={() => {
+                          setModoQuantidade('manual');
+                          setQuantidadeManual(q);
+                        }}
+                        className={`text-center py-2 text-xs font-bold rounded-lg border transition-all cursor-pointer ${
+                          modoQuantidade === 'manual' && quantidadeManual === q
+                            ? 'bg-teal-50 border-teal-500 text-[#04585a]'
+                            : 'bg-white border-gray-200 text-gray-600 hover:bg-slate-50'
+                        }`}
+                      >
+                        {q === 1 ? '1x (Avulso)' : `${q}x`}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                
+                <span className="text-[10px] font-medium text-gray-400 leading-tight mt-1">
+                  Grade de impressão: {Math.max(1, Math.floor(200 / (larguraMm + 4)))} {Math.max(1, Math.floor(200 / (larguraMm + 4))) === 1 ? 'coluna' : 'colunas'} x {Math.max(1, Math.floor(285 / ((alturaAutomatica ? (larguraMm > alturaMm ? 90 : 130) : alturaMm) + 4)))} {Math.max(1, Math.floor(285 / ((alturaAutomatica ? (larguraMm > alturaMm ? 90 : 130) : alturaMm) + 4))) === 1 ? 'linha' : 'linhas'} por folha.
+                </span>
               </div>
             </div>
 
@@ -696,127 +667,139 @@ export function Etiqueta({ onVoltar, usuario }: EtiquetaProps): JSX.Element {
           </div>
 
           {/* RIGHT: Label visual preview */}
-          <div className="lg:col-span-7 flex justify-center print:block print:w-full">
+          <div className="lg:col-span-7 flex flex-col items-center print:block print:w-full w-full overflow-hidden">
             
             {/* The sticker ticket representation */}
             <div 
-              className="bg-slate-50 p-6 rounded-2xl border border-gray-200/50 print:shadow-none print:border-0 print:p-0 flex items-start justify-center w-full"
+              className="bg-slate-50 p-6 rounded-2xl border border-gray-200/50 print:shadow-none print:border-0 print:p-0 w-full overflow-x-auto"
             >
               <div 
-                className="border-4 border-black p-4 font-sans text-black relative bg-white flex flex-col justify-between"
+                className="print-grid grid gap-4 justify-center w-full justify-items-center"
                 style={{
-                  width: `${larguraMm}mm`,
-                  minHeight: alturaAutomatica ? 'auto' : `${alturaMm}mm`,
-                  height: alturaAutomatica ? 'auto' : `${alturaMm}mm`,
-                  fontSize: `${escalaFonte}%`,
-                  boxSizing: 'border-box',
-                  overflow: 'hidden'
+                  gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))`,
+                  maxWidth: `${cols * (larguraMm + 4)}mm`,
                 }}
               >
-                {isHorizontalLayout ? (
-                  /* HORIZONTAL LAYOUT - TWO COLUMNS */
-                  <div className="grid grid-cols-12 gap-4 h-full items-start w-full">
-                    
-                    {/* Left Column (Product Info & Ingredients) */}
-                    <div className="col-span-7 flex flex-col justify-between h-full gap-2">
-                      <div>
-                        {/* Brand Header */}
-                        <div className="border-b-2 border-black pb-1 mb-1">
-                          <h1 className="text-[10px] font-black tracking-widest uppercase mb-0.5">
-                            {usuario?.empresa?.nome_fantasia || 'COZINHA DA NUTRI'}
-                          </h1>
-                          <p className="text-[8px] uppercase font-bold text-gray-500">
-                            CNPJ: {usuario?.empresa?.cnpj ? usuario.empresa.cnpj.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, "$1.$2.$3/$4-$5") : '00.000.000/0000-00'}
-                          </p>
+                {Array.from({ length: quantidadeEtiquetas }).map((_, index) => (
+                  <div 
+                    key={index}
+                    className="border-2 border-black p-4 font-sans text-black relative bg-white flex flex-col justify-between print-item"
+                    style={{
+                      width: '100%',
+                      maxWidth: `${larguraMm}mm`,
+                      minHeight: alturaAutomatica ? 'auto' : `${alturaMm}mm`,
+                      height: alturaAutomatica ? 'auto' : `${alturaMm}mm`,
+                      boxSizing: 'border-box',
+                      overflow: 'hidden',
+                      containerType: 'inline-size'
+                    }}
+                  >
+                    {isHorizontalLayout ? (
+                      /* HORIZONTAL LAYOUT - TWO COLUMNS */
+                      <div className="grid grid-cols-12 gap-4 h-full items-start w-full">
+                        
+                        {/* Left Column (Product Info & Ingredients) */}
+                        <div className="col-span-7 flex flex-col justify-between h-full gap-2">
+                          <div>
+                            {/* Brand Header */}
+                            <div className="border-b border-black pb-1 mb-1">
+                              <h1 className="font-black tracking-widest uppercase mb-0.5" style={{ fontSize: fs(2.6) }}>
+                                {usuario?.empresa?.nome_fantasia || 'COZINHA DA NUTRI'}
+                              </h1>
+                              <p className="uppercase font-bold text-gray-500" style={{ fontSize: fs(2.1) }}>
+                                CNPJ: {usuario?.empresa?.cnpj ? usuario.empresa.cnpj.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, "$1.$2.$3/$4-$5") : '00.000.000/0000-00'}
+                              </p>
+                            </div>
+
+                            {/* Product Title */}
+                            <div className="mb-2">
+                              <h2 className="font-black tracking-tight uppercase leading-tight" style={{ fontSize: fs(3.7) }}>{receita.nome}</h2>
+                              <span className="font-bold bg-black text-white px-1.5 py-0.5 rounded-full inline-block mt-1" style={{ fontSize: fs(2.1) }}>
+                                PESO LÍQUIDO: {totalWeight}g
+                              </span>
+                            </div>
+
+                            {/* Ingredients section */}
+                            <div className="leading-snug border-t border-black pt-1.5 text-justify" style={{ fontSize: fs(2.4) }}>
+                              <p>
+                                <strong>INGREDIENTES:</strong> {ingredientesTexto}.
+                              </p>
+                              {renderAlergenicos()}
+                            </div>
+                          </div>
+
+                          {/* Expiry and Batch Details */}
+                          <div className="mt-auto grid grid-cols-2 gap-2 font-bold border-t border-black pt-1.5" style={{ fontSize: fs(2.1) }}>
+                            <div>
+                              <p>FAB: {dataFabricacao.split('-').reverse().join('/')}</p>
+                              <p>VAL: {dataValidade.split('-').reverse().join('/')}</p>
+                            </div>
+                            <div className="text-right">
+                              <p>LOTE: {lote.toUpperCase()}</p>
+                              <p className="text-gray-500 font-medium leading-none" style={{ fontSize: fs(1.8) }}>{instrucoesConservacao}</p>
+                            </div>
+                          </div>
                         </div>
 
-                        {/* Product Title */}
-                        <div className="mb-2">
-                          <h2 className="text-sm font-black tracking-tight uppercase leading-tight">{receita.nome}</h2>
-                          <span className="text-[8px] font-bold bg-black text-white px-1.5 py-0.5 rounded-full inline-block mt-1">
-                            PESO LÍQUIDO: {totalWeight}g
-                          </span>
+                        {/* Right Column (Nutritional Table) */}
+                        <div className="col-span-5 flex flex-col gap-1.5 h-full justify-between">
+                          {renderLupaFrontal()}
+                          {renderTabelaNutricional(fs(2.5), fs(2.0), fs(1.6))}
                         </div>
 
-                        {/* Ingredients section */}
-                        <div className="text-[9px] leading-snug border-t border-black pt-1.5 text-justify">
-                          <p>
-                            <strong>INGREDIENTES:</strong> {ingredientesTexto}.
-                          </p>
-                          {renderAlergenicos()}
-                        </div>
                       </div>
-
-                      {/* Expiry and Batch Details */}
-                      <div className="mt-auto grid grid-cols-2 gap-2 text-[8px] font-bold border-t border-black pt-1.5">
+                    ) : (
+                      /* VERTICAL OR SQUARE LAYOUT - SINGLE COLUMN STACK */
+                      <div className="flex flex-col justify-between h-full gap-3 w-full">
                         <div>
-                          <p>FAB: {dataFabricacao.split('-').reverse().join('/')}</p>
-                          <p>VAL: {dataValidade.split('-').reverse().join('/')}</p>
+                          {/* Brand Header */}
+                          <div className="text-center border-b border-black pb-1.5 mb-2.5">
+                            <h1 className="font-black tracking-widest uppercase mb-0.5" style={{ fontSize: fs(3.1) }}>
+                              {usuario?.empresa?.nome_fantasia || 'COZINHA DA NUTRI'}
+                            </h1>
+                            <p className="uppercase font-bold text-gray-500" style={{ fontSize: fs(2.4) }}>
+                              CNPJ: {usuario?.empresa?.cnpj ? usuario.empresa.cnpj.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, "$1.$2.$3/$4-$5") : '00.000.000/0000-00'}
+                            </p>
+                          </div>
+
+                          {/* Product Title */}
+                          <div className="mb-2 text-center">
+                            <h2 className="font-black tracking-tight uppercase leading-tight" style={{ fontSize: fs(4.2) }}>{receita.nome}</h2>
+                            <span className="font-bold bg-black text-white px-2 py-0.5 rounded-full inline-block mt-1" style={{ fontSize: fs(2.4) }}>
+                              PESO LÍQUIDO: {totalWeight}g
+                            </span>
+                          </div>
+
+                          {/* Ingredients section */}
+                          <div className="mb-2.5 leading-snug border-b border-black pb-2 text-justify" style={{ fontSize: fs(2.6) }}>
+                            <p>
+                              <strong>INGREDIENTES:</strong> {ingredientesTexto}.
+                            </p>
+                            {renderAlergenicos()}
+                          </div>
+
+                          {/* Front-of-Package Nutrition Warning */}
+                          {renderLupaFrontal()}
+
+                          {/* Nutritional Information Table */}
+                          {renderTabelaNutricional(fs(2.9), fs(2.1), fs(1.7))}
                         </div>
-                        <div className="text-right">
-                          <p>LOTE: {lote.toUpperCase()}</p>
-                          <p className="text-gray-500 text-[7px] font-medium leading-none">{instrucoesConservacao}</p>
+
+                        {/* Expiry and Batch Details */}
+                        <div className="mt-auto grid grid-cols-2 gap-2 font-bold border-t border-black pt-2 w-full" style={{ fontSize: fs(2.4) }}>
+                          <div>
+                            <p>FAB: {dataFabricacao.split('-').reverse().join('/')}</p>
+                            <p>VAL: {dataValidade.split('-').reverse().join('/')}</p>
+                          </div>
+                          <div className="text-right">
+                            <p>LOTE: {lote.toUpperCase()}</p>
+                            <p className="text-gray-500 font-medium leading-none" style={{ fontSize: fs(2.1) }}>{instrucoesConservacao}</p>
+                          </div>
                         </div>
                       </div>
-                    </div>
-
-                    {/* Right Column (Nutritional Table) */}
-                    <div className="col-span-5 flex flex-col gap-1.5 h-full justify-between">
-                      {renderLupaFrontal()}
-                      {renderTabelaNutricional('9.5px', '7.5px', '6px')}
-                    </div>
-
+                    )}
                   </div>
-                ) : (
-                  /* VERTICAL OR SQUARE LAYOUT - SINGLE COLUMN STACK */
-                  <div className="flex flex-col justify-between h-full gap-3 w-full">
-                    <div>
-                      {/* Brand Header */}
-                      <div className="text-center border-b-2 border-black pb-1.5 mb-2.5">
-                        <h1 className="text-xs font-black tracking-widest uppercase mb-0.5">
-                          {usuario?.empresa?.nome_fantasia || 'COZINHA DA NUTRI'}
-                        </h1>
-                        <p className="text-[9px] uppercase font-bold text-gray-500">
-                          CNPJ: {usuario?.empresa?.cnpj ? usuario.empresa.cnpj.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, "$1.$2.$3/$4-$5") : '00.000.000/0000-00'}
-                        </p>
-                      </div>
-
-                      {/* Product Title */}
-                      <div className="mb-2 text-center">
-                        <h2 className="text-base font-black tracking-tight uppercase leading-tight">{receita.nome}</h2>
-                        <span className="text-[9px] font-bold bg-black text-white px-2 py-0.5 rounded-full inline-block mt-1">
-                          PESO LÍQUIDO: {totalWeight}g
-                        </span>
-                      </div>
-
-                      {/* Ingredients section */}
-                      <div className="mb-2.5 text-[10px] leading-snug border-b border-black pb-2 text-justify">
-                        <p>
-                          <strong>INGREDIENTES:</strong> {ingredientesTexto}.
-                        </p>
-                        {renderAlergenicos()}
-                      </div>
-
-                      {/* Front-of-Package Nutrition Warning */}
-                      {renderLupaFrontal()}
-
-                      {/* Nutritional Information Table */}
-                      {renderTabelaNutricional('11px', '8px', '6.5px')}
-                    </div>
-
-                    {/* Expiry and Batch Details */}
-                    <div className="mt-auto grid grid-cols-2 gap-2 text-[9px] font-bold border-t border-black pt-2 w-full">
-                      <div>
-                        <p>FAB: {dataFabricacao.split('-').reverse().join('/')}</p>
-                        <p>VAL: {dataValidade.split('-').reverse().join('/')}</p>
-                      </div>
-                      <div className="text-right">
-                        <p>LOTE: {lote.toUpperCase()}</p>
-                        <p className="text-gray-500 text-[8px] font-medium leading-none">{instrucoesConservacao}</p>
-                      </div>
-                    </div>
-                  </div>
-                )}
+                ))}
               </div>
             </div>
 
@@ -859,6 +842,21 @@ export function Etiqueta({ onVoltar, usuario }: EtiquetaProps): JSX.Element {
           }
           .print\\:gap-0 {
             gap: 0 !important;
+          }
+          .print-grid {
+            display: grid !important;
+            grid-template-columns: repeat(${cols}, minmax(0, 1fr)) !important;
+            gap: 4mm !important;
+            justify-content: center !important;
+            padding: 10mm 0 !important;
+            max-width: 100% !important;
+          }
+          .print-item {
+            width: 100% !important;
+            max-width: ${larguraMm}mm !important;
+            container-type: inline-size !important;
+            page-break-inside: avoid !important;
+            break-inside: avoid !important;
           }
         }
       `}</style>

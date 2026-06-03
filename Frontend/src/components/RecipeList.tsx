@@ -283,6 +283,8 @@ export function ListaReceitas({ receitas, onEditar, onRemover, onGerarRotulo }: 
                               { label: 'Valor Energético', value: `${(receita.dadosNutricionaisTotais?.calorias ?? 0).toFixed(0)} kcal`, color: 'blue' },
                               { label: 'Proteínas', value: `${(receita.dadosNutricionaisTotais?.proteinas ?? 0).toFixed(1)}g`, color: 'emerald' },
                               { label: 'Carboidratos', value: `${(receita.dadosNutricionaisTotais?.carboidratos ?? 0).toFixed(1)}g`, color: 'amber' },
+                              { label: 'Açúcares Totais', value: `${(receita.dadosNutricionaisTotais?.acucares_totais ?? 0).toFixed(1)}g`, color: 'pink' },
+                              { label: 'Açúcares Adicionados', value: `${(receita.dadosNutricionaisTotais?.acucares_adicionados ?? 0).toFixed(1)}g`, color: 'violet' },
                               { label: 'Gorduras Totais', value: `${(receita.dadosNutricionaisTotais?.gorduras ?? 0).toFixed(1)}g`, color: 'rose' },
                               { label: 'Sódio', value: `${(receita.dadosNutricionaisTotais?.sodio ?? 0).toFixed(0)}mg`, color: 'slate' },
                             ].map((nutri) => (
@@ -309,6 +311,8 @@ export function ListaReceitas({ receitas, onEditar, onRemover, onGerarRotulo }: 
                               { label: 'Valor Energético', value: `${(receita.dadosNutricionaisPorPorcao?.calorias ?? 0).toFixed(0)} kcal`, color: 'orange' },
                               { label: 'Proteínas', value: `${(receita.dadosNutricionaisPorPorcao?.proteinas ?? 0).toFixed(1)}g`, color: 'emerald' },
                               { label: 'Carboidratos', value: `${(receita.dadosNutricionaisPorPorcao?.carboidratos ?? 0).toFixed(1)}g`, color: 'amber' },
+                              { label: 'Açúcares Totais', value: `${(receita.dadosNutricionaisPorPorcao?.acucares_totais ?? 0).toFixed(1)}g`, color: 'pink' },
+                              { label: 'Açúcares Adicionados', value: `${(receita.dadosNutricionaisPorPorcao?.acucares_adicionados ?? 0).toFixed(1)}g`, color: 'violet' },
                               { label: 'Gorduras Totais', value: `${(receita.dadosNutricionaisPorPorcao?.gorduras ?? 0).toFixed(1)}g`, color: 'rose' },
                               { label: 'Sódio', value: `${(receita.dadosNutricionaisPorPorcao?.sodio ?? 0).toFixed(0)}mg`, color: 'slate' },
                             ].map((nutri) => (

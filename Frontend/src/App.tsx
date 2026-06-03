@@ -27,6 +27,7 @@ import { salvarReceita, excluirReceita, listarReceitas } from './services/receit
 import { calcularCustosReceita, calcularNutrientesTotais, calcularDadosNutricionaisPorPorcao } from './utils/calculations';
 import {Footer} from './components/Footer';
 import ConfiguracaoVisual from './pages/configuracaovisual/edicaodinamicadecampos';
+import { Etiqueta } from './pages/Etiqueta';
 import './App.css';
 
 
@@ -50,17 +51,18 @@ type TelaAtiva =
   | 'adm'
   | 'boas-vindas'
   | 'not-found'
-  | 'configuracaovisual';
+  | 'configuracaovisual'
+  | 'etiqueta';
 
 
 const validTelas: TelaAtiva[] = [
   'home', 'login', 'register', 'esqueci-senha', 'perfil',
   'dashboard', 'receitas', 'criar-receita', 'cadastro-ingrediente',
-  'lista-ingredientes', 'planos', 'faq', 'suporte', 'termos', 'privacidade', 'pagamento', 'adm', 'boas-vindas', 'not-found', 'configuracaovisual'
+  'lista-ingredientes', 'planos', 'faq', 'suporte', 'termos', 'privacidade', 'pagamento', 'adm', 'boas-vindas', 'not-found', 'configuracaovisual', 'etiqueta'
 ];
 
 const getTelaFromHash = (): TelaAtiva => {
-  const hash = window.location.hash.replace('#', '') as TelaAtiva;
+  const hash = window.location.hash.replace('#', '').split('?')[0] as TelaAtiva;
   if (!hash) return 'home';
   return validTelas.includes(hash) ? hash : 'not-found';
 };
@@ -101,6 +103,12 @@ function App() {
 
   // Verifica sessão ativa via cookies
   const checkSession = async () => {
+    const token = localStorage.getItem('access_token');
+    if (!token) {
+      setUsuario(null);
+      setCarregandoSessao(false);
+      return;
+    }
     try {
       const sessao = await getSessao();
       if (sessao) {
@@ -148,7 +156,7 @@ function App() {
       try {
         const dadosBackend = await listarAlimentos();
         const parseados: Ingrediente[] = dadosBackend.map((item: any) => ({
-          id: item.id,
+          id: String(item.id),
           tacoId: item.numero,
           nome: item.descricao,
           unidade: item.unidade_medida || 'g',
@@ -188,7 +196,7 @@ function App() {
         const parseadas: Receita[] = dadosBackend.map((r: any) => {
           // Busca os dados nutricionais completos de cada ingrediente para calcular o total da receita
           const ingredientesComNutrientes = r.ingredientes.map((ing: any) => {
-            const base = ingredientes.find(i => i.tacoId === ing.alimento);
+            const base = ingredientes.find(i => String(i.id) === String(ing.alimento));
             return {
               quantidade: parseFloat(ing.quantidade),
               dadosNutricionais: base?.dadosNutricionais || {
@@ -297,7 +305,7 @@ function App() {
       const salva = await salvarReceita(receita);
       
       const ingredientesComNutrientes = salva.ingredientes.map((ing: any) => {
-        const base = ingredientes.find(i => i.tacoId === ing.alimento);
+        const base = ingredientes.find(i => String(i.id) === String(ing.alimento));
         return {
           quantidade: parseFloat(ing.quantidade),
           dadosNutricionais: base?.dadosNutricionais || {
@@ -380,7 +388,7 @@ function App() {
     try {
       const itemSalvo = await salvarAlimento(ingrediente, ingrediente.tacoId);
       const ingredienteParseado: Ingrediente = {
-        id: itemSalvo.id,
+        id: String(itemSalvo.id),
         tacoId: itemSalvo.numero,
         nome: itemSalvo.descricao,
         unidade: itemSalvo.unidade_medida || 'g',
@@ -403,8 +411,8 @@ function App() {
       };
 
       setIngredientes((prev) =>
-        prev.some((i) => i.id === ingredienteParseado.id)
-          ? prev.map((i) => (i.id === ingredienteParseado.id ? ingredienteParseado : i))
+        prev.some((i) => String(i.id) === String(ingredienteParseado.id))
+          ? prev.map((i) => (String(i.id) === String(ingredienteParseado.id) ? ingredienteParseado : i))
           : [...prev, ingredienteParseado]
       );
 
@@ -490,7 +498,9 @@ function App() {
             receitas={receitas}
             onEditar={(r) => { setReceitaEmEdicao(r); setTelaAtiva('criar-receita'); }}
             onRemover={handleRemoverReceita}
-            onGerarRotulo={(r) => setReceitaParaRotulo(r)}
+            onGerarRotulo={(r) => {
+              window.location.hash = `etiqueta?id=${r.id}`;
+            }}
           />
         );
       case 'cadastro-ingrediente':
@@ -627,6 +637,13 @@ function App() {
         return <Adm />;
       case 'configuracaovisual':
         return <ConfiguracaoVisual />;
+      case 'etiqueta':
+        return (
+          <Etiqueta
+            onVoltar={() => setTelaAtiva('receitas')}
+            usuario={usuario}
+          />
+        );
       default:
         return <Home />;
     }

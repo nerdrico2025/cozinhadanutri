@@ -204,7 +204,9 @@ const RECAPTCHA_SITE_KEY = import.meta.env.VITE_RECAPTCHA_SITE_KEY as string | u
 
 export function Login({ onEntrar, onCriarConta, onEsqueciSenha }: LoginProps) {
   const [mostrarSenha, setMostrarSenha] = useState(false);
-  const [captchaToken, setCaptchaToken] = useState<string | null>(!RECAPTCHA_SITE_KEY ? 'dev' : null);
+  const [captchaToken, setCaptchaToken] = useState<string | null>(
+    !RECAPTCHA_SITE_KEY ? 'dev' : null
+  );
   const [captchaKey, setCaptchaKey] = useState(0);
 
   // Proteção contra brute force (client-side — a proteção real deve estar no backend)

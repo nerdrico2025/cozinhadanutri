@@ -1,6 +1,17 @@
-import { Check, Sparkles, Minus } from 'lucide-react';
+import { Check, Sparkles, Minus, HelpCircle, ChevronDown, Mail, Clock, CheckCircle, AlertCircle, Phone } from 'lucide-react';
 import { UsuarioLogado } from '../types';
-import React from 'react';
+import React, { useState, useEffect } from 'react';
+import { getSupportConfig, getFAQ, SupportConfig, FAQEntry } from '../services/supportService';
+
+function InstagramIcon({ size = 24, className = '' }: { size?: number; className?: string }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+      <rect x="2" y="2" width="20" height="20" rx="5" ry="5" />
+      <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z" />
+      <line x1="17.5" y1="6.5" x2="17.51" y2="6.5" />
+    </svg>
+  );
+}
 
 type TelaAtiva = 'home' | 'dashboard' | 'receitas' | 'criar-receita' | 'cadastro-ingrediente' | 'lista-ingredientes' | 'login' | 'register' | 'planos' | 'faq' | 'suporte' | 'termos' | 'pagamento' | 'adm';
 
@@ -10,7 +21,36 @@ interface PlanosProps {
   usuario?: UsuarioLogado | null;
 }
 
+const categoriaColors: Record<string, string> = {
+  Nutrição:     'bg-teal-50 text-teal-700',
+  Precificação: 'bg-blue-50 text-blue-700',
+  Regulatório:  'bg-amber-50 text-amber-700',
+  Rótulo:       'bg-orange-50 text-orange-700',
+  Receitas:     'bg-green-50 text-green-700',
+  Conta:        'bg-purple-50 text-purple-700',
+  Dados:        'bg-indigo-50 text-indigo-700',
+  Assinatura:   'bg-rose-50 text-rose-700',
+  geral:        'bg-teal-50 text-teal-700',
+  tecnico:      'bg-blue-50 text-blue-700',
+  plano:        'bg-orange-50 text-orange-700',
+  outros:       'bg-gray-50 text-gray-700',
+};
+
 export function Planos({ onNavegar, onAssinarPlano, usuario }: PlanosProps) {
+  const [config, setConfig] = useState<SupportConfig>(getSupportConfig());
+  const [faqs, setFaqs] = useState<FAQEntry[]>(getFAQ());
+  const [faqAberto, setFaqAberto] = useState<string | null>(null);
+
+  useEffect(() => {
+    const handleSupportUpdate = () => setConfig(getSupportConfig());
+    const handleFaqUpdate = () => setFaqs(getFAQ());
+    window.addEventListener('support_updated', handleSupportUpdate);
+    window.addEventListener('faq_updated', handleFaqUpdate);
+    return () => {
+      window.removeEventListener('support_updated', handleSupportUpdate);
+      window.removeEventListener('faq_updated', handleFaqUpdate);
+    };
+  }, []);
   const listPlanos = [
     {
       id: 'iniciante',
@@ -239,6 +279,158 @@ export function Planos({ onNavegar, onAssinarPlano, usuario }: PlanosProps) {
             </div>
           );
         })}
+      </div>
+
+      {/* Divisor */}
+      <div className="max-w-7xl mx-auto my-16 border-t border-gray-200" />
+
+      {/* FAQ e Suporte Section */}
+      <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-12 text-left">
+        {/* FAQs */}
+        <div className="lg:col-span-2 space-y-6">
+          <div className="flex items-center gap-3 mb-6">
+            <div className="p-2.5 rounded-xl bg-orange-50">
+              <HelpCircle size={22} className="text-orange-600" />
+            </div>
+            <div>
+              <h2 className="text-xl font-bold text-gray-900">Perguntas Frequentes (FAQ)</h2>
+              <p className="text-xs text-gray-500 mt-0.5">Esclareça suas dúvidas rápidas sobre o funcionamento do sistema e planos.</p>
+            </div>
+          </div>
+
+          <div className="space-y-3">
+            {faqs.length === 0 ? (
+              <p className="text-sm text-gray-400">Nenhuma pergunta cadastrada.</p>
+            ) : (
+              faqs.map((faq) => {
+                const isAberto = faqAberto === faq.id;
+                return (
+                  <div
+                    key={faq.id}
+                    className={`bg-white rounded-2xl border transition-all duration-200 overflow-hidden ${
+                      isAberto ? 'border-orange-200 shadow-md' : 'border-gray-200 shadow-sm hover:border-gray-300'
+                    }`}
+                  >
+                    <button
+                      className="w-full flex items-start justify-between gap-4 px-5 py-4 text-left bg-transparent border-0 cursor-pointer focus:outline-none"
+                      onClick={() => setFaqAberto(isAberto ? null : faq.id)}
+                    >
+                      <div className="flex flex-col gap-1.5">
+                        <span className={`self-start text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${categoriaColors[faq.categoria] || 'bg-gray-100 text-gray-500'}`}>
+                          {faq.categoria}
+                        </span>
+                        <span className="text-sm font-semibold text-gray-800 leading-snug">
+                          {faq.pergunta}
+                        </span>
+                      </div>
+                      <span className={`shrink-0 mt-1 w-6 h-6 flex items-center justify-center rounded-full transition-colors ${
+                        isAberto ? 'bg-orange-600 text-white' : 'bg-gray-100 text-gray-500'
+                      }`}>
+                        <ChevronDown size={13} className={`transition-transform duration-200 ${isAberto ? 'rotate-180' : ''}`} />
+                      </span>
+                    </button>
+
+                    <div className={`grid transition-all duration-200 ${isAberto ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'}`}>
+                      <div className="overflow-hidden">
+                        <p className="px-5 pb-4 text-xs text-gray-500 leading-relaxed border-t border-gray-100 pt-3">
+                          {faq.resposta}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </div>
+        </div>
+
+        {/* Canais de Contato / Horários */}
+        <div className="space-y-6">
+          <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 flex flex-col gap-6">
+            <div className="flex items-center gap-3">
+              <div className="p-2.5 rounded-xl bg-teal-50">
+                <Mail size={20} className="text-[#04585a]" />
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-gray-900">Canais de Atendimento</h3>
+                <p className="text-xs text-gray-400 mt-0.5">Ainda com dúvidas? Fale conosco.</p>
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              {config.email && (
+                <div className="flex items-start gap-3">
+                  <div className="p-2 rounded-lg bg-[#04585a]/10 shrink-0">
+                    <Mail size={15} className="text-[#04585a]" />
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-bold text-gray-400 uppercase">E-mail</p>
+                    <a href={`mailto:${config.email}`} className="text-xs font-semibold text-[#04585a] hover:underline break-all">
+                      {config.email}
+                    </a>
+                  </div>
+                </div>
+              )}
+
+              {config.whatsapp && (
+                <div className="flex items-start gap-3">
+                  <div className="p-2 rounded-lg bg-green-50 shrink-0">
+                    <Phone size={15} className="text-green-600" />
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-bold text-gray-400 uppercase">WhatsApp</p>
+                    <a
+                      href={`https://wa.me/${config.whatsapp.replace(/\D/g, '')}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-xs font-semibold text-green-600 hover:underline"
+                    >
+                      +{config.whatsapp}
+                    </a>
+                  </div>
+                </div>
+              )}
+
+              {config.instagram && (
+                <div className="flex items-start gap-3">
+                  <div className="p-2 rounded-lg bg-purple-50 shrink-0">
+                    <InstagramIcon size={15} className="text-purple-600" />
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-bold text-gray-400 uppercase">Instagram</p>
+                    <a
+                      href={`https://instagram.com/${config.instagram}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-xs font-semibold text-purple-600 hover:underline"
+                    >
+                      @{config.instagram}
+                    </a>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Horários */}
+            <div className="pt-4 border-t border-gray-100">
+              <h4 className="text-[10px] font-bold text-gray-400 uppercase mb-3 tracking-wider">Horários de Atendimento</h4>
+              <div className="space-y-2">
+                <div className="flex justify-between text-xs">
+                  <span className="text-gray-500">Segunda a Sexta</span>
+                  <span className="font-semibold text-gray-800">{config.horarios.segSex}</span>
+                </div>
+                <div className="flex justify-between text-xs">
+                  <span className="text-gray-500">Sábado</span>
+                  <span className="font-semibold text-gray-800">{config.horarios.sabado}</span>
+                </div>
+                <div className="flex justify-between text-xs">
+                  <span className="text-gray-500">Dom. e Feriados</span>
+                  <span className="font-semibold text-gray-800">{config.horarios.domingoFeriado}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
 
     </div>

@@ -106,7 +106,7 @@ export const atualizarPerfil = async (dados: any): Promise<boolean> => {
       payload.password = dados.novaSenha;
     }
 
-    await api.patch('/api/profile/', payload);
+    await api.patch('/api/profile/update/', payload);
     return true;
   } catch (error) {
     // @ts-expect-error - error.response existe em erros de axios

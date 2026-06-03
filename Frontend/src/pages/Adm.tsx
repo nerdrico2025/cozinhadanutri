@@ -168,18 +168,25 @@ export function Adm() {
     
     setAtividades(dadosAtividades);
     
-    const mapeados: Usuario[] = dados.map(u => ({
-      id: u.id,
-      nome: u.empresa?.nome_fantasia || u.username,
-      email: u.email,
-      plano: (u.empresa?.plano === 'gratis' ? 'Grátis' : 
-              u.empresa?.plano === 'profissional' ? 'Profissional' : 'Empresarial') as Plano,
-      status: u.is_active ? 'ativo' : 'inativo',
-      cadastro: new Date(u.date_joined).toLocaleDateString('pt-BR'),
-      ultimoAcesso: u.last_login ? new Date(u.last_login).toLocaleDateString('pt-BR') : 'Nunca',
-      receitas: u.receitas_count,
-      rotulos: u.rotulos_count
-    }));
+    const mapeados: Usuario[] = dados.map(u => {
+      const planoId = u.empresa?.plano;
+      const planoNome: Plano = 
+        String(planoId) === '1' || planoId === 'gratis' || !planoId ? 'Grátis' :
+        String(planoId) === '2' || planoId === 'profissional' ? 'Profissional' :
+        'Empresarial';
+
+      return {
+        id: u.id,
+        nome: u.empresa?.nome_fantasia || u.username,
+        email: u.email,
+        plano: planoNome,
+        status: u.is_active ? 'ativo' : 'inativo',
+        cadastro: new Date(u.date_joined).toLocaleDateString('pt-BR'),
+        ultimoAcesso: u.last_login ? new Date(u.last_login).toLocaleDateString('pt-BR') : 'Nunca',
+        receitas: u.receitas_count,
+        rotulos: u.rotulos_count
+      };
+    });
     
     setUsuarios(mapeados);
     setCarregando(false);
@@ -1180,7 +1187,7 @@ export function Adm() {
                         <h3 className="text-sm font-black text-gray-800 uppercase tracking-wider">Gerenciar FAQ</h3>
                      </div>
                      <button 
-                        onClick={() => setEditandoFaq({ id: Date.now().toString(), categoria: 'geral', pergunta: '', resposta: '' })}
+                        onClick={() => { setEditandoFaq({ id: Date.now().toString(), categoria: 'geral', pergunta: '', resposta: '' }); setSenhaModal(''); setErroSenha(''); }}
                         className="p-2 rounded-lg bg-orange-50 text-orange-600 hover:bg-orange-100 border-0 cursor-pointer transition-colors"
                         title="Adicionar Pergunta"
                      >
@@ -1194,7 +1201,7 @@ export function Adm() {
                            <div className="flex justify-between items-start gap-2 mb-1">
                               <span className="text-[9px] font-bold uppercase px-1.5 py-0.5 rounded bg-gray-100 text-gray-500">{faq.categoria}</span>
                               <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                 <button onClick={() => setEditandoFaq(faq)} className="p-1 text-blue-600 hover:bg-blue-50 rounded border-0 cursor-pointer"><Pencil size={12} /></button>
+                                 <button onClick={() => { setEditandoFaq(faq); setSenhaModal(''); setErroSenha(''); }} className="p-1 text-blue-600 hover:bg-blue-50 rounded border-0 cursor-pointer"><Pencil size={12} /></button>
                                  <button 
                                     onClick={() => setConfirmacaoExclusao({ id: faq.id, tipo: 'faq' })}
                                     className="p-1 text-red-600 hover:bg-red-50 rounded border-0 cursor-pointer"
@@ -1269,13 +1276,23 @@ export function Adm() {
                         className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-orange-500 outline-none text-sm font-medium resize-none"
                         placeholder="Escreva a resposta detalhada aqui..."
                      />
+                  </div>
+                  <div className="mt-4">
+                     <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1.5 ml-1">Senha de Administrador</label>
+                     <input 
+                        type="password"
+                        placeholder="••••••••"
+                        value={senhaModal}
+                        onChange={e => { setSenhaModal(e.target.value); setErroSenha(''); }}
+                        className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-orange-500 outline-none text-sm font-medium"
+                     />
                      {erroSenha && <p className="text-[10px] text-red-500 mt-2 ml-1 font-bold">⚠️ {erroSenha}</p>}
                   </div>
                </div>
 
                <div className="flex gap-3 mt-8">
                   <button 
-                     onClick={() => { setEditandoFaq(null); setErroSenha(''); }}
+                     onClick={() => { setEditandoFaq(null); setSenhaModal(''); setErroSenha(''); }}
                      className="flex-1 py-3 text-xs font-bold text-gray-500 bg-gray-50 hover:bg-gray-100 rounded-xl border-0 cursor-pointer"
                   >
                      Cancelar

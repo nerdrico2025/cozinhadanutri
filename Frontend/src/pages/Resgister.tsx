@@ -163,7 +163,9 @@ function PainelDireito() {
 const RECAPTCHA_SITE_KEY = import.meta.env.VITE_RECAPTCHA_SITE_KEY as string | undefined;
 
 function FormPessoaJuridica({ onCadastrar, onVerTermos, onVerPrivacidade }: { onCadastrar: (data: FormPJ) => void; onVerTermos?: () => void; onVerPrivacidade?: () => void }) {
-  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+  const [captchaToken, setCaptchaToken] = useState<string | null>(
+    !RECAPTCHA_SITE_KEY ? 'dev' : null
+  );
   const [captchaKey, setCaptchaKey] = useState(0);
   const [aceitouTermos, setAceitouTermos] = useState(false);
   const [aceitouPrivacidade, setAceitouPrivacidade] = useState(false);
