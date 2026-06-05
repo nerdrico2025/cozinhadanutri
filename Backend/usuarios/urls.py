@@ -16,10 +16,9 @@ from .views import (
     FAQView,
     SupportConfigView,
     ConsultaCNPJView,
-    PaymentPreferenceView,
-    PaymentStatusView,
     UpdateProfileView,
     LogoutView, 
+    
 )
 
 urlpatterns = [
@@ -91,15 +90,6 @@ urlpatterns = [
     path(
     'cnpj/<str:cnpj>/',
     ConsultaCNPJView.as_view()
-    ),
-    path(
-    'payments/preference/',
-    PaymentPreferenceView.as_view()
-    ),
-
-    path(
-    'payments/status/<int:id>/',
-    PaymentStatusView.as_view()
     ),
 
     path(
