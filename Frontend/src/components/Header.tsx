@@ -11,6 +11,7 @@ import {
   Menu,
   X,
   CreditCard,
+  Settings,
 } from 'lucide-react';
 import { UsuarioLogado } from '../types';
 import { LucideIcon } from 'lucide-react';
@@ -22,6 +23,11 @@ type TelaAtiva =
   | 'criar-receita'
   | 'cadastro-ingrediente'
   | 'lista-ingredientes'
+  | 'estoque'
+  | 'refeicao'
+  | 'despesas'
+  | 'estatisticas'
+  | 'aulas'
   | 'login'
   | 'register'
   | 'esqueci-senha'
@@ -118,9 +124,9 @@ export function Header({
 
         {/* DESKTOP: NAV CENTRAL */}
         <nav className="hidden md:flex items-center gap-1">
-          {navItem('home', 'Início', Home)}
-          {usuario && usuario.role !== 'admin' && navItem('dashboard', 'Dashboard', LayoutDashboard)}
-          {navItem('planos', 'Planos', CreditCard)}
+          {!usuario && navItem('home', 'Início', Home)}
+          {usuario && usuario.role !== 'admin' && navItem('dashboard', 'Meu Negócio', LayoutDashboard)}
+          {!usuario && navItem('planos', 'Planos', CreditCard)}
           {navItem('faq', 'Perguntas e Respostas', HelpCircle)}
           {navItem('suporte', 'Suporte', Headphones)}
           {usuario?.role === 'admin' && navItem('adm', 'Admin', ShieldCheck)}
@@ -152,9 +158,10 @@ export function Header({
               <a
                 href="#perfil"
                 onClick={(e) => handleClick(e, 'perfil')}
-                className="text-sm text-gray-700 hover:text-brand transition cursor-pointer bg-transparent border-0 p-0 focus:outline-none flex items-center"
+                className="text-sm text-gray-700 hover:text-brand transition cursor-pointer bg-transparent border-0 p-0 focus:outline-none flex items-center gap-1.5"
               >
-                Olá, <strong className="ml-1">{usuario.nome.split(' ')[0]}</strong>
+                Olá, <strong className="ml-1 mr-1">{usuario.nome.split(' ')[0]}</strong>
+                <Settings size={16} className="text-gray-500 hover:text-brand transition-colors" />
               </a>
               <button
                 onClick={onSair}
@@ -191,9 +198,9 @@ export function Header({
       {/* MOBILE: Menu dropdown */}
       {menuAberto && (
         <div className="md:hidden border-t border-gray-200 bg-white px-3 pb-4 pt-2 flex flex-col gap-0.5">
-          {navItemMobile('home', 'Início', Home)}
-          {usuario && usuario.role !== 'admin' && navItemMobile('dashboard', 'Dashboard', LayoutDashboard)}
-          {navItemMobile('planos', 'Planos', CreditCard)}
+          {!usuario && navItemMobile('home', 'Início', Home)}
+          {usuario && usuario.role !== 'admin' && navItemMobile('dashboard', 'Meu Negócio', LayoutDashboard)}
+          {!usuario && navItemMobile('planos', 'Planos', CreditCard)}
           {navItemMobile('faq', 'Perguntas e Respostas', HelpCircle)}
           {navItemMobile('suporte', 'Suporte', Headphones)}
           {usuario?.role === 'admin' && navItemMobile('adm', 'Admin', ShieldCheck)}
@@ -222,9 +229,10 @@ export function Header({
               <a
                 href="#perfil"
                 onClick={(e) => handleMobileClick(e, 'perfil')}
-                className="text-sm text-gray-500 hover:text-brand transition cursor-pointer bg-transparent border-0 p-0 focus:outline-none inline-flex items-center"
+                className="text-sm text-gray-500 hover:text-brand transition cursor-pointer bg-transparent border-0 p-0 focus:outline-none inline-flex items-center gap-2"
               >
-                Olá, <strong className="text-gray-800 ml-1">{usuario.nome.split(' ')[0]}</strong>
+                Olá, <strong className="text-gray-800 ml-1 mr-1">{usuario.nome.split(' ')[0]}</strong>
+                <Settings size={18} className="text-gray-500 hover:text-brand transition-colors" />
               </a>
             </div>
           )}

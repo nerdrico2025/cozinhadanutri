@@ -1,10 +1,10 @@
 import {
   ChefHat, Leaf, LayoutList, FilePlus2,
-  ScrollText, FileBarChart2, Banknote, Utensils, ArrowRight,
+  ScrollText, FileBarChart2, Banknote, Utensils, ArrowRight, BarChart3, Video, Archive
 } from 'lucide-react';
 import { Receita } from '../types';
 
-type TelaAtiva = 'home' | 'dashboard' | 'receitas' | 'criar-receita' | 'cadastro-ingrediente' | 'lista-ingredientes' | 'login' | 'register';
+type TelaAtiva = 'home' | 'dashboard' | 'receitas' | 'criar-receita' | 'cadastro-ingrediente' | 'lista-ingredientes' | 'estoque' | 'login' | 'register' | 'refeicao' | 'despesas' | 'estatisticas' | 'aulas';
 
 interface DashboardProps {
   onNavegar: (tela: TelaAtiva) => void;
@@ -13,24 +13,6 @@ interface DashboardProps {
 }
 
 const menuItems = [
-  {
-    tela: 'criar-receita' as TelaAtiva,
-    titulo: 'Nova Receita',
-    descricao: 'Crie uma receita vinculando ingredientes da tabela TACO com dados nutricionais automáticos.',
-    iconBgClass: 'bg-green-100',
-    iconColor: '#16a34a',
-    Icon: FilePlus2,
-    btnLabel: 'Criar receita',
-  },
-  {
-    tela: 'receitas' as TelaAtiva,
-    titulo: 'Minhas Receitas',
-    descricao: 'Visualize, edite e gerencie todas as receitas cadastradas no sistema.',
-    iconBgClass: 'bg-blue-100',
-    iconColor: '#2563eb',
-    Icon: ScrollText,
-    btnLabel: 'Ver receitas',
-  },
   {
     tela: 'cadastro-ingrediente' as TelaAtiva,
     titulo: 'Cadastrar Ingrediente',
@@ -49,15 +31,80 @@ const menuItems = [
     Icon: LayoutList,
     btnLabel: 'Ver ingredientes',
   },
+
+  {
+    tela: 'criar-receita' as TelaAtiva,
+    titulo: 'Nova Receita',
+    descricao: 'Crie uma receita vinculando ingredientes da tabela TACO com dados nutricionais automáticos.',
+    iconBgClass: 'bg-green-100',
+    iconColor: '#16a34a',
+    Icon: FilePlus2,
+    btnLabel: 'Criar receita',
+  },
   {
     tela: 'receitas' as TelaAtiva,
-    titulo: 'Rótulo Nutricional',
-    descricao: 'Gere rótulos nutricionais no padrão ANVISA a partir das suas receitas.',
-    iconBgClass: 'bg-orange-100',
-    iconColor: '#ea580c',
-    Icon: FileBarChart2,
-    btnLabel: 'Gerar rótulo',
+    titulo: 'Minhas Receitas',
+    descricao: 'Visualize, edite e gerencie todas as receitas cadastradas no sistema.',
+    iconBgClass: 'bg-blue-100',
+    iconColor: '#2563eb',
+    Icon: ScrollText,
+    btnLabel: 'Ver receitas',
   },
+
+  {
+    tela: 'refeicao' as TelaAtiva,
+    titulo: 'Nova Refeição',
+    descricao: 'Monte refeições completas agrupando diversas receitas e calcule o custo total.',
+    iconBgClass: 'bg-emerald-100',
+    iconColor: '#059669',
+    Icon: Utensils,
+    btnLabel: 'Criar refeição',
+  },
+  {
+    tela: 'estoque' as TelaAtiva,
+    titulo: 'Controle de Estoque',
+    descricao: 'Rastreie insumos, gerencie entradas e saídas, e receba alertas de faltas.',
+    iconBgClass: 'bg-amber-100',
+    iconColor: '#d97706',
+    Icon: Archive,
+    btnLabel: 'Gerenciar estoque',
+  },
+  {
+    tela: 'despesas' as TelaAtiva,
+    titulo: 'Controle de Despesas',
+    descricao: 'Registre custos fixos e variáveis para apurar a margem de lucro real.',
+    iconBgClass: 'bg-rose-100',
+    iconColor: '#e11d48',
+    Icon: Banknote,
+    btnLabel: 'Ver despesas',
+  },
+  {
+    tela: 'estatisticas' as TelaAtiva,
+    titulo: 'Estatísticas',
+    descricao: 'Analise gráficos e relatórios sobre o custo e rentabilidade das suas receitas.',
+    iconBgClass: 'bg-indigo-100',
+    iconColor: '#4f46e5',
+    Icon: BarChart3,
+    btnLabel: 'Ver relatórios',
+  },
+  {
+    tela: 'aulas' as TelaAtiva,
+    titulo: 'Aulas ao Vivo',
+    descricao: 'Acesse mentorias e conteúdos exclusivos sobre precificação e rotulagem.',
+    iconBgClass: 'bg-cyan-100',
+    iconColor: '#0891b2',
+    Icon: Video,
+    btnLabel: 'Acessar aulas',
+  }
+  /*  {
+     tela: 'receitas' as TelaAtiva,
+     titulo: 'Rótulo Nutricional',
+     descricao: 'Gere rótulos nutricionais no padrão ANVISA a partir das suas receitas.',
+     iconBgClass: 'bg-orange-100',
+     iconColor: '#ea580c',
+     Icon: FileBarChart2,
+     btnLabel: 'Gerar rótulo',
+   }, */
 ];
 
 interface StatCardProps {
@@ -89,44 +136,7 @@ export function Dashboard({ onNavegar, receitas, totalIngredientes }: DashboardP
   return (
     <div className="py-8 min-h-[80vh] max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
 
-      {/* Cabeçalho */}
-      <div className="mb-10">
-        <div className="flex items-center gap-3 mb-1">
-          <div className="w-9 h-9 rounded-lg bg-green-100 flex items-center justify-center">
-            <ChefHat size={20} color="#16a34a" />
-          </div>
-          <h1 className="text-2xl font-bold text-gray-800">Dashboard</h1>
-        </div>
-        <p className="text-sm text-gray-500 ml-12">Gerencie receitas, ingredientes e rótulos nutricionais em um só lugar.</p>
-      </div>
 
-      {/* Estatísticas */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-10">
-        <StatCard
-          label="Receitas cadastradas"
-          value={String(receitas.length)}
-          Icon={ChefHat}
-          iconBg="bg-green-100"
-          iconColor="#16a34a"
-          accentColor="border-l-green-500"
-        />
-        <StatCard
-          label="Valor total do cardápio"
-          value={`R$ ${totalValor.toFixed(2)}`}
-          Icon={Banknote}
-          iconBg="bg-emerald-100"
-          iconColor="#059669"
-          accentColor="border-l-emerald-500"
-        />
-        <StatCard
-          label="Ingredientes cadastrados"
-          value={String(totalIngredientes)}
-          Icon={Utensils}
-          iconBg="bg-purple-100"
-          iconColor="#9333ea"
-          accentColor="border-l-purple-500"
-        />
-      </div>
 
       {/* Cards de navegação */}
       <div className="flex items-center justify-between mb-5">

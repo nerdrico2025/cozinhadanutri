@@ -7,12 +7,18 @@ interface CustosReceita {
 }
 
 export function calcularCustosReceita(
-  ingredientes: { quantidade: number; preco: number }[],
+  ingredientes: { quantidade: number; preco: number; unidade?: string }[],
   porcoes: number,
   margemLucro: number
 ): CustosReceita & { margemLucroReal: number } {
-  // preco é por 100g ou unidade. quantidade é em gramas ou unidade.
-  const custoTotal = ingredientes.reduce((acc, i) => acc + (i.quantidade / 100) * (i.preco ?? 0), 0);
+  // preco é por 100g (ou 100ml) quando a unidade é g ou ml.
+  // preco é por 1kg, 1l ou 1 unidade quando a unidade é kg, l ou unidade.
+  const custoTotal = ingredientes.reduce((acc, i) => {
+    const fator = (i.unidade === 'kg' || i.unidade === 'l' || i.unidade === 'unidade') 
+      ? i.quantidade 
+      : (i.quantidade / 100);
+    return acc + fator * (i.preco ?? 0);
+  }, 0);
   const custoPorPorcao = porcoes > 0 ? custoTotal / porcoes : 0;
   const precoSugerido = custoPorPorcao * (1 + margemLucro / 100);
   const margemLucroReal = precoSugerido - custoPorPorcao;
@@ -21,7 +27,7 @@ export function calcularCustosReceita(
 }
 
 export function calcularNutrientesTotais(
-  ingredientes: { quantidade: number; dadosNutricionais: DadosNutricionais }[]
+  ingredientes: { quantidade: number; dadosNutricionais: DadosNutricionais; unidade?: string }[]
 ): DadosNutricionais {
   const inicial: DadosNutricionais = {
     calorias: 0,
@@ -39,7 +45,13 @@ export function calcularNutrientesTotais(
   };
 
   return ingredientes.reduce((acc, ing) => {
-    const fator = ing.quantidade / 100;
+    let fator = ing.quantidade / 100;
+    if (ing.unidade === 'kg' || ing.unidade === 'l') {
+      fator = ing.quantidade * 10;
+    } else if (ing.unidade === 'unidade') {
+      fator = ing.quantidade;
+    }
+
     const result = { ...acc };
     
     Object.keys(result).forEach((key) => {

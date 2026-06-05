@@ -151,7 +151,7 @@ export function ListaReceitas({ receitas, onEditar, onRemover, onGerarRotulo }: 
 
                 <div className="flex items-center gap-3">
                   <div className="hidden md:flex flex-col items-end mr-4">
-                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Preço Sugerido</span>
+                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Preço Sugerido / Porção</span>
                     <span className="text-lg font-black text-teal-600">R$ {receita.precoSugerido.toFixed(2)}</span>
                   </div>
                   
@@ -204,11 +204,23 @@ export function ListaReceitas({ receitas, onEditar, onRemover, onGerarRotulo }: 
                           <div key={i} className="flex items-center justify-between p-3 bg-gray-50 rounded-xl border border-gray-100 hover:bg-white hover:shadow-sm transition-all group">
                             <div className="flex flex-col">
                               <span className="text-sm font-bold text-gray-700">{item.nome}</span>
-                              <span className="text-[10px] text-gray-400 font-medium">R$ {item.preco.toFixed(2)} / 100g</span>
+                              <span className="text-[10px] text-gray-400 font-medium">
+                                R$ {item.preco.toFixed(2)} / {['g', 'ml'].includes(item.unidade || 'g') ? '100' : ''}{item.unidade === 'unidade' ? 'un' : item.unidade || 'g'}
+                              </span>
                             </div>
                             <div className="flex flex-col items-end">
-                              <span className="text-sm font-black text-teal-600">{item.quantidade}g</span>
-                              <span className="text-[10px] text-gray-400 font-medium">R$ {((item.quantidade / 100) * item.preco).toFixed(2)}</span>
+                              <span className="text-sm font-black text-teal-600">
+                                {item.quantidade}{item.unidade === 'unidade' ? ' un' : item.unidade || 'g'}
+                              </span>
+                              <span className="text-[10px] text-gray-400 font-medium">
+                                R$ {(() => {
+                                  let proporcao = item.quantidade / 100;
+                                  if (item.unidade === 'kg' || item.unidade === 'l' || item.unidade === 'unidade') {
+                                    proporcao = item.quantidade;
+                                  }
+                                  return (proporcao * item.preco).toFixed(2);
+                                })()}
+                              </span>
                             </div>
                           </div>
                         ))}
@@ -258,14 +270,28 @@ export function ListaReceitas({ receitas, onEditar, onRemover, onGerarRotulo }: 
                             </div>
                           </div>
 
-                          <div className="bg-teal-600 p-5 rounded-2xl shadow-lg shadow-teal-600/20 flex items-center justify-between">
-                            <div>
-                              <p className="text-xs font-bold text-teal-100 uppercase tracking-widest mb-0.5">Valor de Venda Sugerido</p>
-                              <p className="text-sm text-teal-50/70 font-medium">Considerando {receita.margemLucro}% de margem de lucro</p>
+                          <div className="flex flex-col gap-3">
+                            <div className="bg-teal-600 p-5 rounded-2xl shadow-lg shadow-teal-600/20 flex items-center justify-between">
+                              <div>
+                                <p className="text-xs font-bold text-teal-100 uppercase tracking-widest mb-0.5">Sugestão de Venda / Porção</p>
+                                <p className="text-sm text-teal-50/70 font-medium">Margem de {receita.margemLucro}%</p>
+                              </div>
+                              <div className="text-right">
+                                <p className="text-3xl font-black text-white">R$ {receita.precoSugerido.toFixed(2)}</p>
+                              </div>
                             </div>
-                            <div className="text-right">
-                              <p className="text-3xl font-black text-white">R$ {receita.precoSugerido.toFixed(2)}</p>
-                            </div>
+                            
+                            {receita.porcoes > 1 && (
+                              <div className="bg-[#04585a] p-4 rounded-xl flex items-center justify-between text-white shadow-sm">
+                                <div>
+                                  <p className="text-xs font-bold text-teal-100 uppercase tracking-widest mb-0.5">Venda Total da Receita</p>
+                                  <p className="text-[10px] text-teal-50/70 font-medium">Lote inteiro ({receita.porcoes} porções)</p>
+                                </div>
+                                <div className="text-right">
+                                  <p className="text-xl font-black text-white">R$ {(receita.precoSugerido * receita.porcoes).toFixed(2)}</p>
+                                </div>
+                              </div>
+                            )}
                           </div>
                         </div>
                       </div>

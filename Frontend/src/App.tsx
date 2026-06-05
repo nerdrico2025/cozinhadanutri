@@ -14,13 +14,16 @@ import { Adm } from './pages/Adm';
 import { NotFound } from './pages/NotFound';
 import { CriarReceita } from './components/CreateRecipe';
 import { ListaReceitas } from './components/RecipeList';
+import { CreateMeal } from './components/CreateMeal';
+import { ExpenseControl } from './components/ExpenseControl';
+import { Inventory } from './components/Inventory';
 import { CadastroIngrediente } from './components/IngredientRegistration';
 import { ListaIngredientes } from './components/IngredientsList';
 import { RotuloNutricional } from './components/NutritionalLabel';
 import { PostRegisterPlans } from './pages/PostRegisterPlans';
 import { Terms } from './pages/Terms';
 import { Privacy } from './pages/Privacy';
-import { UsuarioLogado, Receita, Ingrediente } from './types';
+import { UsuarioLogado, Receita, Ingrediente, Refeicao } from './types';
 import { login, registrar, getSessao, encerrarSessao, atualizarPerfil, resetPassword, apagarConta } from './services/auth';
 import { listarAlimentos, salvarAlimento, excluirAlimento } from './services/alimentos';
 import { salvarReceita, excluirReceita, listarReceitas } from './services/receitas';
@@ -38,6 +41,11 @@ type TelaAtiva =
   | 'criar-receita'
   | 'cadastro-ingrediente'
   | 'lista-ingredientes'
+  | 'estoque'
+  | 'refeicao'
+  | 'despesas'
+  | 'estatisticas'
+  | 'aulas'
   | 'login'
   | 'register'
   | 'esqueci-senha'
@@ -58,7 +66,7 @@ type TelaAtiva =
 const validTelas: TelaAtiva[] = [
   'home', 'login', 'register', 'esqueci-senha', 'perfil',
   'dashboard', 'receitas', 'criar-receita', 'cadastro-ingrediente',
-  'lista-ingredientes', 'planos', 'faq', 'suporte', 'termos', 'privacidade', 'pagamento', 'adm', 'boas-vindas', 'not-found', 'configuracaovisual', 'etiqueta'
+  'lista-ingredientes', 'refeicao', 'despesas', 'estatisticas', 'aulas', 'planos', 'faq', 'suporte', 'termos', 'privacidade', 'pagamento', 'adm', 'boas-vindas', 'not-found', 'configuracaovisual', 'etiqueta'
 ];
 
 const getTelaFromHash = (): TelaAtiva => {
@@ -73,6 +81,15 @@ function App() {
   const [planoPreSelecionado, setPlanoPreSelecionado] = useState<'profissional' | 'empresarial' | undefined>(undefined);
   const [receitas, setReceitas] = useState<Receita[]>([]);
   const [ingredientes, setIngredientes] = useState<Ingrediente[]>([]);
+  const [refeicoes, setRefeicoes] = useState<Refeicao[]>(() => {
+    try {
+      const salvas = localStorage.getItem('refeicoes');
+      return salvas ? JSON.parse(salvas) : [];
+    } catch {
+      return [];
+    }
+  });
+  const [refeicaoEmEdicao, setRefeicaoEmEdicao] = useState<Refeicao | undefined>(undefined);
   const [receitaEmEdicao, setReceitaEmEdicao] = useState<Receita | undefined>(undefined);
   const [receitaParaRotulo, setReceitaParaRotulo] = useState<Receita | null>(null);
   const [ingredienteEmEdicao, setIngredienteEmEdicao] = useState<Ingrediente | undefined>(undefined);
@@ -210,10 +227,14 @@ function App() {
           const nutriTotais = calcularNutrientesTotais(ingredientesComNutrientes);
           const nutriPorPorcao = calcularDadosNutricionaisPorPorcao(nutriTotais, r.porcoes);
           const custos = calcularCustosReceita(
-            r.ingredientes.map((ing: any) => ({ 
-              quantidade: parseFloat(ing.quantidade), 
-              preco: parseFloat(ing.preco_personalizado) 
-            })),
+            r.ingredientes.map((ing: any) => {
+              const base = ingredientes.find(i => String(i.id) === String(ing.alimento));
+              return { 
+                quantidade: parseFloat(ing.quantidade), 
+                preco: parseFloat(ing.preco_personalizado),
+                unidade: base?.unidade || 'g'
+              };
+            }),
             r.porcoes,
             parseFloat(r.margem_lucro)
           );
@@ -224,12 +245,16 @@ function App() {
             descricao: r.descricao,
             porcoes: r.porcoes,
             margemLucro: parseFloat(r.margem_lucro),
-            ingredientes: r.ingredientes.map((ing: any) => ({
-              tacoId: ing.alimento,
-              nome: ing.nome,
-              quantidade: parseFloat(ing.quantidade),
-              preco: parseFloat(ing.preco_personalizado)
-            })),
+            ingredientes: r.ingredientes.map((ing: any) => {
+              const base = ingredientes.find(i => String(i.id) === String(ing.alimento));
+              return {
+                tacoId: ing.alimento,
+                nome: ing.nome,
+                quantidade: parseFloat(ing.quantidade),
+                preco: parseFloat(ing.preco_personalizado),
+                unidade: base?.unidade || 'g'
+              };
+            }),
             custoTotal: custos.custoTotal,
             custoPorPorcao: custos.custoPorPorcao,
             precoSugerido: custos.precoSugerido,
@@ -319,10 +344,14 @@ function App() {
       const nutriTotais = calcularNutrientesTotais(ingredientesComNutrientes);
       const nutriPorPorcao = calcularDadosNutricionaisPorPorcao(nutriTotais, salva.porcoes);
       const custos = calcularCustosReceita(
-        salva.ingredientes.map((ing: any) => ({ 
-          quantidade: parseFloat(ing.quantidade), 
-          preco: parseFloat(ing.preco_personalizado) 
-        })),
+        salva.ingredientes.map((ing: any) => {
+          const base = ingredientes.find(i => String(i.id) === String(ing.alimento));
+          return { 
+            quantidade: parseFloat(ing.quantidade), 
+            preco: parseFloat(ing.preco_personalizado),
+            unidade: base?.unidade || 'g'
+          };
+        }),
         salva.porcoes,
         parseFloat(salva.margem_lucro)
       );
@@ -333,12 +362,16 @@ function App() {
         descricao: salva.descricao,
         porcoes: salva.porcoes,
         margemLucro: parseFloat(salva.margem_lucro),
-        ingredientes: salva.ingredientes.map((ing: any) => ({
-          tacoId: ing.alimento,
-          nome: ing.nome,
-          quantidade: parseFloat(ing.quantidade),
-          preco: parseFloat(ing.preco_personalizado)
-        })),
+        ingredientes: salva.ingredientes.map((ing: any) => {
+          const base = ingredientes.find(i => String(i.id) === String(ing.alimento));
+          return {
+            tacoId: ing.alimento,
+            nome: ing.nome,
+            quantidade: parseFloat(ing.quantidade),
+            preco: parseFloat(ing.preco_personalizado),
+            unidade: base?.unidade || 'g'
+          };
+        }),
         custoTotal: custos.custoTotal,
         custoPorPorcao: custos.custoPorPorcao,
         precoSugerido: custos.precoSugerido,
@@ -452,6 +485,18 @@ function App() {
     setTelaAtiva('login');
   };
 
+  const handleSalvarRefeicao = (refeicao: Refeicao) => {
+    setRefeicoes((prev) => {
+      const novaLista = prev.some((r) => r.id === refeicao.id)
+        ? prev.map((r) => (r.id === refeicao.id ? refeicao : r))
+        : [...prev, refeicao];
+      localStorage.setItem('refeicoes', JSON.stringify(novaLista));
+      return novaLista;
+    });
+    setRefeicaoEmEdicao(undefined);
+    setTelaAtiva('dashboard');
+  };
+
   const renderTela = () => {
     if (carregandoSessao) {
       return (
@@ -463,7 +508,69 @@ function App() {
 
     switch (telaAtiva) {
       case 'home':
-        return <Home onIrParaRegister={() => setTelaAtiva('register')} />;
+        return <Home onIrParaRegister={() => setTelaAtiva('register')} onIrParaPlanos={() => setTelaAtiva('planos')} />;
+      case 'refeicao':
+        return (
+          <CreateMeal
+            refeicaoInicial={refeicaoEmEdicao}
+            receitasDisponiveis={receitas}
+            onSalvar={handleSalvarRefeicao}
+            onCancelar={() => {
+              setRefeicaoEmEdicao(undefined);
+              window.history.back();
+            }}
+          />
+        );
+      case 'despesas':
+        return <ExpenseControl onVoltar={() => setTelaAtiva('dashboard')} />;
+      case 'estoque':
+        return <Inventory onVoltar={() => setTelaAtiva('dashboard')} />;
+      case 'estatisticas':
+        return (
+          <div className="min-h-screen bg-gray-50 flex items-center justify-center p-6">
+            <div className="bg-white rounded-2xl p-8 border border-gray-100 shadow-sm max-w-md w-full text-center">
+              <div className="w-16 h-16 rounded-full bg-indigo-50 flex items-center justify-center mb-6 mx-auto">
+                <svg className="w-8 h-8 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 002 2h2a2 2 0 002-2" />
+                </svg>
+              </div>
+              <h2 className="text-xl font-bold text-gray-900 mb-2">Estatísticas do Negócio</h2>
+              <p className="text-sm text-gray-500 mb-6 leading-relaxed">
+                Painel analítico completo em desenvolvimento. Em breve você poderá acompanhar a lucratividade, custos médios e pratos mais rentáveis por gráficos.
+              </p>
+              <button
+                type="button"
+                onClick={() => setTelaAtiva('dashboard')}
+                className="w-full py-2.5 rounded-xl bg-[#04585a] hover:brightness-110 text-white font-semibold text-sm transition-all focus:outline-none cursor-pointer border-0"
+              >
+                Voltar ao Dashboard
+              </button>
+            </div>
+          </div>
+        );
+      case 'aulas':
+        return (
+          <div className="min-h-screen bg-gray-50 flex items-center justify-center p-6">
+            <div className="bg-white rounded-2xl p-8 border border-gray-100 shadow-sm max-w-md w-full text-center">
+              <div className="w-16 h-16 rounded-full bg-cyan-50 flex items-center justify-center mb-6 mx-auto">
+                <svg className="w-8 h-8 text-cyan-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                </svg>
+              </div>
+              <h2 className="text-xl font-bold text-gray-900 mb-2">Aulas e Mentorias ao Vivo</h2>
+              <p className="text-sm text-gray-500 mb-6 leading-relaxed">
+                Participe de nossas salas de suporte e mentorias em tempo real para tirar dúvidas sobre precificação, tabelas nutricionais e marketing para o seu negócio!
+              </p>
+              <button
+                type="button"
+                onClick={() => setTelaAtiva('dashboard')}
+                className="w-full py-2.5 rounded-xl bg-[#04585a] hover:brightness-110 text-white font-semibold text-sm transition-all focus:outline-none cursor-pointer border-0"
+              >
+                Voltar ao Dashboard
+              </button>
+            </div>
+          </div>
+        );
       case 'dashboard':
         return (
           <Dashboard
@@ -645,7 +752,7 @@ function App() {
           />
         );
       default:
-        return <Home />;
+        return <Home onIrParaRegister={() => setTelaAtiva('register')} onIrParaPlanos={() => setTelaAtiva('planos')} />;
     }
   };
 

@@ -5,7 +5,7 @@ import { z } from 'zod';
 import {
   Search, ChevronDown, Loader2, ArrowLeft,
   PackagePlus, DollarSign, Flame, Beef, Wheat, Droplets, HelpCircle, AlertTriangle,
-  CheckCircle2, List, PlusCircle
+  CheckCircle2, List, PlusCircle, Archive
 } from 'lucide-react';
 import { Unidade, Ingrediente } from '../types';
 import { buscarAlimentosBackend } from '../services/alimentos';
@@ -75,6 +75,18 @@ export function CadastroIngrediente({ ingredienteInicial, onSalvar, onCancelar, 
   const [dadosParaSalvar, setDadosParaSalvar] = useState<IngredienteForm | null>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  const [itensEstoque, setItensEstoque] = useState<any[]>(() => {
+    try {
+      const salvas = localStorage.getItem('estoque_itens');
+      return salvas ? JSON.parse(salvas) : [];
+    } catch {
+      return [];
+    }
+  });
+  const [itemEstoqueVinculado, setItemEstoqueVinculado] = useState<any | null>(null);
+  const [fatorCorrecaoTipo, setFatorCorrecaoTipo] = useState<'$' | '%'>('$');
+  const [fatorCorrecaoValor, setFatorCorrecaoValor] = useState<number>(0);
+
   const { register, handleSubmit, formState: { errors }, setValue, reset } = useForm<IngredienteForm>({
     resolver: zodResolver(ingredienteSchema),
     defaultValues: ingredienteInicial
@@ -141,6 +153,19 @@ export function CadastroIngrediente({ ingredienteInicial, onSalvar, onCancelar, 
       setTacoDbId(undefined);
     }
   }, [ingredienteInicial, reset]);
+
+  useEffect(() => {
+    if (itemEstoqueVinculado) {
+      const base = itemEstoqueVinculado.custoMedio || 0;
+      let final = base;
+      if (fatorCorrecaoTipo === '$') {
+        final = base + fatorCorrecaoValor;
+      } else {
+        final = base + (base * (fatorCorrecaoValor / 100));
+      }
+      setValue('preco', Number(final.toFixed(2)), { shouldValidate: true });
+    }
+  }, [itemEstoqueVinculado, fatorCorrecaoTipo, fatorCorrecaoValor, setValue]);
 
   const buscarSugestoes = (nome: string) => {
     if (nome.length < 2) { setSugestoesTaco([]); setMostrarSugestoes(false); return; }
@@ -342,6 +367,67 @@ export function CadastroIngrediente({ ingredienteInicial, onSalvar, onCancelar, 
                 )}
               </div>
 
+              {/* Vinculação de Estoque */}
+              <div className="bg-gray-50 p-5 rounded-xl border border-gray-100 flex flex-col gap-3">
+                <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide flex items-center gap-1.5">
+                  <Archive size={14} className="text-gray-400" />
+                  Vincular Preço ao Estoque (Opcional)
+                </label>
+                
+                <select 
+                  className={inputCls()}
+                  onChange={(e) => {
+                    const id = e.target.value;
+                    if (!id) {
+                      setItemEstoqueVinculado(null);
+                    } else {
+                      const item = itensEstoque.find(i => i.id === id);
+                      if (item) {
+                        setItemEstoqueVinculado(item);
+                        setValue('unidade', item.unidade as Unidade);
+                      }
+                    }
+                  }}
+                >
+                  <option value="">Não vincular (digitar preço manualmente)</option>
+                  {itensEstoque.map(i => (
+                    <option key={i.id} value={i.id}>{i.nome} - R$ {i.custoMedio.toFixed(2)} / {i.unidade}</option>
+                  ))}
+                </select>
+
+                {itemEstoqueVinculado && (
+                  <div className="flex gap-4 mt-2">
+                    <div className="flex-1">
+                      <label className="block text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-1">Ajuste de Custo (Perda/Fator)</label>
+                      <div className="flex bg-white border border-gray-200 rounded-lg overflow-hidden focus-within:border-brand focus-within:ring-1 focus-within:ring-brand/20 transition-colors">
+                        <select 
+                          value={fatorCorrecaoTipo}
+                          onChange={e => setFatorCorrecaoTipo(e.target.value as '$' | '%')}
+                          className="bg-gray-50 border-0 border-r border-gray-200 px-3 text-xs font-bold text-gray-600 outline-none focus:ring-0 cursor-pointer"
+                        >
+                          <option value="$">+ R$</option>
+                          <option value="%">+ %</option>
+                        </select>
+                        <input 
+                          type="number" 
+                          min={0} step="any"
+                          value={fatorCorrecaoValor === 0 ? '' : fatorCorrecaoValor}
+                          onChange={e => setFatorCorrecaoValor(Number(e.target.value) || 0)}
+                          placeholder="0.00"
+                          className="flex-1 px-3 py-2.5 text-sm outline-none border-0 focus:ring-0 w-full"
+                        />
+                      </div>
+                    </div>
+                    <div className="w-1/3">
+                      <label className="block text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-1">Preço Base (Estoque)</label>
+                      <div className="h-10 flex items-center px-3 text-sm font-semibold text-gray-500 bg-gray-100/80 rounded-lg border border-transparent">
+                        R$ {itemEstoqueVinculado.custoMedio.toFixed(2)}
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+
               {/* Unidade + Preço */}
               <div className="grid grid-cols-2 gap-4">
                 <div>
@@ -363,7 +449,7 @@ export function CadastroIngrediente({ ingredienteInicial, onSalvar, onCancelar, 
                 </div>
                 <div>
                   <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">
-                    Preço por Unidade (R$) <span className="text-red-400">*</span>
+                    {itemEstoqueVinculado ? 'Preço Final (Calculado via Estoque)' : 'Preço por Unidade (R$)'} <span className="text-red-400">*</span>
                   </label>
                   <div className="relative">
                     <DollarSign size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
@@ -372,8 +458,9 @@ export function CadastroIngrediente({ ingredienteInicial, onSalvar, onCancelar, 
                       step="0.01"
                       min={0.01}
                       {...register('preco', { valueAsNumber: true })}
+                      readOnly={!!itemEstoqueVinculado}
                       placeholder="0,00"
-                      className={`${inputCls(!!errors.preco)} pl-8`}
+                      className={`${inputCls(!!errors.preco)} pl-8 ${itemEstoqueVinculado ? 'bg-gray-100 text-brand font-bold cursor-not-allowed select-none' : ''}`}
                     />
                   </div>
                   {errors.preco && <p className="text-red-500 text-xs mt-1">{errors.preco.message as string}</p>}

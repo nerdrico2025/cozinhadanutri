@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { ChevronDown, Search } from 'lucide-react';
 import { getFAQ, FAQEntry } from '../services/supportService';
 
-type TelaAtiva = 'home' | 'dashboard' | 'receitas' | 'criar-receita' | 'cadastro-ingrediente' | 'lista-ingredientes' | 'login' | 'register' | 'planos' | 'faq' | 'suporte' | 'termos' | 'pagamento' | 'adm';
+type TelaAtiva = 'home' | 'dashboard' | 'receitas' | 'criar-receita' | 'cadastro-ingrediente' | 'lista-ingredientes' | 'refeicao' | 'despesas' | 'estatisticas' | 'aulas' | 'login' | 'register' | 'planos' | 'faq' | 'suporte' | 'termos' | 'pagamento' | 'adm' | 'configuracaovisual' | 'etiqueta';
 
 interface FAQProps {
   onNavegar?: (tela: TelaAtiva) => void;

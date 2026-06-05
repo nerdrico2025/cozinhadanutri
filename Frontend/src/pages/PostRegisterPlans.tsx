@@ -3,9 +3,9 @@ import { UsuarioLogado } from '../types';
 
 type TelaAtiva = 
   | 'home' | 'dashboard' | 'receitas' | 'criar-receita' 
-  | 'cadastro-ingrediente' | 'lista-ingredientes' | 'login' 
+  | 'cadastro-ingrediente' | 'lista-ingredientes' | 'refeicao' | 'despesas' | 'estatisticas' | 'aulas' | 'login' 
   | 'register' | 'planos' | 'faq' | 'suporte' | 'termos' 
-  | 'pagamento' | 'adm' | 'esqueci-senha' | 'boas-vindas';
+  | 'pagamento' | 'adm' | 'esqueci-senha' | 'boas-vindas' | 'configuracaovisual' | 'etiqueta';
 
 interface PostRegisterPlansProps {
   onNavegar: (tela: TelaAtiva) => void;

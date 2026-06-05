@@ -4,9 +4,9 @@ import { getSupportConfig, SupportConfig } from '../services/supportService';
 
 type TelaAtiva =
   | 'home' | 'dashboard' | 'receitas' | 'criar-receita'
-  | 'cadastro-ingrediente' | 'lista-ingredientes' | 'login'
+  | 'cadastro-ingrediente' | 'lista-ingredientes' | 'refeicao' | 'despesas' | 'estatisticas' | 'aulas' | 'login'
   | 'register' | 'esqueci-senha' | 'planos' | 'faq' | 'suporte' | 'termos'
-  | 'pagamento' | 'adm';
+  | 'pagamento' | 'adm' | 'configuracaovisual' | 'etiqueta';
 
 interface FooterProps {
   onNavegar: (tela: TelaAtiva) => void;

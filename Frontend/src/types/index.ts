@@ -43,8 +43,9 @@ export interface DadosNutricionais {
 export interface IngredienteReceita {
   tacoId: number;
   nome: string;
-  quantidade: number; // em gramas
-  preco: number; // preço por 100g (R$)
+  quantidade: number; // quantidade na unidade escolhida
+  preco: number; // preço da unidade inteira (ex: por kg, por l, ou por 100g se g)
+  unidade?: Unidade;
 }
 
 export interface Receita {
@@ -77,4 +78,22 @@ export interface RotuloNutricional {
     gordurasTotais: number;
     sodio: number;
   };
+}
+
+export interface ReceitaRefeicao {
+  receitaId: string;
+  nome: string;
+  porcoesUtilizadas: number;
+  custoPorPorcao: number;
+  dadosNutricionaisPorPorcao: DadosNutricionais;
+}
+
+export interface Refeicao {
+  id: string;
+  nome: string;
+  descricao?: string;
+  receitas: ReceitaRefeicao[];
+  custoTotal: number;
+  dadosNutricionaisTotais: DadosNutricionais;
+  createdAt: string; // ISO string
 }

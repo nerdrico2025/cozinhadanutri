@@ -9,7 +9,7 @@ import {
   PlusCircle, AlertCircle
 } from "lucide-react";
 
-import { Receita, IngredienteReceita, DadosNutricionais, Ingrediente } from "../types";
+import { Receita, IngredienteReceita, DadosNutricionais, Ingrediente, Unidade } from "../types";
 import {
   calcularCustosReceita,
   calcularDadosNutricionaisPorPorcao,
@@ -26,8 +26,9 @@ const receitaSchema = z.object({
       z.object({
         tacoId: z.number().min(1, "Selecione um ingrediente"),
         nome: z.string().min(1),
-        quantidade: z.number().min(1, "Quantidade deve ser maior que zero"),
+        quantidade: z.number().min(0.001, "Quantidade deve ser maior que zero"),
         preco: z.number().min(0.01, "Informe o preço"),
+        unidade: z.string().optional(),
       })
     )
     .min(1, "Adicione pelo menos um ingrediente"),
@@ -98,7 +99,7 @@ export function CriarReceita({ receitaInicial, onSalvar, onCancelar, onSolicitar
       defaultValues: receitaInicial ?? {
         porcoes: 1,
         margemLucro: 10,
-        ingredientes: [{ tacoId: 0, nome: "", quantidade: 0, preco: 0 }],
+        ingredientes: [{ tacoId: 0, nome: "", quantidade: 0, preco: 0, unidade: "g" }],
       },
     });
 
@@ -130,7 +131,7 @@ export function CriarReceita({ receitaInicial, onSalvar, onCancelar, onSolicitar
     }
 
     const custos = calcularCustosReceita(
-      validos.map(v => ({ quantidade: v.quantidade, preco: v.preco })), 
+      validos.map(v => ({ quantidade: v.quantidade, preco: v.preco, unidade: v.unidade })), 
       porcoesVal, 
       margemLucroVal
     );
@@ -149,7 +150,13 @@ export function CriarReceita({ receitaInicial, onSalvar, onCancelar, onSolicitar
       const ingredienteCompleto = searchResult?.originalData as Ingrediente | undefined;
       
       if (ingredienteCompleto?.dadosNutricionais) {
-        const proporcao = item.quantidade / 100;
+        let proporcao = item.quantidade / 100;
+        if (item.unidade === 'kg' || item.unidade === 'l') {
+          proporcao = item.quantidade * 10;
+        } else if (item.unidade === 'unidade') {
+          proporcao = item.quantidade;
+        }
+
         Object.keys(totais).forEach((key) => {
           const k = key as keyof DadosNutricionais;
           const valor = ingredienteCompleto.dadosNutricionais[k];
@@ -235,9 +242,12 @@ export function CriarReceita({ receitaInicial, onSalvar, onCancelar, onSolicitar
       return;
     }
 
+    const unidade = (result.originalData as Ingrediente).unidade || 'g';
+
     setValue(`ingredientes.${index}.tacoId`, Number(result.id), { shouldValidate: true });
     setValue(`ingredientes.${index}.nome`, result.nome, { shouldValidate: true });
     setValue(`ingredientes.${index}.preco`, result.preco || 0.00, { shouldValidate: true });
+    setValue(`ingredientes.${index}.unidade`, unidade, { shouldValidate: true });
     updateRow(index, { query: result.nome, results: [result], open: false });
   };
 
@@ -255,7 +265,8 @@ export function CriarReceita({ receitaInicial, onSalvar, onCancelar, onSolicitar
           tacoId: ing.tacoId,
           nome: ing.nome,
           quantidade: ing.quantidade,
-          preco: ing.preco
+          preco: ing.preco,
+          unidade: ing.unidade as Unidade
         })),
         custoTotal: calculos?.custoTotal || 0,
         custoPorPorcao: calculos?.custoPorPorcao || 0,
@@ -536,11 +547,12 @@ export function CriarReceita({ receitaInicial, onSalvar, onCancelar, onSolicitar
                         <div className="grid grid-cols-2 gap-3">
                           <div>
                             <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">
-                              Quantidade (g)
+                              Quantidade ({watchedIngredientes[index]?.unidade || 'g'})
                             </label>
                             <input
                               type="number"
-                              min={1}
+                              min={0.001}
+                              step="any"
                               {...register(`ingredientes.${index}.quantidade`, { valueAsNumber: true })}
                               placeholder="0"
                               className={inputCls(!!errosIng?.quantidade)}
@@ -551,7 +563,7 @@ export function CriarReceita({ receitaInicial, onSalvar, onCancelar, onSolicitar
                           </div>
                           <div>
                             <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">
-                              Preço / 100g ou UN (R$)
+                              Preço / {['g', 'ml'].includes(watchedIngredientes[index]?.unidade || 'g') ? '100' : ''}{watchedIngredientes[index]?.unidade === 'unidade' ? 'UN' : watchedIngredientes[index]?.unidade || 'g'} (R$)
                             </label>
                             <div className="relative">
                               <DollarSign size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
@@ -583,7 +595,7 @@ export function CriarReceita({ receitaInicial, onSalvar, onCancelar, onSolicitar
                   <button
                     type="button"
                     onClick={() => {
-                      append({ tacoId: 0, nome: "", quantidade: 0, preco: 0 });
+                      append({ tacoId: 0, nome: "", quantidade: 0, preco: 0, unidade: "g" });
                       setRowSearches((prev) => [...prev, emptyRow()]);
                     }}
                     className="w-full flex items-center justify-center gap-2 text-sm text-white bg-emerald-600 hover:bg-emerald-700 py-2.5 rounded-xl border-0 transition-colors cursor-pointer focus:outline-none font-bold shadow-sm"
