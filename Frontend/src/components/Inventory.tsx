@@ -1,17 +1,20 @@
-import { useState, useMemo, useEffect } from "react";
+import React, { useState, useMemo, useEffect, Fragment } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import {
   ArrowLeft, Plus, Trash2, AlertTriangle, CheckCircle, 
-  TrendingUp, TrendingDown, Box, Archive, AlertCircle, Calendar, X
+  TrendingUp, TrendingDown, Box, Archive, AlertCircle, Calendar, X,
+  Search, Filter, ArrowUpDown, ChevronDown, ChevronUp, Pencil
 } from "lucide-react";
 import { Unidade } from "../types";
 
 const CATEGORIAS_ESTOQUE = [
-  "Ingrediente",
   "Embalagem",
   "Limpeza e Higiene",
+  "EPIs e Uniformes",
+  "Manutenção",
+  "Administrativo e Escritório",
   "Outros"
 ] as const;
 
@@ -23,10 +26,12 @@ interface Lote {
   quantidadeAtual: number;
   custoUnitario: number;
   dataValidade: string;
+  fornecedor?: string;
 }
 
 interface ItemEstoque {
   id: string;
+  tacoId?: number;
   nome: string;
   categoria: CategoriaEstoque | string;
   unidade: Unidade | string;
@@ -45,12 +50,14 @@ const itemSchema = z.object({
   estoqueMinimo: z.number().min(0, "O estoque mínimo não pode ser negativo"),
   custoMedio: z.number().min(0, "O custo não pode ser negativo"),
   dataValidade: z.string().optional(),
+  fornecedor: z.string().optional(),
 });
 
 type ItemForm = z.infer<typeof itemSchema>;
 
 interface InventoryProps {
   onVoltar: () => void;
+  onIrParaIngredientes?: () => void;
 }
 
 const inputCls = (hasError?: boolean) =>
@@ -62,32 +69,130 @@ const inputCls = (hasError?: boolean) =>
 
 const labelCls = "block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1";
 
-export function Inventory({ onVoltar }: InventoryProps) {
+const MOCK_DATA: ItemEstoque[] = [
+  {
+    id: "1",
+    nome: "Arroz Branco Tipo 1",
+    categoria: "Ingrediente",
+    unidade: "kg",
+    quantidadeAtual: 25,
+    estoqueMinimo: 10,
+    custoMedio: 5.50,
+    ultimaAtualizacao: new Date().toISOString(),
+    lotes: [
+      {
+        id: "l1",
+        quantidadeOriginal: 30,
+        quantidadeAtual: 25,
+        custoUnitario: 5.50,
+        dataValidade: new Date(Date.now() + 30 * 86400000).toISOString().split('T')[0],
+        fornecedor: "Atacadão",
+      }
+    ]
+  },
+  {
+    id: "2",
+    nome: "Leite Condensado",
+    categoria: "Ingrediente",
+    unidade: "unidade",
+    quantidadeAtual: 5,
+    estoqueMinimo: 15,
+    custoMedio: 6.90,
+    ultimaAtualizacao: new Date().toISOString(),
+    lotes: [
+      {
+        id: "l2",
+        quantidadeOriginal: 20,
+        quantidadeAtual: 5,
+        custoUnitario: 6.90,
+        dataValidade: new Date(Date.now() + 5 * 86400000).toISOString().split('T')[0],
+        fornecedor: "Nestlé Distribuidora",
+      }
+    ]
+  },
+  {
+    id: "3",
+    nome: "Detergente Neutro",
+    categoria: "Limpeza e Higiene",
+    unidade: "l",
+    quantidadeAtual: 10,
+    estoqueMinimo: 5,
+    custoMedio: 3.20,
+    ultimaAtualizacao: new Date().toISOString(),
+    lotes: [
+      {
+        id: "l3",
+        quantidadeOriginal: 15,
+        quantidadeAtual: 10,
+        custoUnitario: 3.20,
+        dataValidade: new Date(Date.now() + 365 * 86400000).toISOString().split('T')[0],
+        fornecedor: "Limpa Mais Cia",
+      }
+    ]
+  },
+  {
+    id: "4",
+    nome: "Embalagem Marmita 500ml",
+    categoria: "Embalagem",
+    unidade: "unidade",
+    quantidadeAtual: 150,
+    estoqueMinimo: 200,
+    custoMedio: 0.85,
+    ultimaAtualizacao: new Date().toISOString(),
+    lotes: [
+      {
+        id: "l4",
+        quantidadeOriginal: 500,
+        quantidadeAtual: 150,
+        custoUnitario: 0.85,
+        dataValidade: new Date(Date.now() + 700 * 86400000).toISOString().split('T')[0],
+        fornecedor: "EmbalaTudo",
+      }
+    ]
+  }
+];
+
+export function Inventory({ onVoltar, onIrParaIngredientes }: InventoryProps) {
   const [itens, setItens] = useState<ItemEstoque[]>(() => {
     try {
       const salvas = localStorage.getItem('estoque_itens');
       if (salvas) {
         const parsed = JSON.parse(salvas);
-        return parsed.map((item: any) => ({
-          ...item,
-          lotes: item.lotes || []
-        }));
+        if (parsed.length > 0) {
+          return parsed.map((item: any) => ({
+            ...item,
+            lotes: item.lotes || []
+          }));
+        }
       }
-      return [];
+      return MOCK_DATA;
     } catch {
-      return [];
+      return MOCK_DATA;
     }
   });
 
   // Modal State
   const [modalAberto, setModalAberto] = useState(false);
+  const [modalCadastroAberto, setModalCadastroAberto] = useState(false);
+  const [modalAlertaAberto, setModalAlertaAberto] = useState(false);
   const [itemSelecionado, setItemSelecionado] = useState<ItemEstoque | null>(null);
+  const [itemEmEdicao, setItemEmEdicao] = useState<ItemEstoque | null>(null);
+  const [loteEmEdicao, setLoteEmEdicao] = useState<Lote | null>(null);
   const [tipoMovimentacao, setTipoMovimentacao] = useState<'entrada' | 'saida'>('entrada');
   
   // Modal Form State
   const [qtdMovimento, setQtdMovimento] = useState<number | ''>('');
   const [custoMovimento, setCustoMovimento] = useState<number | ''>('');
   const [validadeMovimento, setValidadeMovimento] = useState<string>('');
+  const [fornecedorMovimento, setFornecedorMovimento] = useState<string>('');
+
+  // Filter States
+  const [termoBusca, setTermoBusca] = useState('');
+  const [filtroCategoria, setFiltroCategoria] = useState('');
+  const [ordenarPor, setOrdenarPor] = useState('nome-asc');
+
+  // Row Expansion
+  const [linhaExpandida, setLinhaExpandida] = useState<string | null>(null);
 
   useEffect(() => {
     localStorage.setItem('estoque_itens', JSON.stringify(itens));
@@ -99,7 +204,8 @@ export function Inventory({ onVoltar }: InventoryProps) {
       quantidadeAtual: 0,
       estoqueMinimo: 0,
       custoMedio: 0,
-      dataValidade: ''
+      dataValidade: '',
+      fornecedor: ''
     }
   });
   
@@ -117,42 +223,175 @@ export function Inventory({ onVoltar }: InventoryProps) {
     return { qtdTotal, custoMedio };
   };
 
+  const fecharModalCadastro = () => {
+    reset({
+      nome: "",
+      categoria: "Embalagem",
+      unidade: "kg",
+      quantidadeAtual: 0,
+      estoqueMinimo: 0,
+      custoMedio: 0,
+      dataValidade: '',
+      fornecedor: ''
+    });
+    setItemEmEdicao(null);
+    setLoteEmEdicao(null);
+    setModalCadastroAberto(false);
+  };
+
+  const abrirEdicaoLote = (item: ItemEstoque, lote: Lote) => {
+    if (item.categoria === "Ingrediente" || item.tacoId) {
+      if (onIrParaIngredientes) {
+        alert("Para editar este ingrediente, você deve ir até o menu 'Ingredientes Nutricionais'.");
+      }
+    } else {
+      setItemEmEdicao(item);
+      setLoteEmEdicao(lote);
+      reset({
+        nome: item.nome,
+        categoria: String(item.categoria),
+        unidade: String(item.unidade),
+        estoqueMinimo: item.estoqueMinimo,
+        quantidadeAtual: lote.quantidadeAtual,
+        custoMedio: lote.custoUnitario,
+        dataValidade: lote.dataValidade,
+        fornecedor: lote.fornecedor || ''
+      });
+      setModalCadastroAberto(true);
+    }
+  };
+
+  const handleRemoverLote = (itemId: string, loteId: string) => {
+    if (confirm("Remover este lote? O saldo e custo médio do insumo serão recalculados.")) {
+      setItens(prev => prev.map(item => {
+        if (item.id !== itemId) return item;
+        const novosLotes = (item.lotes || []).filter(l => l.id !== loteId);
+        
+        if (novosLotes.length === 0) {
+          return {
+            ...item,
+            lotes: [],
+            quantidadeAtual: 0,
+            custoMedio: 0
+          };
+        } else {
+          const { qtdTotal, custoMedio } = recalcularTotais(novosLotes, item.custoMedio);
+          return {
+            ...item,
+            lotes: novosLotes,
+            quantidadeAtual: qtdTotal,
+            custoMedio: custoMedio
+          };
+        }
+      }));
+    }
+  };
+
   const onAddItem = (data: ItemForm) => {
+    if (itemEmEdicao && loteEmEdicao) {
+      const nomeFormatado = data.nome.trim();
+      const conflito = itens.find(i => i.id !== itemEmEdicao.id && i.nome.toLowerCase() === nomeFormatado.toLowerCase());
+      
+      if (conflito) {
+        alert("Já existe outro insumo com esse nome no estoque.");
+        return;
+      }
+
+      setItens(prev => prev.map(item => {
+        if (item.id === itemEmEdicao.id) {
+          const novosLotes = (item.lotes || []).map(l => {
+            if (l.id === loteEmEdicao.id) {
+              return {
+                ...l,
+                quantidadeAtual: data.quantidadeAtual,
+                custoUnitario: data.custoMedio,
+                dataValidade: data.dataValidade || l.dataValidade,
+                fornecedor: data.fornecedor
+              };
+            }
+            return l;
+          });
+          const { qtdTotal, custoMedio } = recalcularTotais(novosLotes, item.custoMedio);
+          return {
+            ...item,
+            nome: nomeFormatado,
+            categoria: data.categoria,
+            unidade: data.unidade,
+            estoqueMinimo: data.estoqueMinimo,
+            lotes: novosLotes,
+            quantidadeAtual: qtdTotal,
+            custoMedio: custoMedio,
+            ultimaAtualizacao: new Date().toISOString()
+          };
+        }
+        return item;
+      }));
+
+      fecharModalCadastro();
+      return;
+    }
+
     if (data.quantidadeAtual > 0 && !data.dataValidade) {
       alert("Para cadastrar um item com quantidade inicial, informe a Data de Validade.");
       return;
     }
 
-    const loteInicial: Lote[] = data.quantidadeAtual > 0 ? [{
-      id: crypto.randomUUID(),
-      quantidadeOriginal: data.quantidadeAtual,
-      quantidadeAtual: data.quantidadeAtual,
-      custoUnitario: data.custoMedio,
-      dataValidade: data.dataValidade!
-    }] : [];
+    const nomeFormatado = data.nome.trim();
+    const itemExistente = itens.find(i => i.nome.toLowerCase() === nomeFormatado.toLowerCase());
 
-    const novoItem: ItemEstoque = {
-      id: crypto.randomUUID(),
-      nome: data.nome,
-      categoria: data.categoria,
-      unidade: data.unidade,
-      quantidadeAtual: data.quantidadeAtual,
-      estoqueMinimo: data.estoqueMinimo,
-      custoMedio: data.custoMedio,
-      lotes: loteInicial,
-      ultimaAtualizacao: new Date().toISOString()
-    };
+    let novosItens = [...itens];
 
-    setItens((prev) => [novoItem, ...prev]);
-    reset({
-      nome: "",
-      categoria: "Ingrediente",
-      unidade: "kg",
-      quantidadeAtual: 0,
-      estoqueMinimo: 0,
-      custoMedio: 0,
-      dataValidade: ''
-    });
+    if (itemExistente) {
+      const loteInicial: Lote[] = data.quantidadeAtual > 0 ? [{
+        id: crypto.randomUUID(),
+        quantidadeOriginal: data.quantidadeAtual,
+        quantidadeAtual: data.quantidadeAtual,
+        custoUnitario: data.custoMedio,
+        dataValidade: data.dataValidade!,
+        fornecedor: data.fornecedor
+      }] : [];
+
+      const novosLotes = [...(itemExistente.lotes || []), ...loteInicial].sort((a, b) => new Date(a.dataValidade).getTime() - new Date(b.dataValidade).getTime());
+      
+      const { qtdTotal, custoMedio } = recalcularTotais(novosLotes, itemExistente.custoMedio);
+
+      const itemAtualizado = {
+        ...itemExistente,
+        lotes: novosLotes,
+        quantidadeAtual: qtdTotal,
+        custoMedio: custoMedio,
+        estoqueMinimo: itemExistente.estoqueMinimo + (data.estoqueMinimo > 0 ? data.estoqueMinimo : 0),
+        ultimaAtualizacao: new Date().toISOString()
+      };
+
+      novosItens = novosItens.map(i => i.id === itemExistente.id ? itemAtualizado : i);
+      alert(`O item "${nomeFormatado}" já existia no estoque. A quantidade foi adicionada como um novo lote (Custo e Saldo atualizados).`);
+    } else {
+      const loteInicial: Lote[] = data.quantidadeAtual > 0 ? [{
+        id: crypto.randomUUID(),
+        quantidadeOriginal: data.quantidadeAtual,
+        quantidadeAtual: data.quantidadeAtual,
+        custoUnitario: data.custoMedio,
+        dataValidade: data.dataValidade!,
+        fornecedor: data.fornecedor
+      }] : [];
+
+      const novoItem: ItemEstoque = {
+        id: crypto.randomUUID(),
+        nome: nomeFormatado,
+        categoria: data.categoria,
+        unidade: data.unidade,
+        quantidadeAtual: data.quantidadeAtual,
+        estoqueMinimo: data.estoqueMinimo,
+        custoMedio: data.custoMedio,
+        lotes: loteInicial,
+        ultimaAtualizacao: new Date().toISOString()
+      };
+
+      novosItens = [novoItem, ...novosItens];
+    }
+
+    fecharModalCadastro();
   };
 
   const handleRemover = (id: string) => {
@@ -167,6 +406,7 @@ export function Inventory({ onVoltar }: InventoryProps) {
     setQtdMovimento('');
     setCustoMovimento(tipo === 'entrada' ? item.custoMedio : '');
     setValidadeMovimento('');
+    setFornecedorMovimento('');
     setModalAberto(true);
   };
 
@@ -176,6 +416,7 @@ export function Inventory({ onVoltar }: InventoryProps) {
     setQtdMovimento('');
     setCustoMovimento('');
     setValidadeMovimento('');
+    setFornecedorMovimento('');
   };
 
   const confirmarMovimentacao = () => {
@@ -200,7 +441,8 @@ export function Inventory({ onVoltar }: InventoryProps) {
             quantidadeOriginal: qtdNum,
             quantidadeAtual: qtdNum,
             custoUnitario: Number(custoMovimento) || 0,
-            dataValidade: validadeMovimento
+            dataValidade: validadeMovimento,
+            fornecedor: fornecedorMovimento
           });
           novosLotes.sort((a, b) => new Date(a.dataValidade).getTime() - new Date(b.dataValidade).getTime());
         } else {
@@ -240,6 +482,42 @@ export function Inventory({ onVoltar }: InventoryProps) {
 
     fecharModal();
   };
+
+  const itensFiltrados = useMemo(() => {
+    let resultado = [...itens];
+
+    if (termoBusca) {
+      const termo = termoBusca.toLowerCase();
+      resultado = resultado.filter(item => {
+        if (item.nome.toLowerCase().includes(termo)) return true;
+        if (item.lotes?.some(l => l.fornecedor?.toLowerCase().includes(termo))) return true;
+        return false;
+      });
+    }
+
+    if (filtroCategoria) {
+      resultado = resultado.filter(item => item.categoria === filtroCategoria);
+    }
+
+    resultado.sort((a, b) => {
+      switch (ordenarPor) {
+        case 'nome-asc': return a.nome.localeCompare(b.nome);
+        case 'nome-desc': return b.nome.localeCompare(a.nome);
+        case 'custo-desc': return b.custoMedio - a.custoMedio;
+        case 'custo-asc': return a.custoMedio - b.custoMedio;
+        case 'saldo-desc': return b.quantidadeAtual - a.quantidadeAtual;
+        case 'saldo-asc': return a.quantidadeAtual - b.quantidadeAtual;
+        case 'validade-asc': {
+           const valA = a.lotes && a.lotes.length > 0 ? new Date(a.lotes[0].dataValidade).getTime() : Infinity;
+           const valB = b.lotes && b.lotes.length > 0 ? new Date(b.lotes[0].dataValidade).getTime() : Infinity;
+           return valA - valB;
+        }
+        default: return 0;
+      }
+    });
+
+    return resultado;
+  }, [itens, termoBusca, filtroCategoria, ordenarPor]);
 
   const valorTotalParado = useMemo(() => {
     return itens.reduce((acc, curr) => acc + (curr.quantidadeAtual > 0 ? curr.quantidadeAtual * curr.custoMedio : 0), 0);
@@ -326,92 +604,80 @@ export function Inventory({ onVoltar }: InventoryProps) {
 
         </section>
 
-        {/* ── Main Layout: Form + Table ────────────────────────────────────── */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-          
-          {/* Left Col: Cadastro de Novo Item */}
-          <aside className="lg:col-span-4 bg-white rounded-2xl border border-gray-200 shadow-sm p-8 sticky top-24">
-            <div className="mb-8">
-              <h4 className="text-xl font-bold text-gray-900 tracking-tight">Novo Insumo</h4>
-              <p className="text-base text-gray-500 mt-1">Registre a primeira compra no sistema.</p>
-            </div>
-
-            <form onSubmit={handleSubmit(onAddItem)} className="space-y-6">
-              
-              <div>
-                <label className={labelCls}>Nome do Item</label>
-                <input {...register("nome")} placeholder="Ex: Arroz Branco Tipo 1" className={inputCls(!!errors.nome)} />
-              </div>
-
-              <div className="flex gap-5">
-                <div className="flex-1">
-                  <label className={labelCls}>Categoria</label>
-                  <select {...register("categoria")} className={inputCls(!!errors.categoria)}>
-                    {CATEGORIAS_ESTOQUE.map(c => <option key={c} value={c}>{c}</option>)}
-                  </select>
-                </div>
-                <div className="w-24">
-                  <label className={labelCls}>Unid.</label>
-                  <select {...register("unidade")} className={inputCls(!!errors.unidade)}>
-                    <option value="kg">kg</option>
-                    <option value="g">g</option>
-                    <option value="l">l</option>
-                    <option value="ml">ml</option>
-                    <option value="unidade">unid.</option>
-                    <option value="caixa">caixa</option>
-                  </select>
-                </div>
-              </div>
-
-              <div className="flex gap-5">
-                <div className="flex-1">
-                  <label className={labelCls}>Qtd Inicial</label>
-                  <input type="number" min={0} step="any" {...register("quantidadeAtual", { valueAsNumber: true })} className={inputCls(!!errors.quantidadeAtual)} />
-                </div>
-                <div className="flex-1">
-                  <label className={labelCls}>Alerta (Mín)</label>
-                  <input type="number" min={0} step="any" {...register("estoqueMinimo", { valueAsNumber: true })} className={inputCls(!!errors.estoqueMinimo)} />
-                </div>
-              </div>
-
-              <div className="flex gap-5">
-                <div className="flex-1">
-                  <label className={labelCls}>Custo Atual (R$)</label>
-                  <input type="number" min={0} step={0.01} {...register("custoMedio", { valueAsNumber: true })} className={inputCls(!!errors.custoMedio)} placeholder="0.00" />
-                </div>
-                {Number(quantidadeAtualWatcher) > 0 && (
-                  <div className="flex-1">
-                    <label className={labelCls}>Validade (Lote)</label>
-                    <input type="date" {...register("dataValidade")} className={inputCls(!!errors.dataValidade)} />
-                  </div>
-                )}
-              </div>
-
-              <div className="pt-6">
-                <button
-                  type="submit"
-                  className="w-full h-14 rounded-xl bg-gray-900 hover:bg-gray-800 text-white font-bold text-base transition-colors cursor-pointer border-0 flex items-center justify-center gap-2 shadow-sm"
-                >
-                  <Plus size={20} />
-                  Cadastrar Insumo
-                </button>
-              </div>
-
-            </form>
-          </aside>
-
-          {/* Right Col: Table */}
-          <section className="lg:col-span-8">
+        {/* ── Main Layout: Table ────────────────────────────────────── */}
+        <section className="w-full">
             <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
               
               <div className="px-8 py-6 border-b border-gray-100 flex items-center justify-between">
                 <h4 className="text-xl font-bold text-gray-900 tracking-tight">Rastreamento de Lotes</h4>
+                <button
+                  onClick={() => setModalAlertaAberto(true)}
+                  className="px-4 py-2 rounded-xl bg-gray-900 hover:bg-gray-800 text-white font-bold text-sm transition-colors cursor-pointer border-0 flex items-center gap-2 shadow-sm"
+                >
+                  <Plus size={16} />
+                  Cadastrar Insumo
+                </button>
               </div>
+
+              {/* Toolbar */}
+              {itens.length > 0 && (
+                <div className="px-8 py-4 border-b border-gray-100 bg-gray-50/30 flex flex-col sm:flex-row gap-4 items-center justify-between">
+                  {/* Busca */}
+                  <div className="relative w-full sm:max-w-xs">
+                    <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                    <input 
+                      type="text"
+                      placeholder="Buscar insumo ou fornecedor..."
+                      value={termoBusca}
+                      onChange={e => setTermoBusca(e.target.value)}
+                      className="w-full pl-9 pr-4 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-gray-900 focus:ring-1 focus:ring-gray-900 transition-colors"
+                    />
+                  </div>
+
+                  <div className="flex gap-3 w-full sm:w-auto">
+                    {/* Categoria */}
+                    <div className="relative flex-1 sm:w-48">
+                      <Filter size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                      <select
+                        value={filtroCategoria}
+                        onChange={e => setFiltroCategoria(e.target.value)}
+                        className="w-full pl-9 pr-8 py-2 bg-white border border-gray-200 rounded-lg text-sm appearance-none focus:outline-none focus:border-gray-900 focus:ring-1 focus:ring-gray-900 transition-colors"
+                      >
+                        <option value="">Todas as Categorias</option>
+                        {CATEGORIAS_ESTOQUE.map(c => <option key={c} value={c}>{c}</option>)}
+                      </select>
+                    </div>
+
+                    {/* Ordenação */}
+                    <div className="relative flex-1 sm:w-48">
+                      <ArrowUpDown size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                      <select
+                        value={ordenarPor}
+                        onChange={e => setOrdenarPor(e.target.value)}
+                        className="w-full pl-9 pr-8 py-2 bg-white border border-gray-200 rounded-lg text-sm appearance-none focus:outline-none focus:border-gray-900 focus:ring-1 focus:ring-gray-900 transition-colors"
+                      >
+                        <option value="nome-asc">Nome (A-Z)</option>
+                        <option value="nome-desc">Nome (Z-A)</option>
+                        <option value="custo-desc">Maior Custo Unit.</option>
+                        <option value="custo-asc">Menor Custo Unit.</option>
+                        <option value="saldo-desc">Maior Saldo</option>
+                        <option value="saldo-asc">Menor Saldo</option>
+                        <option value="validade-asc">Validade Próxima</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {itens.length === 0 ? (
                 <div className="px-8 py-24 text-center">
                   <p className="text-gray-500 font-medium text-lg">Estoque vazio.</p>
-                  <p className="text-base text-gray-400 mt-2">Cadastre seus insumos ao lado para começar.</p>
+                  <p className="text-base text-gray-400 mt-2">Clique no botão acima para cadastrar seu primeiro insumo.</p>
+                </div>
+              ) : itensFiltrados.length === 0 ? (
+                <div className="px-8 py-24 text-center">
+                  <p className="text-gray-500 font-medium text-lg">Nenhum resultado encontrado.</p>
+                  <p className="text-base text-gray-400 mt-2">Tente ajustar seus filtros ou termo de busca.</p>
                 </div>
               ) : (
                 <div className="overflow-x-auto">
@@ -426,87 +692,171 @@ export function Inventory({ onVoltar }: InventoryProps) {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100">
-                      {itens.map((item) => {
+                      {itensFiltrados.map((item) => {
                         const isBaixo = item.quantidadeAtual <= item.estoqueMinimo;
                         
                         const lotesOrdenados = [...(item.lotes || [])].sort((a, b) => new Date(a.dataValidade).getTime() - new Date(b.dataValidade).getTime());
                         const proximoVencimento = lotesOrdenados.length > 0 ? lotesOrdenados[0].dataValidade : null;
 
+                        const isExpandido = linhaExpandida === item.id;
+
                         return (
-                          <tr key={item.id} className="group hover:bg-gray-50 transition-colors">
-                            
-                            {/* Produto */}
-                            <td className="px-8 py-5">
-                              <p className="text-base font-bold text-gray-900 mb-1" title={item.nome}>
-                                {item.nome}
-                              </p>
-                              {proximoVencimento ? (
-                                <p className="text-xs font-semibold text-amber-600 flex items-center gap-1.5">
-                                  <Calendar size={12} /> Próx. Vencimento: {new Date(proximoVencimento).toLocaleDateString('pt-BR', { timeZone: 'UTC' })}
+                          <Fragment key={item.id}>
+                            <tr 
+                              onClick={() => setLinhaExpandida(isExpandido ? null : item.id)}
+                              className={`group transition-colors cursor-pointer ${isExpandido ? 'bg-gray-50' : 'hover:bg-gray-50'}`}
+                            >
+                              
+                              {/* Produto */}
+                              <td className="px-8 py-5">
+                                <div className="flex items-start gap-3">
+                                  <div className="mt-1 transition-transform">
+                                    {isExpandido ? <ChevronUp size={16} className="text-gray-400" /> : <ChevronDown size={16} className="text-gray-400" />}
+                                  </div>
+                                  <div>
+                                    <p className="text-base font-bold text-gray-900 mb-1" title={item.nome}>
+                                      {item.nome}
+                                    </p>
+                                    {proximoVencimento ? (
+                                      <p className="text-xs font-semibold text-amber-600 flex items-center gap-1.5">
+                                        <Calendar size={12} /> Próx. Vencimento: {new Date(proximoVencimento).toLocaleDateString('pt-BR', { timeZone: 'UTC' })}
+                                      </p>
+                                    ) : (
+                                      <p className="text-xs font-medium text-gray-400">
+                                        {item.categoria}
+                                      </p>
+                                    )}
+                                  </div>
+                                </div>
+                              </td>
+                              
+                              {/* Status */}
+                              <td className="px-6 py-5 text-center">
+                                {isBaixo ? (
+                                  <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-amber-100 text-amber-700 rounded-lg text-xs font-bold tracking-wide">
+                                    <AlertTriangle size={14} /> BAIXO
+                                  </span>
+                                ) : (
+                                  <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-teal-100 text-teal-700 rounded-lg text-xs font-bold tracking-wide">
+                                    <CheckCircle size={14} /> OK
+                                  </span>
+                                )}
+                              </td>
+                              
+                              {/* Saldo */}
+                              <td className="px-6 py-5 text-right">
+                                <p className={`text-lg font-bold ${isBaixo ? 'text-amber-600' : 'text-gray-900'}`}>
+                                  {item.quantidadeAtual} <span className="text-sm font-medium text-gray-500 ml-1">{item.unidade}</span>
                                 </p>
-                              ) : (
-                                <p className="text-xs font-medium text-gray-400">
-                                  {item.categoria}
+                                <p className="text-xs font-semibold text-gray-400 mt-1">
+                                  {item.lotes?.length || 0} lotes ativos
                                 </p>
-                              )}
-                            </td>
+                              </td>
+                              
+                              {/* Custo */}
+                              <td className="px-6 py-5 text-right">
+                                <p className="text-base font-semibold text-gray-600">{formatCurrency(item.custoMedio)}</p>
+                              </td>
+                              
+                              {/* Ações */}
+                              <td className="px-8 py-5" onClick={(e) => e.stopPropagation()}>
+                                <div className="flex items-center justify-end gap-2">
+                                  <button
+                                    onClick={(e) => { e.stopPropagation(); abrirModal(item, 'saida'); }}
+                                    className="h-9 px-4 rounded-lg bg-gray-100 text-gray-700 hover:bg-gray-200 hover:text-gray-900 transition-colors text-sm font-bold border-0 cursor-pointer flex items-center gap-2"
+                                    title="Registrar Consumo"
+                                  >
+                                    <TrendingDown size={16} /> Saída
+                                  </button>
+                                  <button
+                                    onClick={(e) => { e.stopPropagation(); abrirModal(item, 'entrada'); }}
+                                    className="h-9 px-4 rounded-lg bg-[#04585a]/10 text-[#04585a] hover:bg-[#04585a]/20 transition-colors text-sm font-bold border-0 cursor-pointer flex items-center gap-2"
+                                    title="Registrar Compra"
+                                  >
+                                    <TrendingUp size={16} /> Entrada
+                                  </button>
+
+                                </div>
+                              </td>
+                              
+                            </tr>
                             
-                            {/* Status */}
-                            <td className="px-6 py-5 text-center">
-                              {isBaixo ? (
-                                <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-amber-100 text-amber-700 rounded-lg text-xs font-bold tracking-wide">
-                                  <AlertTriangle size={14} /> BAIXO
-                                </span>
-                              ) : (
-                                <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-teal-100 text-teal-700 rounded-lg text-xs font-bold tracking-wide">
-                                  <CheckCircle size={14} /> OK
-                                </span>
-                              )}
-                            </td>
-                            
-                            {/* Saldo */}
-                            <td className="px-6 py-5 text-right">
-                              <p className={`text-lg font-bold ${isBaixo ? 'text-amber-600' : 'text-gray-900'}`}>
-                                {item.quantidadeAtual} <span className="text-sm font-medium text-gray-500 ml-1">{item.unidade}</span>
-                              </p>
-                              <p className="text-xs font-semibold text-gray-400 mt-1">
-                                {item.lotes?.length || 0} lotes ativos
-                              </p>
-                            </td>
-                            
-                            {/* Custo */}
-                            <td className="px-6 py-5 text-right">
-                              <p className="text-base font-semibold text-gray-600">{formatCurrency(item.custoMedio)}</p>
-                            </td>
-                            
-                            {/* Ações */}
-                            <td className="px-8 py-5">
-                              <div className="flex items-center justify-end gap-2">
-                                <button
-                                  onClick={() => abrirModal(item, 'saida')}
-                                  className="h-9 px-4 rounded-lg bg-gray-100 text-gray-700 hover:bg-gray-200 hover:text-gray-900 transition-colors text-sm font-bold border-0 cursor-pointer flex items-center gap-2"
-                                  title="Registrar Consumo"
-                                >
-                                  <TrendingDown size={16} /> Saída
-                                </button>
-                                <button
-                                  onClick={() => abrirModal(item, 'entrada')}
-                                  className="h-9 px-4 rounded-lg bg-[#04585a]/10 text-[#04585a] hover:bg-[#04585a]/20 transition-colors text-sm font-bold border-0 cursor-pointer flex items-center gap-2"
-                                  title="Registrar Compra"
-                                >
-                                  <TrendingUp size={16} /> Entrada
-                                </button>
-                                <button
-                                  onClick={() => handleRemover(item.id)}
-                                  className="h-9 w-9 flex items-center justify-center text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors border-0 bg-transparent cursor-pointer ml-1"
-                                  title="Remover Cadastro"
-                                >
-                                  <Trash2 size={18} />
-                                </button>
-                              </div>
-                            </td>
-                            
-                          </tr>
+                            {/* Linha Expandida */}
+                            {isExpandido && (
+                              <tr>
+                                <td colSpan={5} className="px-8 py-6 bg-gray-50/50 border-b border-gray-100 animate-in fade-in slide-in-from-top-2 duration-200">
+                                  <div className="flex flex-col gap-4">
+                                    <div className="flex items-center justify-between">
+                                      <h5 className="text-sm font-bold text-gray-900">Detalhamento de Lotes Ativos</h5>
+                                      <div className="flex items-center gap-3">
+                                        <span className="text-xs font-semibold text-gray-500 bg-white px-3 py-1 rounded-full border border-gray-200 shadow-sm">
+                                          Estoque Mínimo: {item.estoqueMinimo} {item.unidade}
+                                        </span>
+                                      </div>
+                                    </div>
+                                    
+                                    {lotesOrdenados.length === 0 ? (
+                                      <p className="text-sm text-gray-500 italic">Nenhum lote ativo no momento.</p>
+                                    ) : (
+                                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                                        {lotesOrdenados.map((lote, index) => (
+                                          <div key={lote.id} className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm flex flex-col gap-3 relative overflow-hidden transition-all hover:shadow-md hover:border-gray-300">
+                                            <div className="absolute top-0 left-0 w-1 h-full bg-[#04585a]" />
+                                            <div className="flex items-start justify-between">
+                                              <div>
+                                                <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-0.5">Lote #{index + 1}</p>
+                                                <p className="text-sm font-semibold text-gray-900 truncate max-w-[120px]" title={lote.fornecedor || 'Fornecedor não informado'}>
+                                                  {lote.fornecedor || 'N/A'}
+                                                </p>
+                                              </div>
+                                              <div className="text-right">
+                                                <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-0.5">Saldo</p>
+                                                <p className="text-sm font-bold text-[#04585a] bg-[#04585a]/10 px-2 py-0.5 rounded-md inline-block">
+                                                  {lote.quantidadeAtual} <span className="text-xs font-normal opacity-80">{item.unidade}</span>
+                                                </p>
+                                              </div>
+                                            </div>
+                                            
+                                            <div className="flex items-center gap-4 mt-1 pt-3 border-t border-gray-50">
+                                              <div className="flex items-center gap-1.5">
+                                                <Calendar size={14} className="text-gray-400" />
+                                                <span className="text-xs font-medium text-gray-600" title="Validade">
+                                                  {new Date(lote.dataValidade).toLocaleDateString('pt-BR', { timeZone: 'UTC' })}
+                                                </span>
+                                              </div>
+                                              <div className="flex items-center gap-1.5 ml-auto">
+                                                <span className="text-xs font-bold text-gray-900" title="Custo Unitário">
+                                                  {formatCurrency(lote.custoUnitario)}/un
+                                                </span>
+                                              </div>
+                                            </div>
+
+                                            {/* Ações do Lote */}
+                                            <div className="flex items-center justify-end gap-2 mt-2 pt-2 border-t border-gray-100">
+                                              <button
+                                                onClick={(e) => { e.stopPropagation(); abrirEdicaoLote(item, lote); }}
+                                                className="h-7 w-7 flex items-center justify-center text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-md transition-colors border-0 bg-transparent cursor-pointer"
+                                                title="Editar Lote"
+                                              >
+                                                <Pencil size={14} />
+                                              </button>
+                                              <button
+                                                onClick={(e) => { e.stopPropagation(); handleRemoverLote(item.id, lote.id); }}
+                                                className="h-7 w-7 flex items-center justify-center text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors border-0 bg-transparent cursor-pointer"
+                                                title="Remover Lote"
+                                              >
+                                                <Trash2 size={14} />
+                                              </button>
+                                            </div>
+                                          </div>
+                                        ))}
+                                      </div>
+                                    )}
+                                  </div>
+                                </td>
+                              </tr>
+                            )}
+                          </Fragment>
                         );
                       })}
                     </tbody>
@@ -515,8 +865,6 @@ export function Inventory({ onVoltar }: InventoryProps) {
               )}
             </div>
           </section>
-
-        </div>
       </main>
 
       {/* ── Modal Flutuante para Movimentações ───────────────────────────── */}
@@ -598,6 +946,19 @@ export function Inventory({ onVoltar }: InventoryProps) {
                     </div>
                   </div>
                 )}
+                
+                {tipoMovimentacao === 'entrada' && (
+                  <div>
+                    <label className="block text-sm font-bold text-gray-700 mb-2">Fornecedor (Opcional)</label>
+                    <input 
+                      type="text" 
+                      value={fornecedorMovimento}
+                      onChange={e => setFornecedorMovimento(e.target.value)}
+                      placeholder="Nome do Fornecedor"
+                      className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-lg font-semibold text-gray-900 focus:outline-none focus:border-gray-900 focus:ring-1 focus:ring-gray-900 transition-colors"
+                    />
+                  </div>
+                )}
               </div>
 
               {tipoMovimentacao === 'saida' && (
@@ -619,6 +980,152 @@ export function Inventory({ onVoltar }: InventoryProps) {
               </div>
 
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Modal Flutuante para Novo Insumo ───────────────────────────── */}
+      {modalCadastroAberto && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/40 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+          <div className="bg-white rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
+            
+            <div className="px-6 py-5 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
+              <div>
+                <h3 className="text-lg font-bold text-gray-900">
+                  {itemEmEdicao ? "Editar Insumo" : "Novo Insumo"}
+                </h3>
+                <p className="text-xs text-gray-500 mt-0.5">
+                  {itemEmEdicao ? "Modifique as informações básicas." : "Registre a primeira compra no sistema."}
+                </p>
+              </div>
+              <button 
+                onClick={fecharModalCadastro}
+                className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-200 text-gray-500 border-0 bg-transparent cursor-pointer transition-colors"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="p-6 max-h-[80vh] overflow-y-auto">
+              <form onSubmit={handleSubmit(onAddItem)} className="space-y-6">
+              
+                <div>
+                  <label className={labelCls}>Nome do Item</label>
+                  <input {...register("nome")} list="sugestoes-nomes" placeholder="Ex: Arroz Branco Tipo 1" className={inputCls(!!errors.nome)} autoFocus />
+                  <datalist id="sugestoes-nomes">
+                    {itens.map(i => <option key={i.id} value={i.nome} />)}
+                  </datalist>
+                  {errors.nome && <p className="text-red-500 text-xs mt-1">{errors.nome.message as string}</p>}
+                </div>
+
+                <div className="flex gap-5">
+                  <div className="flex-1">
+                    <label className={labelCls}>Categoria</label>
+                    <select {...register("categoria")} className={inputCls(!!errors.categoria)}>
+                      {CATEGORIAS_ESTOQUE.map(c => <option key={c} value={c}>{c}</option>)}
+                    </select>
+                  </div>
+                  <div className="w-24">
+                    <label className={labelCls}>Unid.</label>
+                    <select {...register("unidade")} className={inputCls(!!errors.unidade)}>
+                      <option value="kg">kg</option>
+                      <option value="g">g</option>
+                      <option value="l">l</option>
+                      <option value="ml">ml</option>
+                      <option value="unidade">unid.</option>
+                      <option value="caixa">caixa</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="flex gap-5">
+                  <div className="flex-1">
+                    <label className={labelCls}>Qtd Atual</label>
+                    <input type="number" min={0} step="any" {...register("quantidadeAtual", { valueAsNumber: true })} className={inputCls(!!errors.quantidadeAtual)} />
+                  </div>
+                  <div className="flex-1">
+                    <label className={labelCls}>Alerta (Mín)</label>
+                    <input type="number" min={0} step="any" {...register("estoqueMinimo", { valueAsNumber: true })} className={inputCls(!!errors.estoqueMinimo)} />
+                  </div>
+                </div>
+
+                <div className="flex gap-5">
+                  <div className="flex-1">
+                    <label className={labelCls}>Custo Atual (R$)</label>
+                    <input type="number" min={0} step={0.01} {...register("custoMedio", { valueAsNumber: true })} className={inputCls(!!errors.custoMedio)} placeholder="0.00" />
+                  </div>
+                  {Number(quantidadeAtualWatcher) > 0 && (
+                    <div className="flex-1">
+                      <label className={labelCls}>Validade (Lote)</label>
+                      <input type="date" {...register("dataValidade")} className={inputCls(!!errors.dataValidade)} />
+                    </div>
+                  )}
+                </div>
+
+                {Number(quantidadeAtualWatcher) > 0 && (
+                  <div>
+                    <label className={labelCls}>Fornecedor (Opcional)</label>
+                    <input type="text" {...register("fornecedor")} placeholder="Nome do Fornecedor" className={inputCls(!!errors.fornecedor)} />
+                  </div>
+                )}
+
+                <div className="pt-6">
+                  <button
+                    type="submit"
+                    className="w-full h-14 rounded-xl bg-gray-900 hover:bg-gray-800 text-white font-bold text-base transition-colors cursor-pointer border-0 flex items-center justify-center gap-2 shadow-sm"
+                  >
+                    {itemEmEdicao ? <Pencil size={20} /> : <Plus size={20} />}
+                    {itemEmEdicao ? "Salvar Alterações" : "Cadastrar Insumo"}
+                  </button>
+                </div>
+
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Custom Alert Modal ───────────────────────────── */}
+      {modalAlertaAberto && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-gray-900/40 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+          <div className="bg-white rounded-3xl w-full max-w-sm shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200 text-center p-8 flex flex-col items-center">
+            <div className="w-16 h-16 bg-amber-100 rounded-full flex items-center justify-center mb-6 shadow-inner">
+              <AlertTriangle size={32} className="text-amber-500" />
+            </div>
+            
+            <h3 className="text-2xl font-black text-gray-900 mb-2 tracking-tight">Atenção</h3>
+            <p className="text-sm font-medium text-gray-500 mb-8 leading-relaxed px-2">
+              Ingredientes de receitas (Arroz, Feijão, etc) devem ser cadastrados no menu <strong className="text-gray-900">Ingredientes Nutricionais</strong> para puxar a tabela TACO.<br/><br/>
+              Use este formulário apenas para limpeza, embalagens e afins.
+            </p>
+            
+            <button 
+              onClick={() => {
+                setModalAlertaAberto(false);
+                if (onIrParaIngredientes) {
+                  onIrParaIngredientes();
+                }
+              }}
+              className="w-full py-4 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-base font-bold transition-all shadow-md hover:shadow-lg active:scale-[0.98] border-0 cursor-pointer mb-3"
+            >
+              Cadastrar Ingrediente (TACO)
+            </button>
+            <button 
+              onClick={() => {
+                setItemEmEdicao(null);
+                setModalAlertaAberto(false);
+                setModalCadastroAberto(true);
+              }}
+              className="w-full py-4 rounded-xl bg-[#04585a] hover:bg-[#034244] text-white text-base font-bold transition-all shadow-md hover:shadow-lg active:scale-[0.98] border-0 cursor-pointer"
+            >
+              Prosseguir com Insumo Manual
+            </button>
+            <button 
+              onClick={() => setModalAlertaAberto(false)}
+              className="mt-3 w-full py-3 rounded-xl bg-transparent hover:bg-gray-100 text-gray-500 font-bold text-sm transition-colors cursor-pointer border-0"
+            >
+              Cancelar
+            </button>
           </div>
         </div>
       )}

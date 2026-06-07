@@ -524,7 +524,7 @@ function App() {
       case 'despesas':
         return <ExpenseControl onVoltar={() => setTelaAtiva('dashboard')} />;
       case 'estoque':
-        return <Inventory onVoltar={() => setTelaAtiva('dashboard')} />;
+        return <Inventory onVoltar={() => setTelaAtiva('dashboard')} onIrParaIngredientes={() => setTelaAtiva('cadastro-ingrediente')} />;
       case 'estatisticas':
         return (
           <div className="min-h-screen bg-gray-50 flex items-center justify-center p-6">

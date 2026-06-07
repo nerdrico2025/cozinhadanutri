@@ -83,9 +83,13 @@ export function CadastroIngrediente({ ingredienteInicial, onSalvar, onCancelar, 
       return [];
     }
   });
-  const [itemEstoqueVinculado, setItemEstoqueVinculado] = useState<any | null>(null);
-  const [fatorCorrecaoTipo, setFatorCorrecaoTipo] = useState<'$' | '%'>('$');
-  const [fatorCorrecaoValor, setFatorCorrecaoValor] = useState<number>(0);
+  const itemEstoqueVinculado = itensEstoque.find(i => tacoNumeroSelecionado && i.tacoId === tacoNumeroSelecionado) || null;
+
+  const [incluirNoEstoque, setIncluirNoEstoque] = useState(true);
+  const [estoqueQuantidade, setEstoqueQuantidade] = useState<number | ''>('');
+  const [estoqueMinimo, setEstoqueMinimo] = useState<number | ''>(0);
+  const [estoqueValidade, setEstoqueValidade] = useState<string>('');
+  const [estoqueFornecedor, setEstoqueFornecedor] = useState<string>('');
 
   const { register, handleSubmit, formState: { errors }, setValue, reset } = useForm<IngredienteForm>({
     resolver: zodResolver(ingredienteSchema),
@@ -151,21 +155,20 @@ export function CadastroIngrediente({ ingredienteInicial, onSalvar, onCancelar, 
       });
       setTacoNumeroSelecionado(undefined);
       setTacoDbId(undefined);
+      setIncluirNoEstoque(true);
+      setEstoqueQuantidade('');
+      setEstoqueMinimo(0);
+      setEstoqueValidade('');
+      setEstoqueFornecedor('');
     }
   }, [ingredienteInicial, reset]);
 
   useEffect(() => {
     if (itemEstoqueVinculado) {
-      const base = itemEstoqueVinculado.custoMedio || 0;
-      let final = base;
-      if (fatorCorrecaoTipo === '$') {
-        final = base + fatorCorrecaoValor;
-      } else {
-        final = base + (base * (fatorCorrecaoValor / 100));
-      }
-      setValue('preco', Number(final.toFixed(2)), { shouldValidate: true });
+      setValue('preco', Number((itemEstoqueVinculado.custoMedio || 0).toFixed(2)), { shouldValidate: true });
+      setValue('unidade', itemEstoqueVinculado.unidade as Unidade);
     }
-  }, [itemEstoqueVinculado, fatorCorrecaoTipo, fatorCorrecaoValor, setValue]);
+  }, [itemEstoqueVinculado, setValue]);
 
   const buscarSugestoes = (nome: string) => {
     if (nome.length < 2) { setSugestoesTaco([]); setMostrarSugestoes(false); return; }
@@ -242,6 +245,62 @@ export function CadastroIngrediente({ ingredienteInicial, onSalvar, onCancelar, 
         },
         createdAt: ingredienteInicial?.createdAt ?? new Date(),
       });
+
+      if (incluirNoEstoque && estoqueQuantidade !== '') {
+        const qtd = Number(estoqueQuantidade);
+        const min = Number(estoqueMinimo) || 0;
+        let novaListaEstoque = [...itensEstoque];
+        
+        const loteNovo = {
+          id: crypto.randomUUID(),
+          quantidadeOriginal: qtd,
+          quantidadeAtual: qtd,
+          custoUnitario: data.preco,
+          dataValidade: estoqueValidade || new Date().toISOString().split('T')[0],
+          fornecedor: estoqueFornecedor
+        };
+
+        if (itemEstoqueVinculado) {
+          const itemIndex = novaListaEstoque.findIndex(i => i.id === itemEstoqueVinculado.id);
+          if (itemIndex >= 0) {
+            const item = novaListaEstoque[itemIndex];
+            const lotes = [...(item.lotes || []), loteNovo].sort((a, b) => new Date(a.dataValidade).getTime() - new Date(b.dataValidade).getTime());
+            
+            const qtdTotal = lotes.reduce((acc, l) => acc + l.quantidadeAtual, 0);
+            let custoMedio = item.custoMedio;
+            if (qtdTotal > 0) {
+              const valorTotal = lotes.reduce((acc, l) => acc + (l.quantidadeAtual * l.custoUnitario), 0);
+              custoMedio = valorTotal / qtdTotal;
+            }
+            
+            novaListaEstoque[itemIndex] = {
+              ...item,
+              lotes,
+              quantidadeAtual: qtdTotal,
+              custoMedio,
+              estoqueMinimo: item.estoqueMinimo + (min > 0 ? min : 0),
+              ultimaAtualizacao: new Date().toISOString()
+            };
+          }
+        } else {
+          novaListaEstoque.push({
+            id: crypto.randomUUID(),
+            tacoId: tacoNumeroSelecionado,
+            nome: data.nome,
+            categoria: 'Ingrediente',
+            unidade: data.unidade,
+            quantidadeAtual: qtd,
+            estoqueMinimo: min,
+            custoMedio: data.preco,
+            lotes: [loteNovo],
+            ultimaAtualizacao: new Date().toISOString()
+          });
+        }
+        
+        localStorage.setItem('estoque_itens', JSON.stringify(novaListaEstoque));
+        setItensEstoque(novaListaEstoque);
+      }
+
       setTacoNumeroSelecionado(undefined);
       setTacoDbId(undefined);
       reset();
@@ -367,103 +426,105 @@ export function CadastroIngrediente({ ingredienteInicial, onSalvar, onCancelar, 
                 )}
               </div>
 
-              {/* Vinculação de Estoque */}
-              <div className="bg-gray-50 p-5 rounded-xl border border-gray-100 flex flex-col gap-3">
-                <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide flex items-center gap-1.5">
-                  <Archive size={14} className="text-gray-400" />
-                  Vincular Preço ao Estoque (Opcional)
-                </label>
+              <div className="bg-gray-50 p-5 rounded-xl border border-gray-100 flex flex-col gap-5">
                 
-                <select 
-                  className={inputCls()}
-                  onChange={(e) => {
-                    const id = e.target.value;
-                    if (!id) {
-                      setItemEstoqueVinculado(null);
-                    } else {
-                      const item = itensEstoque.find(i => i.id === id);
-                      if (item) {
-                        setItemEstoqueVinculado(item);
-                        setValue('unidade', item.unidade as Unidade);
-                      }
-                    }
-                  }}
-                >
-                  <option value="">Não vincular (digitar preço manualmente)</option>
-                  {itensEstoque.map(i => (
-                    <option key={i.id} value={i.id}>{i.nome} - R$ {i.custoMedio.toFixed(2)} / {i.unidade}</option>
-                  ))}
-                </select>
+                {/* Group 1: Qtd Comprada (if checked), Unidade, Preço */}
+                <div className={`grid gap-4 ${incluirNoEstoque ? 'grid-cols-3' : 'grid-cols-2'}`}>
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">
+                      Unidade de Medida
+                    </label>
+                    <div className="relative">
+                      <select
+                        {...register('unidade')}
+                        className={`${inputCls(!!errors.unidade)} appearance-none pr-8`}
+                      >
+                        {unidades.map((u) => (
+                          <option key={u.value} value={u.value}>{u.label}</option>
+                        ))}
+                      </select>
+                      <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+                    </div>
+                    {errors.unidade && <p className="text-red-500 text-xs mt-1">{errors.unidade.message as string}</p>}
+                  </div>
 
-                {itemEstoqueVinculado && (
-                  <div className="flex gap-4 mt-2">
-                    <div className="flex-1">
-                      <label className="block text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-1">Ajuste de Custo (Perda/Fator)</label>
-                      <div className="flex bg-white border border-gray-200 rounded-lg overflow-hidden focus-within:border-brand focus-within:ring-1 focus-within:ring-brand/20 transition-colors">
-                        <select 
-                          value={fatorCorrecaoTipo}
-                          onChange={e => setFatorCorrecaoTipo(e.target.value as '$' | '%')}
-                          className="bg-gray-50 border-0 border-r border-gray-200 px-3 text-xs font-bold text-gray-600 outline-none focus:ring-0 cursor-pointer"
-                        >
-                          <option value="$">+ R$</option>
-                          <option value="%">+ %</option>
-                        </select>
+                  {incluirNoEstoque && (
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">
+                        Qtd Comprada <span className="text-red-400">*</span>
+                      </label>
+                      <input 
+                        type="number" min={0.01} step="any" required
+                        value={estoqueQuantidade} onChange={e => setEstoqueQuantidade(e.target.value === '' ? '' : Number(e.target.value))}
+                        placeholder="Ex: 5" className={inputCls(false)}
+                      />
+                    </div>
+                  )}
+
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">
+                      Preço por Unidade (R$) <span className="text-red-400">*</span>
+                    </label>
+                    <div className="relative">
+                      <DollarSign size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+                      <input
+                        type="number"
+                        step="0.01"
+                        min={0.01}
+                        {...register('preco', { valueAsNumber: true })}
+                        readOnly={!!itemEstoqueVinculado}
+                        placeholder="0,00"
+                        className={`${inputCls(!!errors.preco)} pl-8 ${itemEstoqueVinculado ? 'bg-gray-100 text-gray-500 font-bold cursor-not-allowed select-none' : ''}`}
+                      />
+                    </div>
+                    {itemEstoqueVinculado && (
+                      <p className="text-xs text-brand mt-1 flex items-center gap-1">
+                        <Archive size={12} /> Preço vinculado ao estoque automático.
+                      </p>
+                    )}
+                    {errors.preco && !itemEstoqueVinculado && <p className="text-red-500 text-xs mt-1">{errors.preco.message as string}</p>}
+                  </div>
+                </div>
+
+                <div className="border-t border-gray-200 pt-4">
+                  <label className="flex items-center gap-2 text-sm font-bold text-gray-700 cursor-pointer mb-4">
+                    <input 
+                      type="checkbox" 
+                      checked={incluirNoEstoque} 
+                      onChange={(e) => setIncluirNoEstoque(e.target.checked)}
+                      className="w-4 h-4 text-brand rounded border-gray-300 focus:ring-brand"
+                    />
+                    {itemEstoqueVinculado ? 'Adicionar Novo Lote ao Estoque' : 'Incluir Novo Item no Estoque'}
+                  </label>
+                  
+                  {incluirNoEstoque && (
+                    <div className="grid grid-cols-3 gap-4">
+                      <div>
+                        <label className="block text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-1">Validade do Lote</label>
                         <input 
-                          type="number" 
-                          min={0} step="any"
-                          value={fatorCorrecaoValor === 0 ? '' : fatorCorrecaoValor}
-                          onChange={e => setFatorCorrecaoValor(Number(e.target.value) || 0)}
-                          placeholder="0.00"
-                          className="flex-1 px-3 py-2.5 text-sm outline-none border-0 focus:ring-0 w-full"
+                          type="date"
+                          value={estoqueValidade} onChange={e => setEstoqueValidade(e.target.value)}
+                          className={inputCls(false)}
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-1">Fornecedor (Opcional)</label>
+                        <input 
+                          type="text"
+                          value={estoqueFornecedor} onChange={e => setEstoqueFornecedor(e.target.value)}
+                          placeholder="Nome do fornecedor" className={inputCls(false)}
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-1">Estoque Mínimo (Alerta)</label>
+                        <input 
+                          type="number" min={0} step="any"
+                          value={estoqueMinimo} onChange={e => setEstoqueMinimo(e.target.value === '' ? '' : Number(e.target.value))}
+                          placeholder="Ex: 1" className={inputCls(false)}
                         />
                       </div>
                     </div>
-                    <div className="w-1/3">
-                      <label className="block text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-1">Preço Base (Estoque)</label>
-                      <div className="h-10 flex items-center px-3 text-sm font-semibold text-gray-500 bg-gray-100/80 rounded-lg border border-transparent">
-                        R$ {itemEstoqueVinculado.custoMedio.toFixed(2)}
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* Unidade + Preço */}
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">
-                    Unidade de Medida
-                  </label>
-                  <div className="relative">
-                    <select
-                      {...register('unidade')}
-                      className={`${inputCls(!!errors.unidade)} appearance-none pr-8`}
-                    >
-                      {unidades.map((u) => (
-                        <option key={u.value} value={u.value}>{u.label}</option>
-                      ))}
-                    </select>
-                    <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
-                  </div>
-                  {errors.unidade && <p className="text-red-500 text-xs mt-1">{errors.unidade.message}</p>}
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">
-                    {itemEstoqueVinculado ? 'Preço Final (Calculado via Estoque)' : 'Preço por Unidade (R$)'} <span className="text-red-400">*</span>
-                  </label>
-                  <div className="relative">
-                    <DollarSign size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
-                    <input
-                      type="number"
-                      step="0.01"
-                      min={0.01}
-                      {...register('preco', { valueAsNumber: true })}
-                      readOnly={!!itemEstoqueVinculado}
-                      placeholder="0,00"
-                      className={`${inputCls(!!errors.preco)} pl-8 ${itemEstoqueVinculado ? 'bg-gray-100 text-brand font-bold cursor-not-allowed select-none' : ''}`}
-                    />
-                  </div>
-                  {errors.preco && <p className="text-red-500 text-xs mt-1">{errors.preco.message as string}</p>}
+                  )}
                 </div>
               </div>
             </div>
