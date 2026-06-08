@@ -21,6 +21,7 @@ import { CadastroIngrediente } from './components/IngredientRegistration';
 import { ListaIngredientes } from './components/IngredientsList';
 import { RotuloNutricional } from './components/NutritionalLabel';
 import { ProductionRegister } from './components/ProductionRegister';
+import { Statistic } from './components/Statistic';
 import { PostRegisterPlans } from './pages/PostRegisterPlans';
 import { Terms } from './pages/Terms';
 import { Privacy } from './pages/Privacy';
@@ -30,7 +31,6 @@ import { listarAlimentos, salvarAlimento, excluirAlimento } from './services/ali
 import { salvarReceita, excluirReceita, listarReceitas } from './services/receitas';
 import { calcularCustosReceita, calcularNutrientesTotais, calcularDadosNutricionaisPorPorcao } from './utils/calculations';
 import { Footer } from './components/Footer';
-import { Sidebar } from './components/Sidebar';
 import ConfiguracaoVisual from './pages/configuracaovisual/edicaodinamicadecampos';
 import { Etiqueta } from './pages/Etiqueta';
 import './App.css';
@@ -522,6 +522,7 @@ function App() {
               setRefeicaoEmEdicao(undefined);
               window.history.back();
             }}
+            onIrParaEstoque={() => setTelaAtiva('estoque')}
           />
         );
       case 'despesas':
@@ -531,28 +532,7 @@ function App() {
       case 'estoque':
         return <Inventory onVoltar={() => setTelaAtiva('dashboard')} onIrParaIngredientes={() => setTelaAtiva('cadastro-ingrediente')} />;
       case 'estatisticas':
-        return (
-          <div className="min-h-screen bg-gray-50 flex items-center justify-center p-6">
-            <div className="bg-white rounded-2xl p-8 border border-gray-100 shadow-sm max-w-md w-full text-center">
-              <div className="w-16 h-16 rounded-full bg-indigo-50 flex items-center justify-center mb-6 mx-auto">
-                <svg className="w-8 h-8 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 002 2h2a2 2 0 002-2" />
-                </svg>
-              </div>
-              <h2 className="text-xl font-bold text-gray-900 mb-2">Estatísticas do Negócio</h2>
-              <p className="text-sm text-gray-500 mb-6 leading-relaxed">
-                Painel analítico completo em desenvolvimento. Em breve você poderá acompanhar a lucratividade, custos médios e pratos mais rentáveis por gráficos.
-              </p>
-              <button
-                type="button"
-                onClick={() => setTelaAtiva('dashboard')}
-                className="w-full py-2.5 rounded-xl bg-[#04585a] hover:brightness-110 text-white font-semibold text-sm transition-all focus:outline-none cursor-pointer border-0"
-              >
-                Voltar ao Dashboard
-              </button>
-            </div>
-          </div>
-        );
+        return <Statistic onVoltar={() => setTelaAtiva('dashboard')} refeicoes={refeicoes} receitas={receitas} />;
       case 'aulas':
         return (
           <div className="min-h-screen bg-gray-50 flex items-center justify-center p-6">
@@ -761,25 +741,6 @@ function App() {
     }
   };
 
-  const isLoggedApp = usuario && usuario.role !== 'admin' && !publicTelas.includes(telaAtiva) && telaAtiva !== 'pagamento' && telaAtiva !== 'configuracaovisual' && telaAtiva !== 'adm';
-
-  if (isLoggedApp) {
-    return (
-      <div className="min-h-screen bg-gray-100 flex md:flex-row flex-col">
-        <Sidebar telaAtiva={telaAtiva} onNavegar={setTelaAtiva} onSair={handleSair} usuario={usuario} />
-        <main className="flex-1 w-full md:mt-0 mt-16 overflow-y-auto">
-          {renderTela()}
-        </main>
-        {receitaParaRotulo && (
-          <RotuloNutricional
-            receita={receitaParaRotulo}
-            onFechar={() => setReceitaParaRotulo(null)}
-            onImprimir={() => window.print()}
-          />
-        )}
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-screen bg-gray-100 flex flex-col">

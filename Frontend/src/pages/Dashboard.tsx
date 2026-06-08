@@ -1,10 +1,10 @@
 import {
   ChefHat, Leaf, LayoutList, FilePlus2,
-  ScrollText, FileBarChart2, Banknote, Utensils, ArrowRight, BarChart3, Video, Archive
+  ScrollText, FileBarChart2, Banknote, Utensils, ArrowRight, BarChart3, Video, Archive, PackageOpen
 } from 'lucide-react';
 import { Receita } from '../types';
 
-type TelaAtiva = 'home' | 'dashboard' | 'receitas' | 'criar-receita' | 'cadastro-ingrediente' | 'lista-ingredientes' | 'estoque' | 'login' | 'register' | 'refeicao' | 'despesas' | 'estatisticas' | 'aulas';
+type TelaAtiva = 'home' | 'dashboard' | 'receitas' | 'criar-receita' | 'cadastro-ingrediente' | 'lista-ingredientes' | 'estoque' | 'login' | 'register' | 'refeicao' | 'despesas' | 'producao' | 'estatisticas' | 'aulas';
 
 interface DashboardProps {
   onNavegar: (tela: TelaAtiva) => void;
@@ -31,7 +31,6 @@ const menuItems = [
     Icon: LayoutList,
     btnLabel: 'Ver ingredientes',
   },
-
   {
     tela: 'criar-receita' as TelaAtiva,
     titulo: 'Nova Receita',
@@ -50,7 +49,15 @@ const menuItems = [
     Icon: ScrollText,
     btnLabel: 'Ver receitas',
   },
-
+  {
+    tela: 'receitas' as TelaAtiva,
+    titulo: 'Rótulo Nutricional',
+    descricao: 'Gere rótulos nutricionais no padrão ANVISA a partir das suas receitas.',
+    iconBgClass: 'bg-orange-100',
+    iconColor: '#ea580c',
+    Icon: FileBarChart2,
+    btnLabel: 'Gerar rótulo',
+  },
   {
     tela: 'refeicao' as TelaAtiva,
     titulo: 'Nova Refeição',
@@ -59,6 +66,15 @@ const menuItems = [
     iconColor: '#059669',
     Icon: Utensils,
     btnLabel: 'Criar refeição',
+  },
+  {
+    tela: 'producao' as TelaAtiva,
+    titulo: 'Registrar Produção',
+    descricao: 'Registre a produção de marmitas e acompanhe o rendimento e lotes.',
+    iconBgClass: 'bg-indigo-100',
+    iconColor: '#4f46e5',
+    Icon: PackageOpen,
+    btnLabel: 'Ver produção',
   },
   {
     tela: 'estoque' as TelaAtiva,
@@ -96,15 +112,6 @@ const menuItems = [
     Icon: Video,
     btnLabel: 'Acessar aulas',
   }
-  /*  {
-     tela: 'receitas' as TelaAtiva,
-     titulo: 'Rótulo Nutricional',
-     descricao: 'Gere rótulos nutricionais no padrão ANVISA a partir das suas receitas.',
-     iconBgClass: 'bg-orange-100',
-     iconColor: '#ea580c',
-     Icon: FileBarChart2,
-     btnLabel: 'Gerar rótulo',
-   }, */
 ];
 
 interface StatCardProps {
@@ -134,9 +141,9 @@ export function Dashboard({ onNavegar, receitas, totalIngredientes }: DashboardP
   const totalValor = receitas.reduce((acc, r) => acc + r.precoSugerido, 0);
 
   return (
-    <div className="py-8 min-h-[80vh] max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div className="py-8 min-h-[80vh] max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
 
-
+      
 
       {/* Cards de navegação */}
       <div className="flex items-center justify-between mb-5">
@@ -144,7 +151,7 @@ export function Dashboard({ onNavegar, receitas, totalIngredientes }: DashboardP
         <span className="text-xs text-gray-400">{menuItems.length} ações disponíveis</span>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
         {menuItems.map((item) => (
           <button
             key={item.titulo}
@@ -169,4 +176,3 @@ export function Dashboard({ onNavegar, receitas, totalIngredientes }: DashboardP
     </div>
   );
 }
-

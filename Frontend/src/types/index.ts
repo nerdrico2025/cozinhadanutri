@@ -84,8 +84,19 @@ export interface ReceitaRefeicao {
   receitaId: string;
   nome: string;
   porcoesUtilizadas: number;
+  unidadeMedida?: string;
+  quantidadeUtilizada?: number;
   custoPorPorcao: number;
   dadosNutricionaisPorPorcao: DadosNutricionais;
+}
+
+export interface ItemEmbalagemSelecionada {
+  id: string;
+  nome: string;
+  checked: boolean;
+  quantidade: number;
+  custoUnitario: number;
+  isCustom?: boolean;
 }
 
 export interface Refeicao {
@@ -94,6 +105,9 @@ export interface Refeicao {
   descricao?: string;
   receitas: ReceitaRefeicao[];
   custoTotal: number;
+  valorEmbalagem?: number;
+  embalagemId?: string;
+  embalagens?: ItemEmbalagemSelecionada[];
   dadosNutricionaisTotais: DadosNutricionais;
   createdAt: string; // ISO string
 }
