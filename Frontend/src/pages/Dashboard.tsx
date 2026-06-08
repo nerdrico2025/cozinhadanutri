@@ -1,8 +1,10 @@
-import { useState, useMemo, useEffect } from 'react';
-import { PackageOpen, Banknote, Archive, TrendingDown, Layers, Calculator, ArrowRight, AlertCircle } from 'lucide-react';
+import {
+  ChefHat, Leaf, LayoutList, FilePlus2,
+  ScrollText, FileBarChart2, Banknote, Utensils, ArrowRight, BarChart3, Video, Archive
+} from 'lucide-react';
 import { Receita } from '../types';
 
-type TelaAtiva = 'home' | 'dashboard' | 'receitas' | 'criar-receita' | 'cadastro-ingrediente' | 'lista-ingredientes' | 'estoque' | 'login' | 'register' | 'refeicao' | 'despesas' | 'producao' | 'estatisticas' | 'aulas';
+type TelaAtiva = 'home' | 'dashboard' | 'receitas' | 'criar-receita' | 'cadastro-ingrediente' | 'lista-ingredientes' | 'estoque' | 'login' | 'register' | 'refeicao' | 'despesas' | 'estatisticas' | 'aulas';
 
 interface DashboardProps {
   onNavegar: (tela: TelaAtiva) => void;
@@ -10,199 +12,160 @@ interface DashboardProps {
   totalIngredientes: number;
 }
 
+const menuItems = [
+  {
+    tela: 'cadastro-ingrediente' as TelaAtiva,
+    titulo: 'Cadastrar Ingrediente',
+    descricao: 'Pesquise e registre ingredientes com base na tabela TACO.',
+    iconBgClass: 'bg-amber-100',
+    iconColor: '#d97706',
+    Icon: Leaf,
+    btnLabel: 'Cadastrar ingrediente',
+  },
+  {
+    tela: 'lista-ingredientes' as TelaAtiva,
+    titulo: 'Lista de Ingredientes',
+    descricao: 'Consulte e gerencie todos os ingredientes disponíveis no sistema.',
+    iconBgClass: 'bg-purple-100',
+    iconColor: '#9333ea',
+    Icon: LayoutList,
+    btnLabel: 'Ver ingredientes',
+  },
+
+  {
+    tela: 'criar-receita' as TelaAtiva,
+    titulo: 'Nova Receita',
+    descricao: 'Crie uma receita vinculando ingredientes da tabela TACO com dados nutricionais automáticos.',
+    iconBgClass: 'bg-green-100',
+    iconColor: '#16a34a',
+    Icon: FilePlus2,
+    btnLabel: 'Criar receita',
+  },
+  {
+    tela: 'receitas' as TelaAtiva,
+    titulo: 'Minhas Receitas',
+    descricao: 'Visualize, edite e gerencie todas as receitas cadastradas no sistema.',
+    iconBgClass: 'bg-blue-100',
+    iconColor: '#2563eb',
+    Icon: ScrollText,
+    btnLabel: 'Ver receitas',
+  },
+
+  {
+    tela: 'refeicao' as TelaAtiva,
+    titulo: 'Nova Refeição',
+    descricao: 'Monte refeições completas agrupando diversas receitas e calcule o custo total.',
+    iconBgClass: 'bg-emerald-100',
+    iconColor: '#059669',
+    Icon: Utensils,
+    btnLabel: 'Criar refeição',
+  },
+  {
+    tela: 'estoque' as TelaAtiva,
+    titulo: 'Controle de Estoque',
+    descricao: 'Rastreie insumos, gerencie entradas e saídas, e receba alertas de faltas.',
+    iconBgClass: 'bg-amber-100',
+    iconColor: '#d97706',
+    Icon: Archive,
+    btnLabel: 'Gerenciar estoque',
+  },
+  {
+    tela: 'despesas' as TelaAtiva,
+    titulo: 'Controle de Despesas',
+    descricao: 'Registre custos fixos e variáveis para apurar a margem de lucro real.',
+    iconBgClass: 'bg-rose-100',
+    iconColor: '#e11d48',
+    Icon: Banknote,
+    btnLabel: 'Ver despesas',
+  },
+  {
+    tela: 'estatisticas' as TelaAtiva,
+    titulo: 'Estatísticas',
+    descricao: 'Analise gráficos e relatórios sobre o custo e rentabilidade das suas receitas.',
+    iconBgClass: 'bg-indigo-100',
+    iconColor: '#4f46e5',
+    Icon: BarChart3,
+    btnLabel: 'Ver relatórios',
+  },
+  {
+    tela: 'aulas' as TelaAtiva,
+    titulo: 'Aulas ao Vivo',
+    descricao: 'Acesse mentorias e conteúdos exclusivos sobre precificação e rotulagem.',
+    iconBgClass: 'bg-cyan-100',
+    iconColor: '#0891b2',
+    Icon: Video,
+    btnLabel: 'Acessar aulas',
+  }
+  /*  {
+     tela: 'receitas' as TelaAtiva,
+     titulo: 'Rótulo Nutricional',
+     descricao: 'Gere rótulos nutricionais no padrão ANVISA a partir das suas receitas.',
+     iconBgClass: 'bg-orange-100',
+     iconColor: '#ea580c',
+     Icon: FileBarChart2,
+     btnLabel: 'Gerar rótulo',
+   }, */
+];
+
+interface StatCardProps {
+  label: string;
+  value: string;
+  Icon: React.ElementType;
+  iconBg: string;
+  iconColor: string;
+  accentColor: string;
+}
+
+function StatCard({ label, value, Icon, iconBg, iconColor, accentColor }: StatCardProps) {
+  return (
+    <div className={`bg-white rounded-xl p-5 shadow-sm border-l-4 ${accentColor} flex items-center gap-4`}>
+      <div className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 ${iconBg}`}>
+        <Icon size={22} color={iconColor} />
+      </div>
+      <div>
+        <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">{label}</p>
+        <p className="text-2xl font-bold text-gray-800 leading-none">{value}</p>
+      </div>
+    </div>
+  );
+}
+
 export function Dashboard({ onNavegar, receitas, totalIngredientes }: DashboardProps) {
-  // Dados salvos localmente
-  const [despesas, setDespesas] = useState<any[]>(() => {
-    try {
-      const data = localStorage.getItem('despesas_operacionais');
-      return data ? JSON.parse(data) : [];
-    } catch { return []; }
-  });
-
-  const [producoes, setProducoes] = useState<any[]>(() => {
-    try {
-      const data = localStorage.getItem('historico_producao');
-      return data ? JSON.parse(data) : [];
-    } catch { return []; }
-  });
-
-  const [estoque, setEstoque] = useState<any[]>(() => {
-    try {
-      const data = localStorage.getItem('estoque_itens');
-      return data ? JSON.parse(data) : [];
-    } catch { return []; }
-  });
-
-  const mesAtual = useMemo(() => {
-    const hoje = new Date();
-    return `${hoje.getFullYear()}-${String(hoje.getMonth() + 1).padStart(2, '0')}`;
-  }, []);
-
-  const totalDespesas = useMemo(() => {
-    return despesas
-      .filter(d => d.mesReferencia === mesAtual)
-      .reduce((acc, curr) => acc + curr.valorTotal, 0);
-  }, [despesas, mesAtual]);
-
-  const producaoMensal = useMemo(() => {
-    return producoes
-      .filter(p => p.mesReferencia === mesAtual)
-      .reduce((acc, curr) => acc + curr.quantidade, 0);
-  }, [producoes, mesAtual]);
-
-  const rateioPorUnidade = useMemo(() => {
-    if (producaoMensal <= 0) return 0;
-    const totalRateio = despesas
-      .filter(d => d.mesReferencia === mesAtual && d.embutirNoRateio)
-      .reduce((acc, curr) => acc + curr.valorTotal, 0);
-    return totalRateio / producaoMensal;
-  }, [despesas, producaoMensal, mesAtual]);
-
-  const itensEstoqueBaixo = useMemo(() => {
-    return estoque.filter(item => item.quantidadeAtual <= (item.quantidadeMinima || 0)).length;
-  }, [estoque]);
-
-  const formatCurrency = (val: number) => {
-    return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
-  };
+  const totalValor = receitas.reduce((acc, r) => acc + r.precoSugerido, 0);
 
   return (
-    <div className="py-8 min-h-[80vh] max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 font-sans">
-      
-      <div className="mb-8">
-        <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Visão Geral do Negócio</h1>
-        <p className="text-sm text-gray-500 mt-1">Acompanhe a saúde financeira e operacional da sua cozinha neste mês.</p>
+    <div className="py-8 min-h-[80vh] max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+
+
+
+      {/* Cards de navegação */}
+      <div className="flex items-center justify-between mb-5">
+        <p className="text-base font-semibold text-gray-700">O que deseja fazer?</p>
+        <span className="text-xs text-gray-400">{menuItems.length} ações disponíveis</span>
       </div>
 
-      {/* Sinais Vitais (KPIs) */}
-      <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-        
-        {/* KPI: Despesas */}
-        <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm flex flex-col justify-between hover:shadow-md transition-shadow">
-          <div className="flex items-center gap-3 mb-4">
-            <div className="w-10 h-10 rounded-full bg-rose-50 flex items-center justify-center">
-              <Banknote size={18} className="text-rose-600" />
-            </div>
-            <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">Custo Operacional</p>
-          </div>
-          <div>
-            <h3 className="text-3xl font-light text-gray-900 tracking-tight mb-1">
-              {formatCurrency(totalDespesas)}
-            </h3>
-            <p className="text-xs text-gray-400">Total de despesas no mês atual</p>
-          </div>
-        </div>
-
-        {/* KPI: Produção */}
-        <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm flex flex-col justify-between hover:shadow-md transition-shadow">
-          <div className="flex items-center gap-3 mb-4">
-            <div className="w-10 h-10 rounded-full bg-fuchsia-50 flex items-center justify-center">
-              <PackageOpen size={18} className="text-fuchsia-600" />
-            </div>
-            <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">Volume Produzido</p>
-          </div>
-          <div>
-            <h3 className="text-3xl font-light text-gray-900 tracking-tight mb-1">
-              {producaoMensal.toLocaleString('pt-BR')} <span className="text-lg text-gray-400 ml-1">unidades</span>
-            </h3>
-            <p className="text-xs text-gray-400">Total produzido no mês atual</p>
-          </div>
-        </div>
-
-        {/* KPI: Rateio */}
-        <div className="bg-[#04585a] rounded-2xl p-6 border border-[#034446] shadow-sm flex flex-col justify-between relative overflow-hidden group">
-          <div className="absolute -right-6 -top-6 text-[#056b6d] opacity-50 group-hover:scale-110 transition-transform">
-            <TrendingDown size={100} />
-          </div>
-          <div className="flex items-center gap-3 mb-4 relative z-10">
-            <div className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center">
-              <Layers size={18} className="text-white" />
-            </div>
-            <p className="text-xs font-bold text-[#82c8c9] uppercase tracking-wider">Rateio Atual</p>
-          </div>
-          <div className="relative z-10">
-            <h3 className="text-3xl font-light text-white tracking-tight mb-1">
-              {formatCurrency(rateioPorUnidade)} <span className="text-lg text-[#82c8c9] ml-1">/ un</span>
-            </h3>
-            <p className="text-xs text-[#82c8c9]">Custo fixo embutido por marmita</p>
-          </div>
-        </div>
-
-        {/* KPI: Alertas Estoque */}
-        <div className={`bg-white rounded-2xl p-6 border ${itensEstoqueBaixo > 0 ? 'border-amber-200 bg-amber-50/30' : 'border-gray-100'} shadow-sm flex flex-col justify-between hover:shadow-md transition-shadow`}>
-          <div className="flex items-center gap-3 mb-4">
-            <div className={`w-10 h-10 rounded-full flex items-center justify-center ${itensEstoqueBaixo > 0 ? 'bg-amber-100' : 'bg-emerald-50'}`}>
-              {itensEstoqueBaixo > 0 
-                ? <AlertCircle size={18} className="text-amber-600" />
-                : <Archive size={18} className="text-emerald-600" />
-              }
-            </div>
-            <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">Alertas de Estoque</p>
-          </div>
-          <div>
-            <h3 className={`text-3xl font-light tracking-tight mb-1 ${itensEstoqueBaixo > 0 ? 'text-amber-600' : 'text-gray-900'}`}>
-              {itensEstoqueBaixo} <span className="text-lg opacity-70 ml-1">itens</span>
-            </h3>
-            <p className="text-xs text-gray-500">
-              {itensEstoqueBaixo > 0 ? 'Estão abaixo do nível mínimo' : 'Estoque saudável e controlado'}
-            </p>
-          </div>
-        </div>
-
-      </section>
-
-      {/* Ações Rápidas */}
-      <section>
-        <div className="flex items-center justify-between mb-4">
-          <p className="text-sm font-bold text-gray-900 uppercase tracking-wider">Ações Rápidas (Dia a Dia)</p>
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        {menuItems.map((item) => (
           <button
-            onClick={() => onNavegar('producao')}
-            className="group relative overflow-hidden bg-white rounded-xl p-5 shadow-sm border border-gray-200 text-left transition-all hover:shadow-md hover:border-gray-300 flex items-center gap-4 cursor-pointer"
+            key={item.titulo}
+            type="button"
+            onClick={() => onNavegar(item.tela)}
+            className="bg-white rounded-xl p-6 shadow-sm border border-gray-100 cursor-pointer flex flex-col gap-3 text-left transition-all duration-200 hover:shadow-md hover:border-gray-200 hover:-translate-y-0.5 group"
           >
-            <div className="w-12 h-12 rounded-full bg-indigo-50 flex items-center justify-center shrink-0 group-hover:bg-indigo-100 transition-colors">
-              <PackageOpen size={20} className="text-indigo-600" />
+            <div className={`w-11 h-11 rounded-xl flex items-center justify-center ${item.iconBgClass} transition-transform duration-200 group-hover:scale-110`}>
+              <item.Icon size={20} color={item.iconColor} />
             </div>
-            <div className="flex-1">
-              <p className="text-sm font-bold text-gray-900">Registrar Produção</p>
-              <p className="text-xs text-gray-500 mt-0.5">Apontar lote diário finalizado</p>
+            <div className="flex flex-col gap-1">
+              <p className="text-sm font-semibold text-gray-800">{item.titulo}</p>
+              <p className="text-xs text-gray-500 leading-relaxed">{item.descricao}</p>
             </div>
-            <ArrowRight size={18} className="text-gray-300 group-hover:text-indigo-600 transition-colors" />
+            <div className="mt-auto pt-2 flex items-center gap-1 text-xs font-semibold text-brand group-hover:gap-2 transition-all duration-200">
+              {item.btnLabel}
+              <ArrowRight size={13} />
+            </div>
           </button>
-
-          <button
-            onClick={() => onNavegar('despesas')}
-            className="group relative overflow-hidden bg-white rounded-xl p-5 shadow-sm border border-gray-200 text-left transition-all hover:shadow-md hover:border-gray-300 flex items-center gap-4 cursor-pointer"
-          >
-            <div className="w-12 h-12 rounded-full bg-rose-50 flex items-center justify-center shrink-0 group-hover:bg-rose-100 transition-colors">
-              <Banknote size={20} className="text-rose-600" />
-            </div>
-            <div className="flex-1">
-              <p className="text-sm font-bold text-gray-900">Lançar Despesa</p>
-              <p className="text-xs text-gray-500 mt-0.5">Registrar novo custo ou conta paga</p>
-            </div>
-            <ArrowRight size={18} className="text-gray-300 group-hover:text-rose-600 transition-colors" />
-          </button>
-
-          <button
-            onClick={() => onNavegar('estoque')}
-            className="group relative overflow-hidden bg-white rounded-xl p-5 shadow-sm border border-gray-200 text-left transition-all hover:shadow-md hover:border-gray-300 flex items-center gap-4 cursor-pointer"
-          >
-            <div className="w-12 h-12 rounded-full bg-emerald-50 flex items-center justify-center shrink-0 group-hover:bg-emerald-100 transition-colors">
-              <Archive size={20} className="text-emerald-600" />
-            </div>
-            <div className="flex-1">
-              <p className="text-sm font-bold text-gray-900">Ajustar Estoque</p>
-              <p className="text-xs text-gray-500 mt-0.5">Registrar entrada ou saída manual</p>
-            </div>
-            <ArrowRight size={18} className="text-gray-300 group-hover:text-emerald-600 transition-colors" />
-          </button>
-
-        </div>
-      </section>
-
+        ))}
+      </div>
     </div>
   );
 }
