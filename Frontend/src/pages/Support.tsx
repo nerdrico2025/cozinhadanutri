@@ -1,6 +1,7 @@
 import { Mail, Clock, CheckCircle, AlertCircle } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { getSupportConfig, SupportConfig } from '../services/supportService';
+import { UsuarioLogado } from '../types';
 
 /* Ícone SVG real do WhatsApp */
 function WhatsAppIcon({ size = 24, className = '' }: { size?: number; className?: string }) {
@@ -24,9 +25,10 @@ function EmailIcon({ size = 24, className = '' }: { size?: number; className?: s
 
 interface SupportProps {
   onNavegar?: (tela: any) => void;
+  usuario?: UsuarioLogado | null;
 }
 
-export function Support({ onNavegar }: SupportProps): JSX.Element {
+export function Support({ onNavegar, usuario }: SupportProps): JSX.Element {
   const [config, setConfig] = useState<SupportConfig>(getSupportConfig());
 
   useEffect(() => {
@@ -34,6 +36,8 @@ export function Support({ onNavegar }: SupportProps): JSX.Element {
     window.addEventListener('support_updated', handleUpdate);
     return () => window.removeEventListener('support_updated', handleUpdate);
   }, []);
+
+  const isProfissional = usuario?.planoAtual === 'profissional' || usuario?.planoAtual === 'empresarial';
 
   const canais = [
     {
@@ -52,22 +56,29 @@ export function Support({ onNavegar }: SupportProps): JSX.Element {
       prazo: 'Resposta em até 48 horas úteis',
       PrazoIcon: Clock,
       prazoColor: 'text-gray-400',
+      extraButton: undefined as { label: string; link: string } | undefined,
     },
-    {
-      titulo: 'WhatsApp',
-      descricao: 'Prefere algo mais rápido? Fale pelo WhatsApp para dúvidas ágeis e suporte em tempo real.',
-      contato: config.whatsapp,
-      link: `https://wa.me/${config.whatsapp.replace(/\D/g, '')}`,
-      labelLink: 'Abrir WhatsApp',
-      Icon: WhatsAppIcon,
-      iconBg: 'bg-green-50',
-      iconColor: 'text-green-600',
-      accentBorder: 'border-t-green-500',
-      btnClass: 'bg-green-500 hover:bg-green-600 text-white',
-      prazo: 'Resposta em até 4 horas úteis',
-      PrazoIcon: CheckCircle,
-      prazoColor: 'text-green-500',
-    },
+    ...(isProfissional ? [
+      {
+        titulo: 'WhatsApp',
+        descricao: 'Prefere algo mais rápido? Fale pelo WhatsApp para dúvidas ágeis e suporte em tempo real.',
+        contato: config.whatsapp,
+        link: `https://wa.me/${config.whatsapp.replace(/\D/g, '')}`,
+        labelLink: 'Abrir WhatsApp',
+        Icon: WhatsAppIcon,
+        iconBg: 'bg-green-50',
+        iconColor: 'text-green-600',
+        accentBorder: 'border-t-green-500',
+        btnClass: 'bg-green-500 hover:bg-green-600 text-white',
+        prazo: 'Resposta em até 4 horas úteis',
+        PrazoIcon: CheckCircle,
+        prazoColor: 'text-green-500',
+        extraButton: {
+          label: 'Entrar na Comunidade',
+          link: '#'
+        }
+      }
+    ] : [])
   ];
 
   const horarios = [
@@ -99,7 +110,7 @@ export function Support({ onNavegar }: SupportProps): JSX.Element {
       </div>
 
       {/* Canais de contato */}
-      <div className="max-w-4xl mx-auto grid grid-cols-1 sm:grid-cols-2 gap-6 mb-8">
+      <div className={`max-w-4xl mx-auto grid grid-cols-1 ${canais.length === 1 ? 'sm:grid-cols-1' : 'sm:grid-cols-2'} gap-6 mb-8`}>
         {canais.map((canal) => (
           <div
             key={canal.titulo}
@@ -129,25 +140,37 @@ export function Support({ onNavegar }: SupportProps): JSX.Element {
             </div>
 
             {/* Botão */}
-            {canal.onClick ? (
-              <button
-                onClick={canal.onClick}
-                className={`inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl text-sm font-semibold transition-opacity hover:opacity-90 ${canal.btnClass}`}
-              >
-                <canal.Icon size={16} />
-                {canal.labelLink}
-              </button>
-            ) : (
-              <a
-                href={canal.link}
-                target="_blank"
-                rel="noopener noreferrer"
-                className={`inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl text-sm font-semibold transition-opacity hover:opacity-90 ${canal.btnClass}`}
-              >
-                <canal.Icon size={16} />
-                {canal.labelLink}
-              </a>
-            )}
+            <div className="flex flex-col gap-3">
+              {canal.onClick ? (
+                <button
+                  onClick={canal.onClick}
+                  className={`inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl text-sm font-semibold transition-opacity hover:opacity-90 w-full ${canal.btnClass}`}
+                >
+                  <canal.Icon size={16} />
+                  {canal.labelLink}
+                </button>
+              ) : (
+                <a
+                  href={canal.link}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className={`inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl text-sm font-semibold transition-opacity hover:opacity-90 w-full ${canal.btnClass}`}
+                >
+                  <canal.Icon size={16} />
+                  {canal.labelLink}
+                </a>
+              )}
+              {canal.extraButton && (
+                <a
+                  href={canal.extraButton.link}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl text-sm font-semibold border-2 border-green-500 text-green-600 hover:bg-green-50 transition-colors w-full"
+                >
+                  {canal.extraButton.label}
+                </a>
+              )}
+            </div>
           </div>
         ))}
       </div>

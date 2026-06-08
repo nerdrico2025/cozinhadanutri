@@ -20,6 +20,7 @@ import { Inventory } from './components/Inventory';
 import { CadastroIngrediente } from './components/IngredientRegistration';
 import { ListaIngredientes } from './components/IngredientsList';
 import { RotuloNutricional } from './components/NutritionalLabel';
+import { ProductionRegister } from './components/ProductionRegister';
 import { PostRegisterPlans } from './pages/PostRegisterPlans';
 import { Terms } from './pages/Terms';
 import { Privacy } from './pages/Privacy';
@@ -28,7 +29,8 @@ import { login, registrar, getSessao, encerrarSessao, atualizarPerfil, resetPass
 import { listarAlimentos, salvarAlimento, excluirAlimento } from './services/alimentos';
 import { salvarReceita, excluirReceita, listarReceitas } from './services/receitas';
 import { calcularCustosReceita, calcularNutrientesTotais, calcularDadosNutricionaisPorPorcao } from './utils/calculations';
-import {Footer} from './components/Footer';
+import { Footer } from './components/Footer';
+import { Sidebar } from './components/Sidebar';
 import ConfiguracaoVisual from './pages/configuracaovisual/edicaodinamicadecampos';
 import { Etiqueta } from './pages/Etiqueta';
 import './App.css';
@@ -44,6 +46,7 @@ type TelaAtiva =
   | 'estoque'
   | 'refeicao'
   | 'despesas'
+  | 'producao'
   | 'estatisticas'
   | 'aulas'
   | 'login'
@@ -66,7 +69,7 @@ type TelaAtiva =
 const validTelas: TelaAtiva[] = [
   'home', 'login', 'register', 'esqueci-senha', 'perfil',
   'dashboard', 'receitas', 'criar-receita', 'cadastro-ingrediente',
-  'lista-ingredientes', 'refeicao', 'despesas', 'estatisticas', 'aulas', 'planos', 'faq', 'suporte', 'termos', 'privacidade', 'pagamento', 'adm', 'boas-vindas', 'not-found', 'configuracaovisual', 'etiqueta'
+  'lista-ingredientes', 'refeicao', 'despesas', 'producao', 'estatisticas', 'aulas', 'planos', 'faq', 'suporte', 'termos', 'privacidade', 'pagamento', 'adm', 'boas-vindas', 'not-found', 'configuracaovisual', 'etiqueta'
 ];
 
 const getTelaFromHash = (): TelaAtiva => {
@@ -523,6 +526,8 @@ function App() {
         );
       case 'despesas':
         return <ExpenseControl onVoltar={() => setTelaAtiva('dashboard')} />;
+      case 'producao':
+        return <ProductionRegister onVoltar={() => setTelaAtiva('dashboard')} refeicoes={refeicoes} />;
       case 'estoque':
         return <Inventory onVoltar={() => setTelaAtiva('dashboard')} onIrParaIngredientes={() => setTelaAtiva('cadastro-ingrediente')} />;
       case 'estatisticas':
@@ -724,7 +729,7 @@ function App() {
       case 'planos':
         return <Planos onNavegar={setTelaAtiva} onAssinarPlano={handleAssinarPlano} usuario={usuario} />;
       case 'suporte':
-        return <Support />;
+        return <Support usuario={usuario} />;
       case 'faq':
         return <FAQ onNavegar={setTelaAtiva} />;
       case 'pagamento':
@@ -755,6 +760,26 @@ function App() {
         return <Home onIrParaRegister={() => setTelaAtiva('register')} onIrParaPlanos={() => setTelaAtiva('planos')} />;
     }
   };
+
+  const isLoggedApp = usuario && usuario.role !== 'admin' && !publicTelas.includes(telaAtiva) && telaAtiva !== 'pagamento' && telaAtiva !== 'configuracaovisual' && telaAtiva !== 'adm';
+
+  if (isLoggedApp) {
+    return (
+      <div className="min-h-screen bg-gray-100 flex md:flex-row flex-col">
+        <Sidebar telaAtiva={telaAtiva} onNavegar={setTelaAtiva} onSair={handleSair} usuario={usuario} />
+        <main className="flex-1 w-full md:mt-0 mt-16 overflow-y-auto">
+          {renderTela()}
+        </main>
+        {receitaParaRotulo && (
+          <RotuloNutricional
+            receita={receitaParaRotulo}
+            onFechar={() => setReceitaParaRotulo(null)}
+            onImprimir={() => window.print()}
+          />
+        )}
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-100 flex flex-col">

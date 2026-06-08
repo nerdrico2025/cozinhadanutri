@@ -63,9 +63,9 @@ interface InventoryProps {
 const inputCls = (hasError?: boolean) =>
   `w-full px-0 py-2.5 bg-transparent border-0 border-b-2 ${
     hasError
-      ? "border-red-300 focus:border-red-500"
-      : "border-gray-200 focus:border-gray-900"
-  } text-base text-gray-900 placeholder-gray-400 focus:ring-0 transition-colors`;
+      ? "border-red-300 focus:border-red-300"
+      : "border-gray-200 focus:border-gray-200"
+  } text-base text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-0 transition-colors`;
 
 const labelCls = "block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1";
 
@@ -173,8 +173,7 @@ export function Inventory({ onVoltar, onIrParaIngredientes }: InventoryProps) {
 
   // Modal State
   const [modalAberto, setModalAberto] = useState(false);
-  const [modalCadastroAberto, setModalCadastroAberto] = useState(false);
-  const [modalAlertaAberto, setModalAlertaAberto] = useState(false);
+  const [mostrarFormInline, setMostrarFormInline] = useState(false);
   const [itemSelecionado, setItemSelecionado] = useState<ItemEstoque | null>(null);
   const [itemEmEdicao, setItemEmEdicao] = useState<ItemEstoque | null>(null);
   const [loteEmEdicao, setLoteEmEdicao] = useState<Lote | null>(null);
@@ -223,7 +222,7 @@ export function Inventory({ onVoltar, onIrParaIngredientes }: InventoryProps) {
     return { qtdTotal, custoMedio };
   };
 
-  const fecharModalCadastro = () => {
+  const fecharFormInline = () => {
     reset({
       nome: "",
       categoria: "Embalagem",
@@ -236,7 +235,7 @@ export function Inventory({ onVoltar, onIrParaIngredientes }: InventoryProps) {
     });
     setItemEmEdicao(null);
     setLoteEmEdicao(null);
-    setModalCadastroAberto(false);
+    setMostrarFormInline(false);
   };
 
   const abrirEdicaoLote = (item: ItemEstoque, lote: Lote) => {
@@ -257,7 +256,7 @@ export function Inventory({ onVoltar, onIrParaIngredientes }: InventoryProps) {
         dataValidade: lote.dataValidade,
         fornecedor: lote.fornecedor || ''
       });
-      setModalCadastroAberto(true);
+      setMostrarFormInline(true);
     }
   };
 
@@ -327,7 +326,7 @@ export function Inventory({ onVoltar, onIrParaIngredientes }: InventoryProps) {
         return item;
       }));
 
-      fecharModalCadastro();
+      fecharFormInline();
       return;
     }
 
@@ -391,7 +390,7 @@ export function Inventory({ onVoltar, onIrParaIngredientes }: InventoryProps) {
       novosItens = [novoItem, ...novosItens];
     }
 
-    fecharModalCadastro();
+    fecharFormInline();
   };
 
   const handleRemover = (id: string) => {
@@ -610,14 +609,135 @@ export function Inventory({ onVoltar, onIrParaIngredientes }: InventoryProps) {
               
               <div className="px-8 py-6 border-b border-gray-100 flex items-center justify-between">
                 <h4 className="text-xl font-bold text-gray-900 tracking-tight">Rastreamento de Lotes</h4>
-                <button
-                  onClick={() => setModalAlertaAberto(true)}
-                  className="px-4 py-2 rounded-xl bg-gray-900 hover:bg-gray-800 text-white font-bold text-sm transition-colors cursor-pointer border-0 flex items-center gap-2 shadow-sm"
-                >
-                  <Plus size={16} />
-                  Cadastrar Insumo
-                </button>
+                {!mostrarFormInline && (
+                  <button
+                    onClick={() => {
+                      setItemEmEdicao(null);
+                      setLoteEmEdicao(null);
+                      setMostrarFormInline(true);
+                    }}
+                    className="px-4 py-2 rounded-xl bg-gray-900 hover:bg-gray-800 text-white font-bold text-sm transition-colors cursor-pointer border-0 flex items-center gap-2 shadow-sm"
+                  >
+                    <Plus size={16} />
+                    Cadastrar Insumo
+                  </button>
+                )}
               </div>
+
+              {/* Formulário Inline */}
+              {mostrarFormInline && (
+                <div className="border-b border-gray-200 bg-gray-50/50 p-8">
+                  <div className="flex items-center justify-between mb-6">
+                    <div>
+                      <h3 className="text-lg font-bold text-gray-900">
+                        {itemEmEdicao ? "Editar Insumo" : "Novo Insumo"}
+                      </h3>
+                      <p className="text-xs text-gray-500 mt-0.5">
+                        {itemEmEdicao ? "Modifique as informações básicas." : "Registre a primeira compra no sistema."}
+                      </p>
+                    </div>
+                    <button 
+                      onClick={fecharFormInline}
+                      className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-200 text-gray-500 border-0 bg-transparent cursor-pointer transition-colors"
+                    >
+                      <X size={18} />
+                    </button>
+                  </div>
+                  
+                  {!itemEmEdicao && (
+                    <div className="mb-6 bg-amber-50 p-4 rounded-xl border border-amber-100 flex gap-3">
+                      <AlertTriangle size={20} className="text-amber-500 shrink-0 mt-0.5" />
+                      <div className="text-sm text-amber-800 leading-relaxed">
+                        <strong>Atenção:</strong> Ingredientes de receitas (Arroz, Feijão, etc) devem ser cadastrados em <strong className="font-bold">Ingredientes Nutricionais</strong> para puxar a tabela TACO.<br/>
+                        Use este formulário apenas para embalagens, limpeza e afins.
+                        {onIrParaIngredientes && (
+                          <button 
+                            type="button"
+                            onClick={onIrParaIngredientes} 
+                            className="ml-2 underline font-bold text-amber-900 hover:text-amber-700 bg-transparent border-none cursor-pointer p-0"
+                          >
+                            Cadastrar Ingrediente (TACO)
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  <form onSubmit={handleSubmit(onAddItem)} className="space-y-6 max-w-3xl">
+                  
+                    <div>
+                      <label className={labelCls}>Nome do Item</label>
+                      <input {...register("nome")} list="sugestoes-nomes" placeholder="Ex: Arroz Branco Tipo 1" className={inputCls(!!errors.nome)} autoFocus />
+                      <datalist id="sugestoes-nomes">
+                        {itens.map(i => <option key={i.id} value={i.nome} />)}
+                      </datalist>
+                      {errors.nome && <p className="text-red-500 text-xs mt-1">{errors.nome.message as string}</p>}
+                    </div>
+
+                    <div className="flex gap-5">
+                      <div className="flex-1">
+                        <label className={labelCls}>Categoria</label>
+                        <select {...register("categoria")} className={inputCls(!!errors.categoria)}>
+                          {CATEGORIAS_ESTOQUE.map(c => <option key={c} value={c}>{c}</option>)}
+                        </select>
+                      </div>
+                      <div className="w-24">
+                        <label className={labelCls}>Unid.</label>
+                        <select {...register("unidade")} className={inputCls(!!errors.unidade)}>
+                          <option value="kg">kg</option>
+                          <option value="g">g</option>
+                          <option value="l">l</option>
+                          <option value="ml">ml</option>
+                          <option value="unidade">unid.</option>
+                          <option value="caixa">caixa</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    <div className="flex gap-5">
+                      <div className="flex-1">
+                        <label className={labelCls}>Qtd Atual</label>
+                        <input type="number" min={0} step="any" {...register("quantidadeAtual", { valueAsNumber: true })} className={inputCls(!!errors.quantidadeAtual)} />
+                      </div>
+                      <div className="flex-1">
+                        <label className={labelCls}>Alerta (Mín)</label>
+                        <input type="number" min={0} step="any" {...register("estoqueMinimo", { valueAsNumber: true })} className={inputCls(!!errors.estoqueMinimo)} />
+                      </div>
+                    </div>
+
+                    <div className="flex gap-5">
+                      <div className="flex-1">
+                        <label className={labelCls}>Custo Atual (R$)</label>
+                        <input type="number" min={0} step={0.01} {...register("custoMedio", { valueAsNumber: true })} className={inputCls(!!errors.custoMedio)} placeholder="0.00" />
+                      </div>
+                      {Number(quantidadeAtualWatcher) > 0 && (
+                        <div className="flex-1">
+                          <label className={labelCls}>Validade (Lote)</label>
+                          <input type="date" {...register("dataValidade")} className={inputCls(!!errors.dataValidade)} />
+                        </div>
+                      )}
+                    </div>
+
+                    {Number(quantidadeAtualWatcher) > 0 && (
+                      <div>
+                        <label className={labelCls}>Fornecedor (Opcional)</label>
+                        <input type="text" {...register("fornecedor")} placeholder="Nome do Fornecedor" className={inputCls(!!errors.fornecedor)} />
+                      </div>
+                    )}
+
+                    <div className="pt-6">
+                      <button
+                        type="submit"
+                        className="w-full h-14 rounded-xl bg-gray-900 hover:bg-gray-800 text-white font-bold text-base transition-colors cursor-pointer border-0 flex items-center justify-center gap-2 shadow-sm"
+                      >
+                        {itemEmEdicao ? <Pencil size={20} /> : <Plus size={20} />}
+                        {itemEmEdicao ? "Salvar Alterações" : "Cadastrar Insumo"}
+                      </button>
+                    </div>
+
+                  </form>
+                </div>
+              )}
 
               {/* Toolbar */}
               {itens.length > 0 && (
@@ -630,7 +750,7 @@ export function Inventory({ onVoltar, onIrParaIngredientes }: InventoryProps) {
                       placeholder="Buscar insumo ou fornecedor..."
                       value={termoBusca}
                       onChange={e => setTermoBusca(e.target.value)}
-                      className="w-full pl-9 pr-4 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-gray-900 focus:ring-1 focus:ring-gray-900 transition-colors"
+                      className="w-full pl-9 pr-4 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-0 focus:border-gray-200 transition-colors"
                     />
                   </div>
 
@@ -641,7 +761,7 @@ export function Inventory({ onVoltar, onIrParaIngredientes }: InventoryProps) {
                       <select
                         value={filtroCategoria}
                         onChange={e => setFiltroCategoria(e.target.value)}
-                        className="w-full pl-9 pr-8 py-2 bg-white border border-gray-200 rounded-lg text-sm appearance-none focus:outline-none focus:border-gray-900 focus:ring-1 focus:ring-gray-900 transition-colors"
+                        className="w-full pl-9 pr-8 py-2 bg-white border border-gray-200 rounded-lg text-sm appearance-none focus:outline-none focus:ring-0 focus:border-gray-200 transition-colors"
                       >
                         <option value="">Todas as Categorias</option>
                         {CATEGORIAS_ESTOQUE.map(c => <option key={c} value={c}>{c}</option>)}
@@ -654,7 +774,7 @@ export function Inventory({ onVoltar, onIrParaIngredientes }: InventoryProps) {
                       <select
                         value={ordenarPor}
                         onChange={e => setOrdenarPor(e.target.value)}
-                        className="w-full pl-9 pr-8 py-2 bg-white border border-gray-200 rounded-lg text-sm appearance-none focus:outline-none focus:border-gray-900 focus:ring-1 focus:ring-gray-900 transition-colors"
+                        className="w-full pl-9 pr-8 py-2 bg-white border border-gray-200 rounded-lg text-sm appearance-none focus:outline-none focus:ring-0 focus:border-gray-200 transition-colors"
                       >
                         <option value="nome-asc">Nome (A-Z)</option>
                         <option value="nome-desc">Nome (Z-A)</option>
@@ -917,7 +1037,7 @@ export function Inventory({ onVoltar, onIrParaIngredientes }: InventoryProps) {
                     value={qtdMovimento}
                     onChange={e => setQtdMovimento(e.target.value === '' ? '' : Number(e.target.value))}
                     placeholder="0"
-                    className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-lg font-semibold text-gray-900 focus:outline-none focus:border-gray-900 focus:ring-1 focus:ring-gray-900 transition-colors"
+                    className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-lg font-semibold text-gray-900 focus:outline-none focus:ring-0 focus:border-gray-200 transition-colors"
                     autoFocus
                   />
                 </div>
@@ -932,7 +1052,7 @@ export function Inventory({ onVoltar, onIrParaIngredientes }: InventoryProps) {
                         value={custoMovimento}
                         onChange={e => setCustoMovimento(e.target.value === '' ? '' : Number(e.target.value))}
                         placeholder="0.00"
-                        className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-lg font-semibold text-gray-900 focus:outline-none focus:border-gray-900 focus:ring-1 focus:ring-gray-900 transition-colors"
+                        className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-lg font-semibold text-gray-900 focus:outline-none focus:ring-0 focus:border-gray-200 transition-colors"
                       />
                     </div>
                     <div>
@@ -941,7 +1061,7 @@ export function Inventory({ onVoltar, onIrParaIngredientes }: InventoryProps) {
                         type="date" 
                         value={validadeMovimento}
                         onChange={e => setValidadeMovimento(e.target.value)}
-                        className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm font-semibold text-gray-900 focus:outline-none focus:border-gray-900 focus:ring-1 focus:ring-gray-900 transition-colors"
+                        className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm font-semibold text-gray-900 focus:outline-none focus:ring-0 focus:border-gray-200 transition-colors"
                       />
                     </div>
                   </div>
@@ -955,7 +1075,7 @@ export function Inventory({ onVoltar, onIrParaIngredientes }: InventoryProps) {
                       value={fornecedorMovimento}
                       onChange={e => setFornecedorMovimento(e.target.value)}
                       placeholder="Nome do Fornecedor"
-                      className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-lg font-semibold text-gray-900 focus:outline-none focus:border-gray-900 focus:ring-1 focus:ring-gray-900 transition-colors"
+                      className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-lg font-semibold text-gray-900 focus:outline-none focus:ring-0 focus:border-gray-200 transition-colors"
                     />
                   </div>
                 )}
@@ -984,151 +1104,7 @@ export function Inventory({ onVoltar, onIrParaIngredientes }: InventoryProps) {
         </div>
       )}
 
-      {/* ── Modal Flutuante para Novo Insumo ───────────────────────────── */}
-      {modalCadastroAberto && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/40 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-          <div className="bg-white rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
-            
-            <div className="px-6 py-5 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
-              <div>
-                <h3 className="text-lg font-bold text-gray-900">
-                  {itemEmEdicao ? "Editar Insumo" : "Novo Insumo"}
-                </h3>
-                <p className="text-xs text-gray-500 mt-0.5">
-                  {itemEmEdicao ? "Modifique as informações básicas." : "Registre a primeira compra no sistema."}
-                </p>
-              </div>
-              <button 
-                onClick={fecharModalCadastro}
-                className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-200 text-gray-500 border-0 bg-transparent cursor-pointer transition-colors"
-              >
-                <X size={18} />
-              </button>
-            </div>
 
-            <div className="p-6 max-h-[80vh] overflow-y-auto">
-              <form onSubmit={handleSubmit(onAddItem)} className="space-y-6">
-              
-                <div>
-                  <label className={labelCls}>Nome do Item</label>
-                  <input {...register("nome")} list="sugestoes-nomes" placeholder="Ex: Arroz Branco Tipo 1" className={inputCls(!!errors.nome)} autoFocus />
-                  <datalist id="sugestoes-nomes">
-                    {itens.map(i => <option key={i.id} value={i.nome} />)}
-                  </datalist>
-                  {errors.nome && <p className="text-red-500 text-xs mt-1">{errors.nome.message as string}</p>}
-                </div>
-
-                <div className="flex gap-5">
-                  <div className="flex-1">
-                    <label className={labelCls}>Categoria</label>
-                    <select {...register("categoria")} className={inputCls(!!errors.categoria)}>
-                      {CATEGORIAS_ESTOQUE.map(c => <option key={c} value={c}>{c}</option>)}
-                    </select>
-                  </div>
-                  <div className="w-24">
-                    <label className={labelCls}>Unid.</label>
-                    <select {...register("unidade")} className={inputCls(!!errors.unidade)}>
-                      <option value="kg">kg</option>
-                      <option value="g">g</option>
-                      <option value="l">l</option>
-                      <option value="ml">ml</option>
-                      <option value="unidade">unid.</option>
-                      <option value="caixa">caixa</option>
-                    </select>
-                  </div>
-                </div>
-
-                <div className="flex gap-5">
-                  <div className="flex-1">
-                    <label className={labelCls}>Qtd Atual</label>
-                    <input type="number" min={0} step="any" {...register("quantidadeAtual", { valueAsNumber: true })} className={inputCls(!!errors.quantidadeAtual)} />
-                  </div>
-                  <div className="flex-1">
-                    <label className={labelCls}>Alerta (Mín)</label>
-                    <input type="number" min={0} step="any" {...register("estoqueMinimo", { valueAsNumber: true })} className={inputCls(!!errors.estoqueMinimo)} />
-                  </div>
-                </div>
-
-                <div className="flex gap-5">
-                  <div className="flex-1">
-                    <label className={labelCls}>Custo Atual (R$)</label>
-                    <input type="number" min={0} step={0.01} {...register("custoMedio", { valueAsNumber: true })} className={inputCls(!!errors.custoMedio)} placeholder="0.00" />
-                  </div>
-                  {Number(quantidadeAtualWatcher) > 0 && (
-                    <div className="flex-1">
-                      <label className={labelCls}>Validade (Lote)</label>
-                      <input type="date" {...register("dataValidade")} className={inputCls(!!errors.dataValidade)} />
-                    </div>
-                  )}
-                </div>
-
-                {Number(quantidadeAtualWatcher) > 0 && (
-                  <div>
-                    <label className={labelCls}>Fornecedor (Opcional)</label>
-                    <input type="text" {...register("fornecedor")} placeholder="Nome do Fornecedor" className={inputCls(!!errors.fornecedor)} />
-                  </div>
-                )}
-
-                <div className="pt-6">
-                  <button
-                    type="submit"
-                    className="w-full h-14 rounded-xl bg-gray-900 hover:bg-gray-800 text-white font-bold text-base transition-colors cursor-pointer border-0 flex items-center justify-center gap-2 shadow-sm"
-                  >
-                    {itemEmEdicao ? <Pencil size={20} /> : <Plus size={20} />}
-                    {itemEmEdicao ? "Salvar Alterações" : "Cadastrar Insumo"}
-                  </button>
-                </div>
-
-              </form>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ── Custom Alert Modal ───────────────────────────── */}
-      {modalAlertaAberto && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-gray-900/40 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-          <div className="bg-white rounded-3xl w-full max-w-sm shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200 text-center p-8 flex flex-col items-center">
-            <div className="w-16 h-16 bg-amber-100 rounded-full flex items-center justify-center mb-6 shadow-inner">
-              <AlertTriangle size={32} className="text-amber-500" />
-            </div>
-            
-            <h3 className="text-2xl font-black text-gray-900 mb-2 tracking-tight">Atenção</h3>
-            <p className="text-sm font-medium text-gray-500 mb-8 leading-relaxed px-2">
-              Ingredientes de receitas (Arroz, Feijão, etc) devem ser cadastrados no menu <strong className="text-gray-900">Ingredientes Nutricionais</strong> para puxar a tabela TACO.<br/><br/>
-              Use este formulário apenas para limpeza, embalagens e afins.
-            </p>
-            
-            <button 
-              onClick={() => {
-                setModalAlertaAberto(false);
-                if (onIrParaIngredientes) {
-                  onIrParaIngredientes();
-                }
-              }}
-              className="w-full py-4 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-base font-bold transition-all shadow-md hover:shadow-lg active:scale-[0.98] border-0 cursor-pointer mb-3"
-            >
-              Cadastrar Ingrediente (TACO)
-            </button>
-            <button 
-              onClick={() => {
-                setItemEmEdicao(null);
-                setModalAlertaAberto(false);
-                setModalCadastroAberto(true);
-              }}
-              className="w-full py-4 rounded-xl bg-[#04585a] hover:bg-[#034244] text-white text-base font-bold transition-all shadow-md hover:shadow-lg active:scale-[0.98] border-0 cursor-pointer"
-            >
-              Prosseguir com Insumo Manual
-            </button>
-            <button 
-              onClick={() => setModalAlertaAberto(false)}
-              className="mt-3 w-full py-3 rounded-xl bg-transparent hover:bg-gray-100 text-gray-500 font-bold text-sm transition-colors cursor-pointer border-0"
-            >
-              Cancelar
-            </button>
-          </div>
-        </div>
-      )}
 
     </div>
   );
