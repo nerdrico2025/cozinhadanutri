@@ -4,8 +4,8 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import {
   Plus, Trash2, ChefHat, Loader2, Search, ArrowLeft,
-  UtensilsCrossed, TrendingUp, DollarSign, Flame,
-  Beef, Wheat, Droplets, Info, Activity, Scale,
+  UtensilsCrossed, DollarSign, Flame,
+  Beef, Wheat, Droplets, Info, Activity,
   PlusCircle, AlertCircle
 } from "lucide-react";
 
@@ -20,15 +20,25 @@ const receitaSchema = z.object({
   nome: z.string().min(1, "Nome da receita é obrigatório"),
   descricao: z.string().optional(),
   porcoes: z.number().min(1, "Número de porções deve ser maior que zero"),
-  margemLucro: z.number().min(0),
   ingredientes: z
     .array(
       z.object({
         tacoId: z.number().min(1, "Selecione um ingrediente"),
         nome: z.string().min(1),
-        quantidade: z.number().min(0.001, "Quantidade deve ser maior que zero"),
-        preco: z.number().min(0.01, "Informe o preço"),
+        quantidade: z.any().refine((val) => {
+          if (!val) return false;
+          const num = parseFloat(String(val).replace(',', '.'));
+          return !isNaN(num) && num > 0;
+        }, "Quantidade inválida"),
+        preco: z.any().refine((val) => {
+          if (val === undefined || val === null || val === '') return true;
+          const num = parseFloat(String(val).replace(',', '.'));
+          return !isNaN(num) && num >= 0;
+        }, "Informe o preço").optional(),
         unidade: z.string().optional(),
+        baseUnidade: z.string().optional(),
+        cadastrado: z.boolean().optional(),
+        precoBase: z.number().optional(),
       })
     )
     .min(1, "Adicione pelo menos um ingrediente"),
@@ -98,8 +108,7 @@ export function CriarReceita({ receitaInicial, onSalvar, onCancelar, onSolicitar
       resolver: zodResolver(receitaSchema),
       defaultValues: receitaInicial ?? {
         porcoes: 1,
-        margemLucro: 10,
-        ingredientes: [{ tacoId: 0, nome: "", quantidade: 0, preco: 0, unidade: "g" }],
+        ingredientes: [{ tacoId: 0, nome: "", quantidade: 0, preco: 0, unidade: "g", baseUnidade: "g", cadastrado: false, precoBase: 0 }],
       },
     });
 
@@ -114,24 +123,30 @@ export function CriarReceita({ receitaInicial, onSalvar, onCancelar, onSolicitar
 
   const watchedIngredientes = watch("ingredientes");
   const watchedPorcoes = watch("porcoes");
-  const watchedMargemLucro = watch("margemLucro");
 
   const executarCalculos = useCallback(() => {
     const currentValues = getValues();
     const porcoesVal = currentValues.porcoes ?? 1;
-    const margemLucroVal = currentValues.margemLucro ?? 0;
+    const margemLucroVal = 0;
     const ingredientesList = currentValues.ingredientes ?? [];
 
-    const validos = ingredientesList.filter(
-      (i) => i && i.tacoId && i.quantidade > 0 && i.preco >= 0
-    );
+    const validos = ingredientesList.filter((i) => {
+      const qtd = parseFloat(String(i.quantidade).replace(',', '.'));
+      const p = parseFloat(String(i.precoBase || i.preco || 0).replace(',', '.'));
+      return i && i.tacoId && !isNaN(qtd) && qtd > 0 && !isNaN(p) && p >= 0;
+    });
     if (validos.length === 0 || porcoesVal <= 0) {
       setCalculos(null);
       return;
     }
 
     const custos = calcularCustosReceita(
-      validos.map(v => ({ quantidade: v.quantidade, preco: v.preco, unidade: v.unidade })), 
+      validos.map(v => ({ 
+        quantidade: parseFloat(String(v.quantidade).replace(',', '.')), 
+        preco: parseFloat(String(v.preco).replace(',', '.')), 
+        unidade: v.unidade, 
+        baseUnidade: v.baseUnidade 
+      })), 
       porcoesVal, 
       margemLucroVal
     );
@@ -150,11 +165,12 @@ export function CriarReceita({ receitaInicial, onSalvar, onCancelar, onSolicitar
       const ingredienteCompleto = searchResult?.originalData as Ingrediente | undefined;
       
       if (ingredienteCompleto?.dadosNutricionais) {
-        let proporcao = item.quantidade / 100;
+        const qtd = parseFloat(String(item.quantidade).replace(',', '.'));
+        let proporcao = qtd / 100;
         if (item.unidade === 'kg' || item.unidade === 'l') {
-          proporcao = item.quantidade * 10;
+          proporcao = qtd * 10;
         } else if (item.unidade === 'unidade') {
-          proporcao = item.quantidade;
+          proporcao = qtd;
         }
 
         Object.keys(totais).forEach((key) => {
@@ -176,7 +192,7 @@ export function CriarReceita({ receitaInicial, onSalvar, onCancelar, onSolicitar
 
   useEffect(() => {
     executarCalculos();
-  }, [watchedIngredientes, watchedPorcoes, watchedMargemLucro, executarCalculos]);
+  }, [watchedIngredientes, watchedPorcoes, executarCalculos]);
 
   const updateRow = useCallback((index: number, patch: Partial<RowSearch>) => {
     setRowSearches((prev) => prev.map((r, i) => (i === index ? { ...r, ...patch } : r)));
@@ -247,7 +263,10 @@ export function CriarReceita({ receitaInicial, onSalvar, onCancelar, onSolicitar
     setValue(`ingredientes.${index}.tacoId`, Number(result.id), { shouldValidate: true });
     setValue(`ingredientes.${index}.nome`, result.nome, { shouldValidate: true });
     setValue(`ingredientes.${index}.preco`, result.preco || 0.00, { shouldValidate: true });
+    setValue(`ingredientes.${index}.precoBase`, result.preco || 0.00, { shouldValidate: true });
     setValue(`ingredientes.${index}.unidade`, unidade, { shouldValidate: true });
+    setValue(`ingredientes.${index}.baseUnidade`, unidade, { shouldValidate: true });
+    setValue(`ingredientes.${index}.cadastrado`, result.cadastrado, { shouldValidate: true });
     updateRow(index, { query: result.nome, results: [result], open: false });
   };
 
@@ -260,13 +279,14 @@ export function CriarReceita({ receitaInicial, onSalvar, onCancelar, onSolicitar
         nome: currentData.nome,
         descricao: currentData.descricao,
         porcoes: currentData.porcoes,
-        margemLucro: currentData.margemLucro,
+        margemLucro: 0,
         ingredientes: (currentData.ingredientes || []).map((ing) => ({
           tacoId: ing.tacoId,
           nome: ing.nome,
-          quantidade: ing.quantidade,
-          preco: ing.preco,
-          unidade: ing.unidade as Unidade
+          quantidade: parseFloat(String(ing.quantidade).replace(',', '.')),
+          preco: parseFloat(String(ing.preco).replace(',', '.')),
+          unidade: ing.unidade as Unidade,
+          baseUnidade: ing.baseUnidade as Unidade || ing.unidade as Unidade
         })),
         custoTotal: calculos?.custoTotal || 0,
         custoPorPorcao: calculos?.custoPorPorcao || 0,
@@ -292,17 +312,23 @@ export function CriarReceita({ receitaInicial, onSalvar, onCancelar, onSolicitar
     if (!calculos) return;
     setSalvando(true);
     try {
-      const custos = calcularCustosReceita(data.ingredientes as IngredienteReceita[], data.porcoes, data.margemLucro);
+      const ingredientesComNumeros = (data.ingredientes as any[]).map(i => ({
+        ...i,
+        quantidade: parseFloat(String(i.quantidade).replace(',', '.')),
+        preco: parseFloat(String(i.preco).replace(',', '.'))
+      })) as IngredienteReceita[];
+
+      const custos = calcularCustosReceita(ingredientesComNumeros, data.porcoes, 0);
       onSalvar({
         id: receitaInicial?.id,
         nome: data.nome,
         descricao: data.descricao,
-        ingredientes: data.ingredientes as IngredienteReceita[],
+        ingredientes: ingredientesComNumeros,
         porcoes: data.porcoes,
         custoTotal: custos.custoTotal,
         custoPorPorcao: custos.custoPorPorcao,
         precoSugerido: custos.precoSugerido,
-        margemLucro: data.margemLucro,
+        margemLucro: 0,
         dadosNutricionaisTotais: calculos.dadosNutricionaisTotais,
         dadosNutricionaisPorPorcao: calculos.dadosNutricionaisPorPorcao,
         createdAt: receitaInicial?.createdAt ?? new Date(),
@@ -407,7 +433,7 @@ export function CriarReceita({ receitaInicial, onSalvar, onCancelar, onSolicitar
                     />
                   </div>
 
-                  <div className="grid grid-cols-2 gap-4">
+                 {/*  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                       <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">
                         Porções <span className="text-red-400">*</span>
@@ -420,19 +446,7 @@ export function CriarReceita({ receitaInicial, onSalvar, onCancelar, onSolicitar
                       />
                       {errors.porcoes && <p className="text-red-500 text-xs mt-1">{errors.porcoes.message}</p>}
                     </div>
-                    <div>
-                      <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">
-                        Margem de Lucro (%)
-                      </label>
-                      <input
-                        type="number"
-                        min={0}
-                        step={5}
-                        {...register("margemLucro", { valueAsNumber: true })}
-                        className={inputCls(!!errors.margemLucro)}
-                      />
-                    </div>
-                  </div>
+                  </div> */}
                 </div>
               </section>
 
@@ -545,38 +559,89 @@ export function CriarReceita({ receitaInicial, onSalvar, onCancelar, onSolicitar
 
                         {/* Quantidade e Preço */}
                         <div className="grid grid-cols-2 gap-3">
-                          <div>
-                            <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">
-                              Quantidade ({watchedIngredientes[index]?.unidade || 'g'})
-                            </label>
-                            <input
-                              type="number"
-                              min={0.001}
-                              step="any"
-                              {...register(`ingredientes.${index}.quantidade`, { valueAsNumber: true })}
-                              placeholder="0"
-                              className={inputCls(!!errosIng?.quantidade)}
-                            />
-                            {errosIng?.quantidade && (
-                              <p className="text-red-500 text-xs mt-1">{errosIng.quantidade.message}</p>
-                            )}
+                          <div className="flex gap-2">
+                            <div className="w-24 shrink-0">
+                              <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">
+                                Unidade
+                              </label>
+                              <select
+                                {...register(`ingredientes.${index}.unidade`)}
+                                className="w-full px-3 py-2.5 border border-gray-200 bg-gray-50 rounded-lg text-sm outline-none box-border transition-colors focus:border-brand focus:ring-1 focus:ring-brand/20 font-semibold text-gray-700 cursor-pointer appearance-none text-center"
+                              >
+                                {(() => {
+                                  const base = watchedIngredientes[index]?.baseUnidade || watchedIngredientes[index]?.unidade || 'g';
+                                  if (base === 'l' || base === 'ml') {
+                                    return (
+                                      <>
+                                        <option value="ml">ml</option>
+                                        <option value="l">l</option>
+                                      </>
+                                    );
+                                  } else if (base === 'kg' || base === 'g') {
+                                    return (
+                                      <>
+                                        <option value="g">g</option>
+                                        <option value="kg">kg</option>
+                                      </>
+                                    );
+                                  } else {
+                                    return <option value={base}>{base === 'unidade' ? 'UN' : base}</option>;
+                                  }
+                                })()}
+                              </select>
+                            </div>
+                            <div className="flex-1">
+                              <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">
+                                Quantidade
+                              </label>
+                              <input
+                                type="text"
+                                inputMode="decimal"
+                                {...register(`ingredientes.${index}.quantidade`)}
+                                placeholder="0"
+                                className={`${inputCls(!!errosIng?.quantidade)} w-full`}
+                              />
+                              {errosIng?.quantidade?.message && typeof errosIng.quantidade.message === 'string' && (
+                                <p className="text-red-500 text-xs mt-1">{errosIng.quantidade.message}</p>
+                              )}
+                            </div>
                           </div>
                           <div>
                             <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">
-                              Preço / {['g', 'ml'].includes(watchedIngredientes[index]?.unidade || 'g') ? '100' : ''}{watchedIngredientes[index]?.unidade === 'unidade' ? 'UN' : watchedIngredientes[index]?.unidade || 'g'} (R$)
+                              {watchedIngredientes[index]?.cadastrado ? 'Custo (R$)' : `Preço / ${['g', 'ml'].includes(watchedIngredientes[index]?.baseUnidade || watchedIngredientes[index]?.unidade || 'g') ? '100' : ''}${watchedIngredientes[index]?.baseUnidade === 'unidade' || watchedIngredientes[index]?.unidade === 'unidade' ? 'UN' : (watchedIngredientes[index]?.baseUnidade || watchedIngredientes[index]?.unidade || 'g')} (R$)`}
                             </label>
                             <div className="relative">
                               <DollarSign size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-                              <input
-                                type="number"
-                                min={0.01}
-                                step={0.01}
-                                {...register(`ingredientes.${index}.preco`, { valueAsNumber: true })}
-                                placeholder="0,00"
-                                className={`${inputCls(!!errosIng?.preco)} pl-8`}
-                              />
+                              {watchedIngredientes[index]?.cadastrado ? (
+                                <div className={`${inputCls(false)} pl-8 bg-emerald-50 text-emerald-700 font-bold flex items-center h-[42px]`}>
+                                  {(() => {
+                                    const ing = watchedIngredientes[index];
+                                    const rawQtd = parseFloat(String(ing?.quantidade || 0).replace(',', '.'));
+                                    const qtd = isNaN(rawQtd) ? 0 : rawQtd;
+                                    const bUnidade = ing?.baseUnidade || ing?.unidade || 'g';
+                                    const rUnidade = ing?.unidade || 'g';
+                                    let qtdConvertida = qtd;
+                                    if (bUnidade === 'l' && rUnidade === 'ml') qtdConvertida = qtd / 1000;
+                                    else if (bUnidade === 'ml' && rUnidade === 'l') qtdConvertida = qtd * 1000;
+                                    else if (bUnidade === 'kg' && rUnidade === 'g') qtdConvertida = qtd / 1000;
+                                    else if (bUnidade === 'g' && rUnidade === 'kg') qtdConvertida = qtd * 1000;
+                                    const fator = (bUnidade === 'kg' || bUnidade === 'l' || bUnidade === 'unidade') ? qtdConvertida : (qtdConvertida / 100);
+                                    const rawPBase = parseFloat(String(ing?.precoBase || 0).replace(',', '.'));
+                                    const pBase = isNaN(rawPBase) ? 0 : rawPBase;
+                                    return (fator * pBase).toFixed(2);
+                                  })()}
+                                </div>
+                              ) : (
+                                <input
+                                  type="text"
+                                  inputMode="decimal"
+                                  {...register(`ingredientes.${index}.preco`)}
+                                  placeholder="0,00"
+                                  className={`${inputCls(!!errosIng?.preco)} pl-8`}
+                                />
+                              )}
                             </div>
-                            {errosIng?.preco && (
+                            {errosIng?.preco?.message && typeof errosIng.preco.message === 'string' && (
                               <p className="text-red-500 text-xs mt-1">{errosIng.preco.message}</p>
                             )}
                           </div>
@@ -585,6 +650,12 @@ export function CriarReceita({ receitaInicial, onSalvar, onCancelar, onSolicitar
                         {/* Hidden fields */}
                         <input type="hidden" {...register(`ingredientes.${index}.tacoId`, { valueAsNumber: true })} />
                         <input type="hidden" {...register(`ingredientes.${index}.nome`)} />
+                        <input type="hidden" {...register(`ingredientes.${index}.baseUnidade`)} />
+                        <input type="hidden" {...register(`ingredientes.${index}.cadastrado`)} />
+                        <input type="hidden" {...register(`ingredientes.${index}.precoBase`)} />
+                        {watchedIngredientes[index]?.cadastrado && (
+                          <input type="hidden" {...register(`ingredientes.${index}.preco`)} />
+                        )}
                       </div>
                     );
                   })}
@@ -595,7 +666,7 @@ export function CriarReceita({ receitaInicial, onSalvar, onCancelar, onSolicitar
                   <button
                     type="button"
                     onClick={() => {
-                      append({ tacoId: 0, nome: "", quantidade: 0, preco: 0, unidade: "g" });
+                      append({ tacoId: 0, nome: "", quantidade: 0, preco: 0, unidade: "g", baseUnidade: "g", cadastrado: false, precoBase: 0 });
                       setRowSearches((prev) => [...prev, emptyRow()]);
                     }}
                     className="w-full flex items-center justify-center gap-2 text-sm text-white bg-emerald-600 hover:bg-emerald-700 py-2.5 rounded-xl border-0 transition-colors cursor-pointer focus:outline-none font-bold shadow-sm"
@@ -657,48 +728,12 @@ export function CriarReceita({ receitaInicial, onSalvar, onCancelar, onSolicitar
                       </div>
                     </div>
 
-                    <div className="space-y-3">
-                      <div className="flex items-center justify-between py-2 border-b border-gray-50">
-                        <span className="text-xs text-gray-500 font-medium">Custo por Porção</span>
-                        <span className="text-sm font-bold text-gray-700">R$ {calculos.custoPorPorcao.toFixed(2)}</span>
+                   {/*  <div className="space-y-3">
+                      <div className="flex items-center justify-between py-2 border-t border-gray-100 pt-3 mt-1">
+                        <span className="text-sm text-gray-600 font-bold">Custo por Porção</span>
+                        <span className="text-lg font-black text-gray-800">R$ {calculos.custoPorPorcao.toFixed(2)}</span>
                       </div>
-                      
-                      <div className="flex items-center justify-between py-2 border-b border-gray-50">
-                        <div className="flex flex-col">
-                          <span className="text-xs text-gray-500 font-medium">Sugestão de Venda</span>
-                          <span className="text-[10px] text-gray-400">Por porção</span>
-                        </div>
-                        <span className="text-sm font-black text-emerald-600">R$ {calculos.precoSugerido.toFixed(2)}</span>
-                      </div>
-
-                      {watchedPorcoes > 1 && (
-                        <div className="flex items-center justify-between py-2 border-b border-gray-50">
-                          <div className="flex flex-col">
-                            <span className="text-xs text-gray-500 font-medium">Sugestão de Venda (Total)</span>
-                            <span className="text-[10px] text-gray-400">Total da receita ({watchedPorcoes} porções)</span>
-                          </div>
-                          <span className="text-sm font-bold text-gray-700">R$ {(calculos.precoSugerido * watchedPorcoes).toFixed(2)}</span>
-                        </div>
-                      )}
-                      
-                      <div className="flex items-center justify-between py-2 bg-emerald-50/50 px-3 rounded-lg">
-                        <div className="flex flex-col">
-                          <span className="text-[10px] text-emerald-600 uppercase font-bold">Lucro / Porção</span>
-                          <span className="text-xs text-emerald-500 font-medium">Margem de {watchedMargemLucro}%</span>
-                        </div>
-                        <span className="text-base font-black text-emerald-600">R$ {calculos.margemLucroReal.toFixed(2)}</span>
-                      </div>
-
-                      {watchedPorcoes > 1 && (
-                        <div className="flex items-center justify-between py-2 bg-[#04585a] text-white px-3 rounded-lg shadow-sm">
-                          <div className="flex flex-col">
-                            <span className="text-[10px] text-teal-100 uppercase font-bold">Lucro Total</span>
-                            <span className="text-xs text-teal-50/70 font-medium">Receita inteira</span>
-                          </div>
-                          <span className="text-base font-black">R$ {(calculos.margemLucroReal * watchedPorcoes).toFixed(2)}</span>
-                        </div>
-                      )}
-                    </div>
+                    </div> */}
                   </div>
                 ) : (
                   <div className="px-5 py-8 text-center">

@@ -46,6 +46,7 @@ export interface IngredienteReceita {
   quantidade: number; // quantidade na unidade escolhida
   preco: number; // preço da unidade inteira (ex: por kg, por l, ou por 100g se g)
   unidade?: Unidade;
+  baseUnidade?: Unidade;
 }
 
 export interface Receita {

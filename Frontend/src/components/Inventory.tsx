@@ -58,6 +58,8 @@ type ItemForm = z.infer<typeof itemSchema>;
 interface InventoryProps {
   onVoltar: () => void;
   onIrParaIngredientes?: () => void;
+  ingredientes?: any[];
+  onAtualizarPrecoIngrediente?: (id: string, novoPreco: number) => Promise<void>;
 }
 
 const inputCls = (hasError?: boolean) =>
@@ -152,7 +154,7 @@ const MOCK_DATA: ItemEstoque[] = [
   }
 ];
 
-export function Inventory({ onVoltar, onIrParaIngredientes }: InventoryProps) {
+export function Inventory({ onVoltar, onIrParaIngredientes, ingredientes, onAtualizarPrecoIngrediente }: InventoryProps) {
   const [itens, setItens] = useState<ItemEstoque[]>(() => {
     try {
       const salvas = localStorage.getItem('estoque_itens');
@@ -178,6 +180,8 @@ export function Inventory({ onVoltar, onIrParaIngredientes }: InventoryProps) {
   const [itemEmEdicao, setItemEmEdicao] = useState<ItemEstoque | null>(null);
   const [loteEmEdicao, setLoteEmEdicao] = useState<Lote | null>(null);
   const [tipoMovimentacao, setTipoMovimentacao] = useState<'entrada' | 'saida'>('entrada');
+  
+  const isIngrediente = itemEmEdicao?.categoria === "Ingrediente" || !!itemEmEdicao?.tacoId;
   
   // Modal Form State
   const [qtdMovimento, setQtdMovimento] = useState<number | ''>('');
@@ -239,25 +243,19 @@ export function Inventory({ onVoltar, onIrParaIngredientes }: InventoryProps) {
   };
 
   const abrirEdicaoLote = (item: ItemEstoque, lote: Lote) => {
-    if (item.categoria === "Ingrediente" || item.tacoId) {
-      if (onIrParaIngredientes) {
-        alert("Para editar este ingrediente, você deve ir até o menu 'Ingredientes Nutricionais'.");
-      }
-    } else {
-      setItemEmEdicao(item);
-      setLoteEmEdicao(lote);
-      reset({
-        nome: item.nome,
-        categoria: String(item.categoria),
-        unidade: String(item.unidade),
-        estoqueMinimo: item.estoqueMinimo,
-        quantidadeAtual: lote.quantidadeAtual,
-        custoMedio: lote.custoUnitario,
-        dataValidade: lote.dataValidade,
-        fornecedor: lote.fornecedor || ''
-      });
-      setMostrarFormInline(true);
-    }
+    setItemEmEdicao(item);
+    setLoteEmEdicao(lote);
+    reset({
+      nome: item.nome,
+      categoria: String(item.categoria),
+      unidade: String(item.unidade),
+      estoqueMinimo: item.estoqueMinimo,
+      quantidadeAtual: lote.quantidadeAtual,
+      custoMedio: lote.custoUnitario,
+      dataValidade: lote.dataValidade,
+      fornecedor: lote.fornecedor || ''
+    });
+    setMostrarFormInline(true);
   };
 
   const handleRemoverLote = (itemId: string, loteId: string) => {
@@ -267,6 +265,10 @@ export function Inventory({ onVoltar, onIrParaIngredientes }: InventoryProps) {
         const novosLotes = (item.lotes || []).filter(l => l.id !== loteId);
         
         if (novosLotes.length === 0) {
+          if (onAtualizarPrecoIngrediente) {
+            const ing = ingredientes?.find(i => (item.tacoId && i.tacoId === item.tacoId) || (i.nome.toLowerCase() === item.nome.toLowerCase()));
+            if (ing) onAtualizarPrecoIngrediente(ing.id, 0);
+          }
           return {
             ...item,
             lotes: [],
@@ -275,6 +277,10 @@ export function Inventory({ onVoltar, onIrParaIngredientes }: InventoryProps) {
           };
         } else {
           const { qtdTotal, custoMedio } = recalcularTotais(novosLotes, item.custoMedio);
+          if (onAtualizarPrecoIngrediente) {
+            const ing = ingredientes?.find(i => (item.tacoId && i.tacoId === item.tacoId) || (i.nome.toLowerCase() === item.nome.toLowerCase()));
+            if (ing) onAtualizarPrecoIngrediente(ing.id, custoMedio);
+          }
           return {
             ...item,
             lotes: novosLotes,
@@ -311,11 +317,15 @@ export function Inventory({ onVoltar, onIrParaIngredientes }: InventoryProps) {
             return l;
           });
           const { qtdTotal, custoMedio } = recalcularTotais(novosLotes, item.custoMedio);
+          if (onAtualizarPrecoIngrediente) {
+            const ing = ingredientes?.find(i => (item.tacoId && i.tacoId === item.tacoId) || (i.nome.toLowerCase() === item.nome.toLowerCase()));
+            if (ing) onAtualizarPrecoIngrediente(ing.id, custoMedio);
+          }
           return {
             ...item,
-            nome: nomeFormatado,
-            categoria: data.categoria,
-            unidade: data.unidade,
+            nome: item.categoria === "Ingrediente" || item.tacoId ? item.nome : nomeFormatado,
+            categoria: item.categoria === "Ingrediente" || item.tacoId ? item.categoria : data.categoria,
+            unidade: item.categoria === "Ingrediente" || item.tacoId ? item.unidade : data.unidade,
             estoqueMinimo: data.estoqueMinimo,
             lotes: novosLotes,
             quantidadeAtual: qtdTotal,
@@ -353,6 +363,10 @@ export function Inventory({ onVoltar, onIrParaIngredientes }: InventoryProps) {
       const novosLotes = [...(itemExistente.lotes || []), ...loteInicial].sort((a, b) => new Date(a.dataValidade).getTime() - new Date(b.dataValidade).getTime());
       
       const { qtdTotal, custoMedio } = recalcularTotais(novosLotes, itemExistente.custoMedio);
+      if (onAtualizarPrecoIngrediente) {
+        const ing = ingredientes?.find(i => (itemExistente.tacoId && i.tacoId === itemExistente.tacoId) || (i.nome.toLowerCase() === itemExistente.nome.toLowerCase()));
+        if (ing) onAtualizarPrecoIngrediente(ing.id, custoMedio);
+      }
 
       const itemAtualizado = {
         ...itemExistente,
@@ -388,8 +402,13 @@ export function Inventory({ onVoltar, onIrParaIngredientes }: InventoryProps) {
       };
 
       novosItens = [novoItem, ...novosItens];
+      if (onAtualizarPrecoIngrediente) {
+        const ing = ingredientes?.find(i => i.nome.toLowerCase() === nomeFormatado.toLowerCase());
+        if (ing) onAtualizarPrecoIngrediente(ing.id, data.custoMedio);
+      }
     }
 
+    setItens(novosItens);
     fecharFormInline();
   };
 
@@ -467,12 +486,18 @@ export function Inventory({ onVoltar, onIrParaIngredientes }: InventoryProps) {
         }
 
         const { qtdTotal, custoMedio } = recalcularTotais(novosLotes, item.custoMedio);
+        const finalCustoMedio = tipoMovimentacao === 'saida' && item.quantidadeAtual - qtdNum <= 0 ? 0 : custoMedio;
+
+        if (onAtualizarPrecoIngrediente) {
+          const ing = ingredientes?.find(i => (item.tacoId && i.tacoId === item.tacoId) || (i.nome.toLowerCase() === item.nome.toLowerCase()));
+          if (ing) onAtualizarPrecoIngrediente(ing.id, finalCustoMedio);
+        }
 
         return {
           ...item,
           lotes: novosLotes,
           quantidadeAtual: tipoMovimentacao === 'saida' && item.quantidadeAtual - qtdNum < 0 ? (item.quantidadeAtual - qtdNum) : qtdTotal, 
-          custoMedio: custoMedio,
+          custoMedio: finalCustoMedio,
           ultimaAtualizacao: new Date().toISOString()
         };
       }
@@ -666,24 +691,42 @@ export function Inventory({ onVoltar, onIrParaIngredientes }: InventoryProps) {
                   <form onSubmit={handleSubmit(onAddItem)} className="space-y-6 max-w-3xl">
                   
                     <div>
-                      <label className={labelCls}>Nome do Item</label>
-                      <input {...register("nome")} list="sugestoes-nomes" placeholder="Ex: Arroz Branco Tipo 1" className={inputCls(!!errors.nome)} autoFocus />
-                      <datalist id="sugestoes-nomes">
-                        {itens.map(i => <option key={i.id} value={i.nome} />)}
-                      </datalist>
+                      <label className={labelCls}>Nome do Item {isIngrediente && <span className="text-[10px] text-teal-600 font-semibold normal-case">(Ingrediente)</span>}</label>
+                      <input 
+                        {...register("nome")} 
+                        list="sugestoes-nomes" 
+                        placeholder="Ex: Arroz Branco Tipo 1" 
+                        readOnly={isIngrediente}
+                        className={`${inputCls(!!errors.nome)} ${isIngrediente ? 'bg-gray-100 text-gray-500 cursor-not-allowed border-dashed pl-2' : ''}`} 
+                        autoFocus={!isIngrediente} 
+                      />
+                      {!isIngrediente && (
+                        <datalist id="sugestoes-nomes">
+                          {itens.map(i => <option key={i.id} value={i.nome} />)}
+                        </datalist>
+                      )}
                       {errors.nome && <p className="text-red-500 text-xs mt-1">{errors.nome.message as string}</p>}
                     </div>
 
                     <div className="flex gap-5">
                       <div className="flex-1">
                         <label className={labelCls}>Categoria</label>
-                        <select {...register("categoria")} className={inputCls(!!errors.categoria)}>
+                        <select 
+                          {...register("categoria")} 
+                          disabled={isIngrediente}
+                          className={`${inputCls(!!errors.categoria)} ${isIngrediente ? 'bg-gray-100 text-gray-500 cursor-not-allowed border-dashed pl-2' : ''}`}
+                        >
                           {CATEGORIAS_ESTOQUE.map(c => <option key={c} value={c}>{c}</option>)}
+                          {isIngrediente && <option value="Ingrediente">Ingrediente</option>}
                         </select>
                       </div>
                       <div className="w-24">
                         <label className={labelCls}>Unid.</label>
-                        <select {...register("unidade")} className={inputCls(!!errors.unidade)}>
+                        <select 
+                          {...register("unidade")} 
+                          disabled={isIngrediente}
+                          className={`${inputCls(!!errors.unidade)} ${isIngrediente ? 'bg-gray-100 text-gray-500 cursor-not-allowed border-dashed pl-2' : ''}`}
+                        >
                           <option value="kg">kg</option>
                           <option value="g">g</option>
                           <option value="l">l</option>

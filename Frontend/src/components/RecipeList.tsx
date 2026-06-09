@@ -155,32 +155,42 @@ export function ListaReceitas({ receitas, onEditar, onRemover, onGerarRotulo }: 
                     <span className="text-lg font-black text-teal-600">R$ {receita.precoSugerido.toFixed(2)}</span>
                   </div>
                   
-                  <div className="flex items-center gap-1">
-                    {onEditar && (
-                      <button
-                        onClick={(e) => { e.stopPropagation(); onEditar(receita); }}
-                        className="p-2 rounded-lg text-gray-400 hover:bg-teal-50 hover:text-teal-600 transition-colors border-0 bg-transparent"
-                        title="Editar"
-                      >
-                        <Pencil size={18} />
-                      </button>
-                    )}
+                  <div className="flex items-center gap-3">
                     <button
-                      onClick={(e) => { 
-                        e.stopPropagation(); 
-                        setDeleteModal({
-                          isOpen: true,
-                          recipeId: receita.id!,
-                          recipeName: receita.nome
-                        });
-                      }}
-                      className="p-2 rounded-lg text-gray-400 hover:bg-red-50 hover:text-red-500 transition-colors border-0 bg-transparent"
-                      title="Excluir"
+                      onClick={(e) => { e.stopPropagation(); toggleExpand(receita.id!); }}
+                      className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-200 text-xs font-bold text-gray-600 hover:bg-gray-50 transition-colors bg-white shadow-sm"
                     >
-                      <Trash2 size={18} />
+                      <UtensilsCrossed size={14} className={isExpanded ? "text-teal-600" : "text-gray-400"} />
+                      {isExpanded ? 'Ocultar Detalhes' : 'Ver Ingredientes'}
                     </button>
-                    <div className={`p-2 rounded-lg transition-colors ${isExpanded ? 'bg-teal-50 text-teal-600' : 'text-gray-300'}`}>
-                      {isExpanded ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
+                    
+                    <div className="flex items-center gap-1 border-l border-gray-100 pl-3">
+                      {onEditar && (
+                        <button
+                          onClick={(e) => { e.stopPropagation(); onEditar(receita); }}
+                          className="p-2 rounded-lg text-gray-400 hover:bg-teal-50 hover:text-teal-600 transition-colors border-0 bg-transparent cursor-pointer"
+                          title="Editar"
+                        >
+                          <Pencil size={18} />
+                        </button>
+                      )}
+                      <button
+                        onClick={(e) => { 
+                          e.stopPropagation(); 
+                          setDeleteModal({
+                            isOpen: true,
+                            recipeId: receita.id!,
+                            recipeName: receita.nome
+                          });
+                        }}
+                        className="p-2 rounded-lg text-gray-400 hover:bg-red-50 hover:text-red-500 transition-colors border-0 bg-transparent cursor-pointer"
+                        title="Excluir"
+                      >
+                        <Trash2 size={18} />
+                      </button>
+                      <div className={`p-2 rounded-lg transition-colors sm:hidden ${isExpanded ? 'bg-teal-50 text-teal-600' : 'text-gray-300'}`}>
+                        {isExpanded ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
+                      </div>
                     </div>
                   </div>
                 </div>

@@ -1,6 +1,5 @@
 import {
-  ChefHat, Leaf, LayoutList, FilePlus2,
-  ScrollText, FileBarChart2, Banknote, Utensils, ArrowRight, BarChart3, Video, Archive, PackageOpen
+  ChefHat, Leaf, ScrollText, Banknote, Utensils
 } from 'lucide-react';
 import { Receita } from '../types';
 
@@ -11,108 +10,6 @@ interface DashboardProps {
   receitas: Receita[];
   totalIngredientes: number;
 }
-
-const menuItems = [
-  {
-    tela: 'cadastro-ingrediente' as TelaAtiva,
-    titulo: 'Cadastrar Ingrediente',
-    descricao: 'Pesquise e registre ingredientes com base na tabela TACO.',
-    iconBgClass: 'bg-amber-100',
-    iconColor: '#d97706',
-    Icon: Leaf,
-    btnLabel: 'Cadastrar ingrediente',
-  },
-  {
-    tela: 'lista-ingredientes' as TelaAtiva,
-    titulo: 'Lista de Ingredientes',
-    descricao: 'Consulte e gerencie todos os ingredientes disponíveis no sistema.',
-    iconBgClass: 'bg-purple-100',
-    iconColor: '#9333ea',
-    Icon: LayoutList,
-    btnLabel: 'Ver ingredientes',
-  },
-  {
-    tela: 'criar-receita' as TelaAtiva,
-    titulo: 'Nova Receita',
-    descricao: 'Crie uma receita vinculando ingredientes da tabela TACO com dados nutricionais automáticos.',
-    iconBgClass: 'bg-green-100',
-    iconColor: '#16a34a',
-    Icon: FilePlus2,
-    btnLabel: 'Criar receita',
-  },
-  {
-    tela: 'receitas' as TelaAtiva,
-    titulo: 'Minhas Receitas',
-    descricao: 'Visualize, edite e gerencie todas as receitas cadastradas no sistema.',
-    iconBgClass: 'bg-blue-100',
-    iconColor: '#2563eb',
-    Icon: ScrollText,
-    btnLabel: 'Ver receitas',
-  },
-  {
-    tela: 'receitas' as TelaAtiva,
-    titulo: 'Rótulo Nutricional',
-    descricao: 'Gere rótulos nutricionais no padrão ANVISA a partir das suas receitas.',
-    iconBgClass: 'bg-orange-100',
-    iconColor: '#ea580c',
-    Icon: FileBarChart2,
-    btnLabel: 'Gerar rótulo',
-  },
-  {
-    tela: 'refeicao' as TelaAtiva,
-    titulo: 'Nova Refeição',
-    descricao: 'Monte refeições completas agrupando diversas receitas e calcule o custo total.',
-    iconBgClass: 'bg-emerald-100',
-    iconColor: '#059669',
-    Icon: Utensils,
-    btnLabel: 'Criar refeição',
-  },
-  {
-    tela: 'producao' as TelaAtiva,
-    titulo: 'Registrar Produção',
-    descricao: 'Registre a produção de marmitas e acompanhe o rendimento e lotes.',
-    iconBgClass: 'bg-indigo-100',
-    iconColor: '#4f46e5',
-    Icon: PackageOpen,
-    btnLabel: 'Ver produção',
-  },
-  {
-    tela: 'estoque' as TelaAtiva,
-    titulo: 'Controle de Estoque',
-    descricao: 'Rastreie insumos, gerencie entradas e saídas, e receba alertas de faltas.',
-    iconBgClass: 'bg-amber-100',
-    iconColor: '#d97706',
-    Icon: Archive,
-    btnLabel: 'Gerenciar estoque',
-  },
-  {
-    tela: 'despesas' as TelaAtiva,
-    titulo: 'Controle de Despesas',
-    descricao: 'Registre custos fixos e variáveis para apurar a margem de lucro real.',
-    iconBgClass: 'bg-rose-100',
-    iconColor: '#e11d48',
-    Icon: Banknote,
-    btnLabel: 'Ver despesas',
-  },
-  {
-    tela: 'estatisticas' as TelaAtiva,
-    titulo: 'Estatísticas',
-    descricao: 'Analise gráficos e relatórios sobre o custo e rentabilidade das suas receitas.',
-    iconBgClass: 'bg-indigo-100',
-    iconColor: '#4f46e5',
-    Icon: BarChart3,
-    btnLabel: 'Ver relatórios',
-  },
-  {
-    tela: 'aulas' as TelaAtiva,
-    titulo: 'Aulas ao Vivo',
-    descricao: 'Acesse mentorias e conteúdos exclusivos sobre precificação e rotulagem.',
-    iconBgClass: 'bg-cyan-100',
-    iconColor: '#0891b2',
-    Icon: Video,
-    btnLabel: 'Acessar aulas',
-  }
-];
 
 interface StatCardProps {
   label: string;
@@ -125,54 +22,136 @@ interface StatCardProps {
 
 function StatCard({ label, value, Icon, iconBg, iconColor, accentColor }: StatCardProps) {
   return (
-    <div className={`bg-white rounded-xl p-5 shadow-sm border-l-4 ${accentColor} flex items-center gap-4`}>
+    <div className={`bg-white rounded-2xl p-5 shadow-sm border-l-4 ${accentColor} flex items-center gap-4 border border-gray-100`}>
       <div className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 ${iconBg}`}>
         <Icon size={22} color={iconColor} />
       </div>
       <div>
-        <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">{label}</p>
-        <p className="text-2xl font-bold text-gray-800 leading-none">{value}</p>
+        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wide mb-1">{label}</p>
+        <p className="text-xl font-black text-gray-800 leading-none">{value}</p>
       </div>
     </div>
   );
 }
 
-export function Dashboard({ onNavegar, receitas, totalIngredientes }: DashboardProps) {
-  const totalValor = receitas.reduce((acc, r) => acc + r.precoSugerido, 0);
+export function Dashboard({ receitas, totalIngredientes }: DashboardProps) {
+  const totalReceitas = receitas.length;
+  const totalIngredientesCadastrados = totalIngredientes;
+  
+  const somaPrecoSugerido = receitas.reduce((acc, r) => acc + (r.precoSugerido || 0), 0);
+  const mediaPrecoSugerido = totalReceitas > 0 ? somaPrecoSugerido / totalReceitas : 0;
+  
+  const somaCustoPorPorcao = receitas.reduce((acc, r) => acc + (r.custoPorPorcao || 0), 0);
+  const mediaCustoPorPorcao = totalReceitas > 0 ? somaCustoPorPorcao / totalReceitas : 0;
 
   return (
-    <div className="py-8 min-h-[80vh] max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-
+    <div className="py-8 min-h-[80vh] max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col gap-6">
       
-
-      {/* Cards de navegação */}
-      <div className="flex items-center justify-between mb-5">
-        <p className="text-base font-semibold text-gray-700">O que deseja fazer?</p>
-        <span className="text-xs text-gray-400">{menuItems.length} ações disponíveis</span>
+      {/* Welcome Banner */}
+      <div className="bg-gradient-to-r from-emerald-600 to-[#04585a] rounded-3xl p-6 text-white shadow-sm relative overflow-hidden">
+        <div className="absolute right-0 top-0 translate-x-6 -translate-y-6 opacity-10">
+          <ChefHat size={160} />
+        </div>
+        <div className="relative z-10 flex flex-col gap-1.5">
+          <span className="bg-white/20 text-[10px] font-bold tracking-wider uppercase px-2.5 py-1 rounded-full self-start">
+            Painel Geral
+          </span>
+          <h1 className="text-xl sm:text-2xl font-black tracking-tight">Cozinha da Nutri</h1>
+          <p className="text-xs sm:text-sm text-emerald-50/90 max-w-xl leading-relaxed">
+            Bem-vindo ao seu sistema de gestão. Aqui você pode formular receitas, calcular custos, cadastrar insumos e gerar informações nutricionais automaticamente de acordo com as regras da ANVISA.
+          </p>
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-        {menuItems.map((item) => (
-          <button
-            key={item.titulo}
-            type="button"
-            onClick={() => onNavegar(item.tela)}
-            className="bg-white rounded-xl p-6 shadow-sm border border-gray-100 cursor-pointer flex flex-col gap-3 text-left transition-all duration-200 hover:shadow-md hover:border-gray-200 hover:-translate-y-0.5 group"
-          >
-            <div className={`w-11 h-11 rounded-xl flex items-center justify-center ${item.iconBgClass} transition-transform duration-200 group-hover:scale-110`}>
-              <item.Icon size={20} color={item.iconColor} />
+      {/* Stats Grid */}
+      <section className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+        <StatCard
+          label="Receitas Cadastradas"
+          value={String(totalReceitas)}
+          Icon={ScrollText}
+          iconBg="bg-emerald-50"
+          iconColor="#059669"
+          accentColor="border-emerald-500"
+        />
+        <StatCard
+          label="Ingredientes Cadastrados"
+          value={String(totalIngredientesCadastrados)}
+          Icon={Leaf}
+          iconBg="bg-amber-50"
+          iconColor="#d97706"
+          accentColor="border-amber-500"
+        />
+        <StatCard
+          label="Preço de Venda Médio"
+          value={`R$ ${mediaPrecoSugerido.toFixed(2).replace('.', ',')}`}
+          Icon={Banknote}
+          iconBg="bg-indigo-50"
+          iconColor="#4f46e5"
+          accentColor="border-indigo-500"
+        />
+        <StatCard
+          label="Custo Médio p/ Porção"
+          value={`R$ ${mediaCustoPorPorcao.toFixed(2).replace('.', ',')}`}
+          Icon={Utensils}
+          iconBg="bg-rose-50"
+          iconColor="#e11d48"
+          accentColor="border-rose-500"
+        />
+      </section>
+
+      {/* Workflow Guide */}
+      <section className="bg-white rounded-3xl border border-gray-100 shadow-sm p-6 flex flex-col gap-5">
+        <div>
+          <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider">
+            Fluxo de Trabalho Recomendado
+          </h3>
+          <p className="text-xs text-gray-500 mt-0.5">Siga estes passos para extrair o máximo do sistema</p>
+        </div>
+        
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          
+          {/* Step 1 */}
+          <div className="flex flex-col gap-3 p-4 bg-gray-50/50 rounded-2xl border border-gray-100/50">
+            <div className="w-9 h-9 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center font-bold text-sm shrink-0">
+              1
             </div>
-            <div className="flex flex-col gap-1">
-              <p className="text-sm font-semibold text-gray-800">{item.titulo}</p>
-              <p className="text-xs text-gray-500 leading-relaxed">{item.descricao}</p>
+            <div>
+              <h4 className="text-xs font-bold text-gray-800 mb-1">Cadastrar Ingredientes</h4>
+              <p className="text-[11px] text-gray-500 leading-relaxed">
+                Adicione seus insumos, informando preço de compra e unidade de medida. Associe-os à tabela TACO para buscar os dados de energia, carboidratos, proteínas e mais de forma totalmente automática.
+              </p>
             </div>
-            <div className="mt-auto pt-2 flex items-center gap-1 text-xs font-semibold text-brand group-hover:gap-2 transition-all duration-200">
-              {item.btnLabel}
-              <ArrowRight size={13} />
+          </div>
+
+          {/* Step 2 */}
+          <div className="flex flex-col gap-3 p-4 bg-gray-50/50 rounded-2xl border border-gray-100/50">
+            <div className="w-9 h-9 rounded-xl bg-green-100 text-green-700 flex items-center justify-center font-bold text-sm shrink-0">
+              2
             </div>
-          </button>
-        ))}
-      </div>
+            <div>
+              <h4 className="text-xs font-bold text-gray-800 mb-1">Criar & Precificar Receitas</h4>
+              <p className="text-[11px] text-gray-500 leading-relaxed">
+                Combine ingredientes e informe quantidades. O sistema calcula na hora o custo dos insumos, sugere preços de venda ideais e consolida a tabela de informação nutricional de cada porção.
+              </p>
+            </div>
+          </div>
+
+          {/* Step 3 */}
+          <div className="flex flex-col gap-3 p-4 bg-gray-50/50 rounded-2xl border border-gray-100/50">
+            <div className="w-9 h-9 rounded-xl bg-blue-100 text-blue-700 flex items-center justify-center font-bold text-sm shrink-0">
+              3
+            </div>
+            <div>
+              <h4 className="text-xs font-bold text-gray-800 mb-1">Gerar Rótulo da ANVISA</h4>
+              <p className="text-[11px] text-gray-500 leading-relaxed">
+                Com a receita salva, gere o rótulo de informação nutricional no novo padrão da ANVISA pronto para impressão e colagem nas embalagens dos seus produtos e marmitas.
+              </p>
+            </div>
+          </div>
+
+        </div>
+      </section>
+
     </div>
   );
 }

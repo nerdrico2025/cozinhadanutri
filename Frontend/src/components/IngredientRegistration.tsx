@@ -56,11 +56,11 @@ const unidades: { value: Unidade; label: string }[] = [
 ];
 
 const inputCls = (hasError?: boolean) =>
-  `w-full px-3 py-2.5 border rounded-lg text-sm outline-none box-border transition-colors ${
+  `w-full px-0 py-2.5 bg-transparent border-0 border-b-2 ${
     hasError
-      ? 'border-red-400 bg-red-50 focus:border-red-500'
-      : 'border-gray-200 bg-white focus:border-brand focus:ring-1 focus:ring-brand/20'
-  }`;
+      ? "border-red-300 focus:border-red-300"
+      : "border-gray-200 focus:border-gray-300"
+  } text-base text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-0 transition-colors`;
 
 export function CadastroIngrediente({ ingredienteInicial, onSalvar, onCancelar, onVerLista }: CadastroIngredienteProps) {
   const [sugestoesTaco, setSugestoesTaco] = useState<any[]>([]);
@@ -83,33 +83,33 @@ export function CadastroIngrediente({ ingredienteInicial, onSalvar, onCancelar, 
       return [];
     }
   });
-  const itemEstoqueVinculado = itensEstoque.find(i => tacoNumeroSelecionado && i.tacoId === tacoNumeroSelecionado) || null;
 
-  const [incluirNoEstoque, setIncluirNoEstoque] = useState(true);
+  const [incluirNoEstoque, setIncluirNoEstoque] = useState(!ingredienteInicial);
   const [estoqueQuantidade, setEstoqueQuantidade] = useState<number | ''>('');
   const [estoqueMinimo, setEstoqueMinimo] = useState<number | ''>(0);
   const [estoqueValidade, setEstoqueValidade] = useState<string>('');
   const [estoqueFornecedor, setEstoqueFornecedor] = useState<string>('');
+  const [estoqueCustoUnitario, setEstoqueCustoUnitario] = useState<number | ''>('');
 
-  const { register, handleSubmit, formState: { errors }, setValue, reset } = useForm<IngredienteForm>({
+  const { register, handleSubmit, formState: { errors }, setValue, reset, watch } = useForm<IngredienteForm>({
     resolver: zodResolver(ingredienteSchema),
     defaultValues: ingredienteInicial
       ? {
           nome: ingredienteInicial.nome,
           unidade: ingredienteInicial.unidade as 'g' | 'kg' | 'ml' | 'l' | 'unidade',
           preco: ingredienteInicial.preco,
-          calorias: ingredienteInicial.dadosNutricionais.calorias,
-          proteinas: ingredienteInicial.dadosNutricionais.proteinas,
-          carboidratos: ingredienteInicial.dadosNutricionais.carboidratos,
-          gorduras: ingredienteInicial.dadosNutricionais.gorduras,
-          acucares_totais: ingredienteInicial.dadosNutricionais.acucares_totais || 0,
-          acucares_adicionados: ingredienteInicial.dadosNutricionais.acucares_adicionados || 0,
-          gorduras_saturadas: ingredienteInicial.dadosNutricionais.gorduras_saturadas || 0,
-          gorduras_trans: ingredienteInicial.dadosNutricionais.gorduras_trans || 0,
-          fibras: ingredienteInicial.dadosNutricionais.fibras || 0,
-          sodio: ingredienteInicial.dadosNutricionais.sodio || 0,
-          vitaminas: ingredienteInicial.dadosNutricionais.vitaminas || 0,
-          minerais: ingredienteInicial.dadosNutricionais.minerais || 0,
+          calorias: Number((ingredienteInicial.dadosNutricionais.calorias || 0).toFixed(1)),
+          proteinas: Number((ingredienteInicial.dadosNutricionais.proteinas || 0).toFixed(1)),
+          carboidratos: Number((ingredienteInicial.dadosNutricionais.carboidratos || 0).toFixed(1)),
+          gorduras: Number((ingredienteInicial.dadosNutricionais.gorduras || 0).toFixed(1)),
+          acucares_totais: Number((ingredienteInicial.dadosNutricionais.acucares_totais || 0).toFixed(1)),
+          acucares_adicionados: Number((ingredienteInicial.dadosNutricionais.acucares_adicionados || 0).toFixed(1)),
+          gorduras_saturadas: Number((ingredienteInicial.dadosNutricionais.gorduras_saturadas || 0).toFixed(1)),
+          gorduras_trans: Number((ingredienteInicial.dadosNutricionais.gorduras_trans || 0).toFixed(1)),
+          fibras: Number((ingredienteInicial.dadosNutricionais.fibras || 0).toFixed(1)),
+          sodio: Number((ingredienteInicial.dadosNutricionais.sodio || 0).toFixed(1)),
+          vitaminas: Number((ingredienteInicial.dadosNutricionais.vitaminas || 0).toFixed(1)),
+          minerais: Number((ingredienteInicial.dadosNutricionais.minerais || 0).toFixed(1)),
         }
       : { unidade: 'g', calorias: 0, proteinas: 0, carboidratos: 0, gorduras: 0, acucares_totais: 0, acucares_adicionados: 0, gorduras_saturadas: 0, gorduras_trans: 0, fibras: 0, sodio: 0, vitaminas: 0, minerais: 0 },
   });
@@ -120,18 +120,18 @@ export function CadastroIngrediente({ ingredienteInicial, onSalvar, onCancelar, 
         nome: ingredienteInicial.nome,
         unidade: ingredienteInicial.unidade as 'g' | 'kg' | 'ml' | 'l' | 'unidade',
         preco: ingredienteInicial.preco,
-        calorias: ingredienteInicial.dadosNutricionais.calorias,
-        proteinas: ingredienteInicial.dadosNutricionais.proteinas,
-        carboidratos: ingredienteInicial.dadosNutricionais.carboidratos,
-        gorduras: ingredienteInicial.dadosNutricionais.gorduras,
-        acucares_totais: ingredienteInicial.dadosNutricionais.acucares_totais || 0,
-        acucares_adicionados: ingredienteInicial.dadosNutricionais.acucares_adicionados || 0,
-        gorduras_saturadas: ingredienteInicial.dadosNutricionais.gorduras_saturadas || 0,
-        gorduras_trans: ingredienteInicial.dadosNutricionais.gorduras_trans || 0,
-        fibras: ingredienteInicial.dadosNutricionais.fibras || 0,
-        sodio: ingredienteInicial.dadosNutricionais.sodio || 0,
-        vitaminas: ingredienteInicial.dadosNutricionais.vitaminas || 0,
-        minerais: ingredienteInicial.dadosNutricionais.minerais || 0,
+        calorias: Number((ingredienteInicial.dadosNutricionais.calorias || 0).toFixed(1)),
+        proteinas: Number((ingredienteInicial.dadosNutricionais.proteinas || 0).toFixed(1)),
+        carboidratos: Number((ingredienteInicial.dadosNutricionais.carboidratos || 0).toFixed(1)),
+        gorduras: Number((ingredienteInicial.dadosNutricionais.gorduras || 0).toFixed(1)),
+        acucares_totais: Number((ingredienteInicial.dadosNutricionais.acucares_totais || 0).toFixed(1)),
+        acucares_adicionados: Number((ingredienteInicial.dadosNutricionais.acucares_adicionados || 0).toFixed(1)),
+        gorduras_saturadas: Number((ingredienteInicial.dadosNutricionais.gorduras_saturadas || 0).toFixed(1)),
+        gorduras_trans: Number((ingredienteInicial.dadosNutricionais.gorduras_trans || 0).toFixed(1)),
+        fibras: Number((ingredienteInicial.dadosNutricionais.fibras || 0).toFixed(1)),
+        sodio: Number((ingredienteInicial.dadosNutricionais.sodio || 0).toFixed(1)),
+        vitaminas: Number((ingredienteInicial.dadosNutricionais.vitaminas || 0).toFixed(1)),
+        minerais: Number((ingredienteInicial.dadosNutricionais.minerais || 0).toFixed(1)),
       });
       setTacoNumeroSelecionado(ingredienteInicial.tacoId);
       setTacoDbId(ingredienteInicial.id);
@@ -163,12 +163,24 @@ export function CadastroIngrediente({ ingredienteInicial, onSalvar, onCancelar, 
     }
   }, [ingredienteInicial, reset]);
 
+  const itemEstoqueVinculado = itensEstoque.find(i => 
+    (tacoNumeroSelecionado && i.tacoId === tacoNumeroSelecionado) ||
+    (i.nome.toLowerCase() === watch('nome')?.trim().toLowerCase())
+  ) || null;
+
+  const precoAtual = watch('preco');
   useEffect(() => {
-    if (itemEstoqueVinculado) {
+    if (precoAtual !== undefined && precoAtual !== null && precoAtual !== '') {
+      setEstoqueCustoUnitario(Number(precoAtual));
+    }
+  }, [precoAtual]);
+
+  useEffect(() => {
+    if (itemEstoqueVinculado && !ingredienteInicial) {
       setValue('preco', Number((itemEstoqueVinculado.custoMedio || 0).toFixed(2)), { shouldValidate: true });
       setValue('unidade', itemEstoqueVinculado.unidade as Unidade);
     }
-  }, [itemEstoqueVinculado, setValue]);
+  }, [itemEstoqueVinculado, setValue, ingredienteInicial]);
 
   const buscarSugestoes = (nome: string) => {
     if (nome.length < 2) { setSugestoesTaco([]); setMostrarSugestoes(false); return; }
@@ -188,22 +200,22 @@ export function CadastroIngrediente({ ingredienteInicial, onSalvar, onCancelar, 
 
   const aplicarDadosTaco = (alimento: any) => {
     setValue('nome', alimento.descricao);
-    setValue('calorias', parseFloat(alimento.energia_kcal) || 0);
-    setValue('proteinas', parseFloat(alimento.proteina) || 0);
-    setValue('carboidratos', parseFloat(alimento.carboidrato) || 0);
-    setValue('gorduras', parseFloat(alimento.lipideos) || 0);
-    setValue('acucares_totais', parseFloat(alimento.acucares_totais) || 0);
-    setValue('acucares_adicionados', parseFloat(alimento.acucares_adicionados) || 0);
-    setValue('gorduras_saturadas', parseFloat(alimento.saturados) || 0);
+    setValue('calorias', Number((parseFloat(alimento.energia_kcal) || 0).toFixed(1)));
+    setValue('proteinas', Number((parseFloat(alimento.proteina) || 0).toFixed(1)));
+    setValue('carboidratos', Number((parseFloat(alimento.carboidrato) || 0).toFixed(1)));
+    setValue('gorduras', Number((parseFloat(alimento.lipideos) || 0).toFixed(1)));
+    setValue('acucares_totais', Number((parseFloat(alimento.acucares_totais) || 0).toFixed(1)));
+    setValue('acucares_adicionados', Number((parseFloat(alimento.acucares_adicionados) || 0).toFixed(1)));
+    setValue('gorduras_saturadas', Number((parseFloat(alimento.saturados) || 0).toFixed(1)));
     
     const trans1 = parseFloat(alimento.AG18_1t) || 0;
     const trans2 = parseFloat(alimento.AG18_2t) || 0;
-    setValue('gorduras_trans', trans1 + trans2);
+    setValue('gorduras_trans', Number((trans1 + trans2).toFixed(1)));
     
-    setValue('fibras', parseFloat(alimento.fibra_alimentar) || 0);
-    setValue('sodio', parseFloat(alimento.sodio) || 0);
-    setValue('vitaminas', parseFloat(alimento.vitaminas) || 0);
-    setValue('minerais', parseFloat(alimento.minerais) || 0);
+    setValue('fibras', Number((parseFloat(alimento.fibra_alimentar) || 0).toFixed(1)));
+    setValue('sodio', Number((parseFloat(alimento.sodio) || 0).toFixed(1)));
+    setValue('vitaminas', Number((parseFloat(alimento.vitaminas) || 0).toFixed(1)));
+    setValue('minerais', Number((parseFloat(alimento.minerais) || 0).toFixed(1)));
     setTacoNumeroSelecionado(alimento.numero);
     setTacoDbId(alimento.id);
     setMostrarSugestoes(false);
@@ -223,39 +235,19 @@ export function CadastroIngrediente({ ingredienteInicial, onSalvar, onCancelar, 
     setSalvando(true);
     setModalAcucarAberto(false);
     try {
-      await onSalvar({
-        id: String(tacoDbId ?? ingredienteInicial?.id ?? ''), // App.tsx vai lidar com isso e salvarAlimento também
-        tacoId: tacoNumeroSelecionado,
-        nome: data.nome,
-        unidade: data.unidade,
-        preco: data.preco,
-        dadosNutricionais: {
-          calorias: data.calorias,
-          proteinas: data.proteinas,
-          carboidratos: data.carboidratos,
-          gorduras: data.gorduras,
-          acucares_totais: data.acucares_totais || 0,
-          acucares_adicionados: data.acucares_adicionados || 0,
-          gorduras_saturadas: data.gorduras_saturadas || 0,
-          gorduras_trans: data.gorduras_trans || 0,
-          fibras: data.fibras || 0,
-          sodio: data.sodio || 0,
-          vitaminas: data.vitaminas || 0,
-          minerais: data.minerais || 0,
-        },
-        createdAt: ingredienteInicial?.createdAt ?? new Date(),
-      });
+      let finalPreco = data.preco;
 
       if (incluirNoEstoque && estoqueQuantidade !== '') {
         const qtd = Number(estoqueQuantidade);
         const min = Number(estoqueMinimo) || 0;
         let novaListaEstoque = [...itensEstoque];
-        
+        const custoUnit = estoqueCustoUnitario !== '' ? Number(estoqueCustoUnitario) : data.preco;
+
         const loteNovo = {
           id: crypto.randomUUID(),
           quantidadeOriginal: qtd,
           quantidadeAtual: qtd,
-          custoUnitario: data.preco,
+          custoUnitario: custoUnit,
           dataValidade: estoqueValidade || new Date().toISOString().split('T')[0],
           fornecedor: estoqueFornecedor
         };
@@ -273,6 +265,8 @@ export function CadastroIngrediente({ ingredienteInicial, onSalvar, onCancelar, 
               custoMedio = valorTotal / qtdTotal;
             }
             
+            finalPreco = custoMedio;
+
             novaListaEstoque[itemIndex] = {
               ...item,
               lotes,
@@ -283,6 +277,7 @@ export function CadastroIngrediente({ ingredienteInicial, onSalvar, onCancelar, 
             };
           }
         } else {
+          finalPreco = custoUnit;
           novaListaEstoque.push({
             id: crypto.randomUUID(),
             tacoId: tacoNumeroSelecionado,
@@ -291,7 +286,7 @@ export function CadastroIngrediente({ ingredienteInicial, onSalvar, onCancelar, 
             unidade: data.unidade,
             quantidadeAtual: qtd,
             estoqueMinimo: min,
-            custoMedio: data.preco,
+            custoMedio: custoUnit,
             lotes: [loteNovo],
             ultimaAtualizacao: new Date().toISOString()
           });
@@ -300,6 +295,29 @@ export function CadastroIngrediente({ ingredienteInicial, onSalvar, onCancelar, 
         localStorage.setItem('estoque_itens', JSON.stringify(novaListaEstoque));
         setItensEstoque(novaListaEstoque);
       }
+
+      await onSalvar({
+        id: String(tacoDbId ?? ingredienteInicial?.id ?? ''), // App.tsx vai lidar com isso e salvarAlimento também
+        tacoId: tacoNumeroSelecionado,
+        nome: data.nome,
+        unidade: data.unidade,
+        preco: Number(finalPreco.toFixed(2)),
+        dadosNutricionais: {
+          calorias: data.calorias,
+          proteinas: data.proteinas,
+          carboidratos: data.carboidratos,
+          gorduras: data.gorduras,
+          acucares_totais: data.acucares_totais || 0,
+          acucares_adicionados: data.acucares_adicionados || 0,
+          gorduras_saturadas: data.gorduras_saturadas || 0,
+          gorduras_trans: data.gorduras_trans || 0,
+          fibras: data.fibras || 0,
+          sodio: data.sodio || 0,
+          vitaminas: data.vitaminas || 0,
+          minerais: data.minerais || 0,
+        },
+        createdAt: ingredienteInicial?.createdAt ?? new Date(),
+      });
 
       setTacoNumeroSelecionado(undefined);
       setTacoDbId(undefined);
@@ -317,7 +335,7 @@ export function CadastroIngrediente({ ingredienteInicial, onSalvar, onCancelar, 
 
       {/* ── Header sticky ─────────────────────────────────────────────────── */}
       <div className="sticky top-0 z-30 bg-white border-b border-gray-100 shadow-sm">
-        <div className="max-w-3xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between gap-4">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <button
               type="button"
@@ -365,7 +383,7 @@ export function CadastroIngrediente({ ingredienteInicial, onSalvar, onCancelar, 
       </div>
 
       {/* ── Corpo ─────────────────────────────────────────────────────────── */}
-      <div className="max-w-3xl mx-auto px-4 sm:px-6 py-6">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6">
         <form onSubmit={handleSubmit(onSubmit)} noValidate className="flex flex-col gap-5">
 
           {/* Seção 1 — Identificação */}
@@ -463,7 +481,7 @@ export function CadastroIngrediente({ ingredienteInicial, onSalvar, onCancelar, 
 
                   <div>
                     <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">
-                      Preço por Unidade (R$) <span className="text-red-400">*</span>
+                      Preço (R$) <span className="text-red-400">*</span>
                     </label>
                     <div className="relative">
                       <DollarSign size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
@@ -472,17 +490,16 @@ export function CadastroIngrediente({ ingredienteInicial, onSalvar, onCancelar, 
                         step="0.01"
                         min={0.01}
                         {...register('preco', { valueAsNumber: true })}
-                        readOnly={!!itemEstoqueVinculado}
                         placeholder="0,00"
-                        className={`${inputCls(!!errors.preco)} pl-8 ${itemEstoqueVinculado ? 'bg-gray-100 text-gray-500 font-bold cursor-not-allowed select-none' : ''}`}
+                        className={`${inputCls(!!errors.preco)} pl-8`}
                       />
                     </div>
                     {itemEstoqueVinculado && (
                       <p className="text-xs text-brand mt-1 flex items-center gap-1">
-                        <Archive size={12} /> Preço vinculado ao estoque automático.
+                        <Archive size={12} /> Custo médio no estoque: R$ {itemEstoqueVinculado.custoMedio.toFixed(2)}
                       </p>
                     )}
-                    {errors.preco && !itemEstoqueVinculado && <p className="text-red-500 text-xs mt-1">{errors.preco.message as string}</p>}
+                    {errors.preco && <p className="text-red-500 text-xs mt-1">{errors.preco.message as string}</p>}
                   </div>
                 </div>
 
@@ -498,7 +515,15 @@ export function CadastroIngrediente({ ingredienteInicial, onSalvar, onCancelar, 
                   </label>
                   
                   {incluirNoEstoque && (
-                    <div className="grid grid-cols-3 gap-4">
+                    <div className="grid grid-cols-4 gap-4">
+                      <div>
+                        <label className="block text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-1">Custo do Lote (R$)</label>
+                        <input 
+                          type="number" min={0.01} step="0.01" required
+                          value={estoqueCustoUnitario} onChange={e => setEstoqueCustoUnitario(e.target.value === '' ? '' : Number(e.target.value))}
+                          placeholder="Ex: 5.50" className={inputCls(false)}
+                        />
+                      </div>
                       <div>
                         <label className="block text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-1">Validade do Lote</label>
                         <input 
@@ -586,8 +611,16 @@ export function CadastroIngrediente({ ingredienteInicial, onSalvar, onCancelar, 
                       type="number"
                       step="0.1"
                       min={0}
-                      {...register(field, { valueAsNumber: true })}
-                      placeholder="0"
+                      {...register(field, { 
+                        valueAsNumber: true,
+                        onBlur: (e) => {
+                          const val = parseFloat(e.target.value);
+                          if (!isNaN(val)) {
+                            setValue(field, Number(val.toFixed(1)), { shouldValidate: true });
+                          }
+                        }
+                      })}
+                      placeholder="0.0"
                       readOnly={isReadOnly}
                       className={`${inputCls(!!errors[field])} ${isReadOnly ? 'bg-gray-100 text-gray-400 cursor-not-allowed select-none' : ''}`}
                     />

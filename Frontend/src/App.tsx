@@ -33,6 +33,7 @@ import { calcularCustosReceita, calcularNutrientesTotais, calcularDadosNutricion
 import { Footer } from './components/Footer';
 import ConfiguracaoVisual from './pages/configuracaovisual/edicaodinamicadecampos';
 import { Etiqueta } from './pages/Etiqueta';
+import { Sidebar } from './components/Sidebar';
 import './App.css';
 
 
@@ -101,6 +102,11 @@ function App() {
   const [planoSelecionado, setPlanoSelecionado] = useState<'profissional' | 'empresarial' | undefined>(undefined);
 
   const publicTelas: TelaAtiva[] = ['home', 'login', 'register', 'esqueci-senha', 'faq', 'suporte', 'termos', 'privacidade', 'not-found', 'planos'];
+
+  const isDashboardScreen = !!usuario && [
+    'dashboard', 'receitas', 'criar-receita', 'cadastro-ingrediente',
+    'lista-ingredientes', 'estoque', 'refeicao', 'despesas', 'producao', 'estatisticas', 'aulas', 'perfil'
+  ].includes(telaAtiva);
 
   const setTelaAtiva = (tela: TelaAtiva) => {
     window.history.pushState({ tela }, '', `#${tela}`);
@@ -463,16 +469,9 @@ function App() {
     }
   };
 
-  const handleRemoverIngrediente = async (id: string, senha?: string) => {
+  const handleRemoverIngrediente = async (id: string) => {
     try {
-      if (!usuario || !senha) return;
-
-      // Validação redundante de senha
-      const validado = await login(usuario.email, senha);
-      if (!validado) {
-        alert("Senha incorreta. A exclusão foi cancelada.");
-        return;
-      }
+      if (!usuario) return;
 
       await excluirAlimento(Number(id));
       setIngredientes((prev) => prev.filter((i) => i.id !== id));
@@ -481,6 +480,51 @@ function App() {
       alert("Falha ao remover o ingrediente no servidor.");
     }
   };
+
+  const handleAtualizarPrecoIngrediente = async (id: string, novoPreco: number) => {
+    try {
+      const ingrediente = ingredientes.find((i) => String(i.id) === String(id));
+      if (!ingrediente) return;
+
+      const itemSalvo = await salvarAlimento(
+        {
+          ...ingrediente,
+          preco: novoPreco,
+        },
+        ingrediente.tacoId
+      );
+
+      const ingredienteParseado: Ingrediente = {
+        id: String(itemSalvo.id),
+        tacoId: itemSalvo.numero,
+        nome: itemSalvo.descricao,
+        unidade: itemSalvo.unidade_medida || 'g',
+        preco: parseFloat(itemSalvo.preco) || 0,
+        dadosNutricionais: {
+          calorias: parseFloat(itemSalvo.energia_kcal) || 0,
+          proteinas: parseFloat(itemSalvo.proteina) || 0,
+          carboidratos: parseFloat(itemSalvo.carboidrato) || 0,
+          gorduras: parseFloat(itemSalvo.lipideos) || 0,
+          acucares_totais: parseFloat(itemSalvo.acucares_totais) || 0,
+          acucares_adicionados: parseFloat(itemSalvo.acucares_adicionados) || 0,
+          gorduras_saturadas: parseFloat(itemSalvo.saturados) || 0,
+          gorduras_trans: parseFloat(itemSalvo.AG18_1t) + parseFloat(itemSalvo.AG18_2t) || 0,
+          fibras: parseFloat(itemSalvo.fibra_alimentar) || 0,
+          sodio: parseFloat(itemSalvo.sodio) || 0,
+          vitaminas: parseFloat(itemSalvo.vitaminas) || 0,
+          minerais: parseFloat(itemSalvo.minerais) || 0,
+        },
+        createdAt: ingrediente.createdAt || new Date(),
+      };
+
+      setIngredientes((prev) =>
+        prev.map((i) => (String(i.id) === String(ingredienteParseado.id) ? ingredienteParseado : i))
+      );
+    } catch (err) {
+      console.error("Erro ao atualizar preco do ingrediente:", err);
+    }
+  };
+
 
   const handleSair = async () => {
     await encerrarSessao();
@@ -530,7 +574,14 @@ function App() {
       case 'producao':
         return <ProductionRegister onVoltar={() => setTelaAtiva('dashboard')} refeicoes={refeicoes} />;
       case 'estoque':
-        return <Inventory onVoltar={() => setTelaAtiva('dashboard')} onIrParaIngredientes={() => setTelaAtiva('cadastro-ingrediente')} />;
+        return (
+          <Inventory
+            onVoltar={() => setTelaAtiva('dashboard')}
+            onIrParaIngredientes={() => setTelaAtiva('cadastro-ingrediente')}
+            ingredientes={ingredientes}
+            onAtualizarPrecoIngrediente={handleAtualizarPrecoIngrediente}
+          />
+        );
       case 'estatisticas':
         return <Statistic onVoltar={() => setTelaAtiva('dashboard')} refeicoes={refeicoes} receitas={receitas} />;
       case 'aulas':
@@ -745,10 +796,11 @@ function App() {
   return (
     <div className="min-h-screen bg-gray-100 flex flex-col">
       <Header telaAtiva={telaAtiva} onNavegar={setTelaAtiva} onSair={handleSair} usuario={usuario} />
-      <main className="flex-1 w-full">
+      {isDashboardScreen && <Sidebar activeTela={telaAtiva} onNavegar={setTelaAtiva} />}
+      <main className={`flex-1 w-full ${isDashboardScreen ? 'lg:pl-64' : ''}`}>
         {renderTela()}
       </main>
-      <Footer onNavegar={setTelaAtiva} />
+      {!isDashboardScreen && <Footer onNavegar={setTelaAtiva} />}
       {receitaParaRotulo && (
         <RotuloNutricional
           receita={receitaParaRotulo}

@@ -7,16 +7,31 @@ interface CustosReceita {
 }
 
 export function calcularCustosReceita(
-  ingredientes: { quantidade: number; preco: number; unidade?: string }[],
+  ingredientes: { quantidade: number; preco: number; unidade?: string; baseUnidade?: string }[],
   porcoes: number,
   margemLucro: number
 ): CustosReceita & { margemLucroReal: number } {
-  // preco é por 100g (ou 100ml) quando a unidade é g ou ml.
-  // preco é por 1kg, 1l ou 1 unidade quando a unidade é kg, l ou unidade.
+  // preco é por 100g (ou 100ml) quando a baseUnidade é g ou ml.
+  // preco é por 1kg, 1l ou 1 unidade quando a baseUnidade é kg, l ou unidade.
   const custoTotal = ingredientes.reduce((acc, i) => {
-    const fator = (i.unidade === 'kg' || i.unidade === 'l' || i.unidade === 'unidade') 
-      ? i.quantidade 
-      : (i.quantidade / 100);
+    const bUnidade = i.baseUnidade || i.unidade || 'g';
+    const rUnidade = i.unidade || 'g';
+    
+    let qtdConvertida = i.quantidade;
+    if (bUnidade === 'l' && rUnidade === 'ml') {
+      qtdConvertida = i.quantidade / 1000;
+    } else if (bUnidade === 'ml' && rUnidade === 'l') {
+      qtdConvertida = i.quantidade * 1000;
+    } else if (bUnidade === 'kg' && rUnidade === 'g') {
+      qtdConvertida = i.quantidade / 1000;
+    } else if (bUnidade === 'g' && rUnidade === 'kg') {
+      qtdConvertida = i.quantidade * 1000;
+    }
+
+    const fator = (bUnidade === 'kg' || bUnidade === 'l' || bUnidade === 'unidade') 
+      ? qtdConvertida 
+      : (qtdConvertida / 100);
+      
     return acc + fator * (i.preco ?? 0);
   }, 0);
   const custoPorPorcao = porcoes > 0 ? custoTotal / porcoes : 0;
@@ -27,7 +42,7 @@ export function calcularCustosReceita(
 }
 
 export function calcularNutrientesTotais(
-  ingredientes: { quantidade: number; dadosNutricionais: DadosNutricionais; unidade?: string }[]
+  ingredientes: { quantidade: number; dadosNutricionais: DadosNutricionais; unidade?: string; baseUnidade?: string }[]
 ): DadosNutricionais {
   const inicial: DadosNutricionais = {
     calorias: 0,
@@ -45,10 +60,16 @@ export function calcularNutrientesTotais(
   };
 
   return ingredientes.reduce((acc, ing) => {
-    let fator = ing.quantidade / 100;
-    if (ing.unidade === 'kg' || ing.unidade === 'l') {
-      fator = ing.quantidade * 10;
-    } else if (ing.unidade === 'unidade') {
+    const rUnidade = ing.unidade || 'g';
+    
+    let qtdParaCalculo = ing.quantidade;
+    if (rUnidade === 'kg' || rUnidade === 'l') {
+      qtdParaCalculo = ing.quantidade * 1000;
+    }
+
+    let fator = qtdParaCalculo / 100;
+    
+    if (rUnidade === 'unidade') {
       fator = ing.quantidade;
     }
 

@@ -76,18 +76,17 @@ export function Planos({ onNavegar, onAssinarPlano, usuario }: PlanosProps) {
       id: 'basico',
       nome: 'Básico',
       descricao: 'Para quem já vende e precisa de controle real',
-      mensal: 47,
-      anual: 39,
+      mensal: 0,
+      anual: 0,
       badgeMensal: '',
       destaque: false,
       recursos: [
-        { nome: 'Até 20 receitas', incluso: true },
+        { nome: 'Até 5 receitas', incluso: true },
         { nome: 'Ficha técnica padronizada', incluso: true },
         { nome: 'Custo automático + markup', incluso: true },
         { nome: 'Sugestão de preço de venda', incluso: true },
         { nome: 'Tabela nutricional ANVISA', incluso: true },
-        { nome: 'Rótulo e etiqueta imprimível', incluso: false },
-        { nome: 'Exportação PDF/Excel', incluso: false },
+        { nome: '5 Rótulo e etiqueta imprimível', incluso: false },
         { nome: '1 usuário', incluso: true },
         { nome: 'Suporte por e-mail', incluso: true }
       ]
@@ -155,7 +154,7 @@ export function Planos({ onNavegar, onAssinarPlano, usuario }: PlanosProps) {
       <div className="flex flex-wrap justify-center gap-6 max-w-7xl mx-auto items-stretch">
         {listPlanos.map((plano) => {
           const isPlanoAtual = !!usuario && usuario.planoAtual === plano.id;
-          const isGratis = plano.id === 'iniciante';
+          const isGratis = plano.mensal === 0;
 
           let labelBotao: string;
           let handleClick: (() => void) | undefined;
@@ -205,7 +204,7 @@ export function Planos({ onNavegar, onAssinarPlano, usuario }: PlanosProps) {
                 {/* Preço */}
                 <div className="flex items-end gap-1 mb-1">
                   <span className={`text-5xl font-extrabold leading-none ${plano.destaque ? 'text-white' : 'text-gray-900'}`}>
-                    R$ {plano.mensal}
+                    {isGratis ? 'Grátis' : `R$ ${plano.mensal}`}
                   </span>
                 </div>
                 <p className={`text-sm ${plano.destaque ? 'text-white/60' : 'text-gray-400'}`}>

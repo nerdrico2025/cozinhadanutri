@@ -368,7 +368,7 @@ export function Profile({ dadosIniciais, onSalvar, onVoltar, onUpgrade, onApagar
 
           {/* Cabeçalho */}
           <div className="text-center mb-10 fade-slide-in">
-            <img src="/logo.svg" alt="Cozinha da Nutri" className="h-16 mx-auto mb-4 drop-shadow-sm" />
+{/*             <img src="/logo.svg" alt="Cozinha da Nutri" className="h-16 mx-auto mb-4 drop-shadow-sm" /> */}
             <h1 className="text-2xl font-bold text-gray-800 tracking-tight">Meu Perfil</h1>
             <p className="text-sm text-gray-500 mt-1 font-medium">Gerencie os dados e configurações da sua conta</p>
           </div>

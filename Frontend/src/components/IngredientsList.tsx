@@ -70,7 +70,7 @@ export function ListaIngredientes({ ingredientes, onEditar, onRemover }: ListaIn
   }
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-4 max-w-5xl mx-auto w-full">
       {/* Barra de Busca e Título */}
       <div className="flex flex-col lg:flex-row lg:items-center gap-6 bg-white p-5 rounded-3xl border border-gray-100 shadow-sm">
         {/* Lado Esquerdo: Título */}
@@ -255,7 +255,7 @@ export function ListaIngredientes({ ingredientes, onEditar, onRemover }: ListaIn
         message={`Você está prestes a excluir "${itemParaRemover?.nome}". Esta ação não pode ser desfeita e pode afetar receitas existentes.`}
         confirmText="Sim, remover"
         cancelText="Manter ingrediente"
-        requirePassword={true}
+        requirePassword={false}
       />
     </div>
   );
