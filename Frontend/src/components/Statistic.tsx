@@ -2,7 +2,7 @@ import { useState, useMemo } from "react";
 import {
   ArrowLeft, Calendar, DollarSign, Package, TrendingUp, AlertTriangle, 
   Users, Utensils, ChevronLeft, ChevronRight, Activity, Percent, 
-  ArrowUpRight, ShoppingBag, Award, Clock
+  ArrowUpRight, ShoppingBag, Award, Clock, Printer
 } from "lucide-react";
 import {
   ResponsiveContainer,
@@ -67,6 +67,7 @@ export function Statistic({ onVoltar, refeicoes, receitas }: StatisticProps) {
   const [tabAtiva, setTabAtiva] = useState<TabAtiva>("geral");
   const [periodoFiltro, setPeriodoFiltro] = useState<"mes" | "tudo">("mes");
   const [tipoGraficoGeral, setTipoGraficoGeral] = useState<"financeiro" | "volume">("financeiro");
+  const [isPrinting, setIsPrinting] = useState(false);
   
   const [mesSelecionado, setMesSelecionado] = useState<string>(() => {
     const today = new Date();
@@ -130,6 +131,15 @@ export function Statistic({ onVoltar, refeicoes, receitas }: StatisticProps) {
     const date = new Date(parseInt(y), parseInt(m) - 1);
     const monthName = date.toLocaleDateString("pt-BR", { month: "long" });
     return `${monthName.charAt(0).toUpperCase() + monthName.slice(1)} ${y}`;
+  };
+
+  const handlePrint = () => {
+    setIsPrinting(true);
+    // Timeout para dar tempo do Recharts medir a tela e renderizar todos os graficos
+    setTimeout(() => {
+      window.print();
+      setIsPrinting(false);
+    }, 600);
   };
 
   // Filtrar produções e despesas com base no período selecionado
@@ -445,10 +455,19 @@ export function Statistic({ onVoltar, refeicoes, receitas }: StatisticProps) {
   const COLORS = ["#04585a", "#0f766e", "#0d9488", "#14b8a6", "#2dd4bf", "#64748b", "#94a3b8", "#cbd5e1"];
 
   return (
-    <div className="min-h-screen bg-[#F4F5F7] pb-24 font-sans selection:bg-[#04585a]/20 animate-fadeIn">
+    <div className="min-h-screen bg-[#F4F5F7] pb-24 print:pb-0 font-sans selection:bg-[#04585a]/20 animate-fadeIn print:bg-white print:min-h-0">
+      <style>
+        {`
+          @media print {
+            @page { size: landscape; margin: 10mm; }
+            body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+            .bg-white.rounded-2xl { break-inside: avoid; }
+          }
+        `}
+      </style>
       
       {/* Header */}
-      <header className="sticky top-0 z-30 bg-white border-b border-gray-200 shadow-sm">
+      <header className="sticky top-0 z-30 bg-white border-b border-gray-200 shadow-sm print:hidden">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
           <div className="flex items-center gap-6">
             <button
@@ -461,13 +480,21 @@ export function Statistic({ onVoltar, refeicoes, receitas }: StatisticProps) {
               <h1 className="text-xl font-bold text-gray-900 tracking-tight">Raio-X do Negócio (Estatísticas)</h1>
             </div>
           </div>
+          <button 
+            onClick={handlePrint}
+            className="group flex items-center gap-2.5 px-6 py-2.5 bg-gradient-to-r from-gray-900 to-gray-800 hover:from-gray-800 hover:to-gray-700 text-white text-sm font-bold rounded-xl border-0 cursor-pointer shadow-md shadow-gray-900/10 hover:shadow-lg hover:shadow-gray-900/20 transition-all active:scale-95 print:hidden"
+            title="Gera um PDF via caixa de diálogo de impressão do navegador"
+          >
+            <Printer size={18} className="text-gray-300 group-hover:text-white transition-colors" />
+            <span className="tracking-wide">Exportar PDF</span>
+          </button>
         </div>
       </header>
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 py-10 flex flex-col gap-8">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 py-10 print:py-0 print:px-0 flex flex-col gap-8 print:gap-4 print:w-full print:max-w-none">
         
         {/* Controle do Filtro de Período */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-6 rounded-2xl border border-gray-200 shadow-sm">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-6 rounded-2xl border border-gray-200 shadow-sm print:hidden">
           <div>
             <h2 className="text-xl font-bold text-gray-900">Configuração de Relatório</h2>
             <p className="text-xs text-gray-400 mt-1">Selecione o horizonte de tempo para analisar sua produção e saúde financeira.</p>
@@ -508,8 +535,16 @@ export function Statistic({ onVoltar, refeicoes, receitas }: StatisticProps) {
           </div>
         </div>
 
+        {/* Título de Impressão */}
+        <div className="hidden print:block text-center mb-8 border-b border-gray-200 pb-4">
+          <h2 className="text-2xl font-black text-gray-900 uppercase">
+            Relatório Gerencial - {periodoFiltro === "mes" ? formatMonthYear(mesSelecionado) : "Histórico Completo"}
+          </h2>
+          <p className="text-gray-500 mt-1">Cozinha da Nutri</p>
+        </div>
+
         {/* Abas */}
-        <div className="border-b border-gray-200">
+        <div className="border-b border-gray-200 print:hidden">
           <nav className="flex space-x-8" aria-label="Tabs">
             {[
               { id: "geral", label: "Visão Geral", icon: Activity },
@@ -538,8 +573,8 @@ export function Statistic({ onVoltar, refeicoes, receitas }: StatisticProps) {
         </div>
 
         {/* Tab 1: Geral / Dashboard Macro */}
-        {tabAtiva === "geral" && (
-          <div className="space-y-8 animate-fadeIn">
+        {(tabAtiva === "geral" || isPrinting) && (
+          <div className="space-y-8 animate-fadeIn print:space-y-4 print:mb-8">
             {/* KPI Grid */}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
               <div className="bg-white rounded-2xl p-6 border border-gray-200 shadow-sm flex flex-col gap-2">
@@ -773,8 +808,8 @@ export function Statistic({ onVoltar, refeicoes, receitas }: StatisticProps) {
         )}
 
         {/* Tab 2: Financeiro Detalhado */}
-        {tabAtiva === "financeiro" && (
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 animate-fadeIn">
+        {(tabAtiva === "financeiro" || isPrinting) && (
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 animate-fadeIn print:grid-cols-3 print:gap-4 print:mb-8">
             {/* Lista de Custos */}
             <div className="lg:col-span-2 bg-white rounded-2xl border border-gray-200 p-8 shadow-sm flex flex-col gap-8">
               
@@ -918,8 +953,8 @@ export function Statistic({ onVoltar, refeicoes, receitas }: StatisticProps) {
         )}
 
         {/* Tab 3: Produção e Ingredientes */}
-        {tabAtiva === "producao" && (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 animate-fadeIn">
+        {(tabAtiva === "producao" || isPrinting) && (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 animate-fadeIn print:grid-cols-2 print:gap-4 print:mb-8">
             {/* Pratos Mais Produzidos */}
             <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm flex flex-col gap-6">
               <div>
@@ -985,8 +1020,8 @@ export function Statistic({ onVoltar, refeicoes, receitas }: StatisticProps) {
         )}
 
         {/* Tab 4: Saúde de Estoque */}
-        {tabAtiva === "estoque" && (
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 animate-fadeIn">
+        {(tabAtiva === "estoque" || isPrinting) && (
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 animate-fadeIn print:grid-cols-3 print:gap-4 print:mb-8">
             {/* Lotes em Risco */}
             <div className="lg:col-span-2 bg-white rounded-2xl border border-gray-200 p-8 shadow-sm flex flex-col gap-6">
               <div>
@@ -1082,8 +1117,8 @@ export function Statistic({ onVoltar, refeicoes, receitas }: StatisticProps) {
         )}
 
         {/* Tab 5: Fornecedores */}
-        {tabAtiva === "fornecedores" && (
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 animate-fadeIn">
+        {(tabAtiva === "fornecedores" || isPrinting) && (
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 animate-fadeIn print:grid-cols-3 print:gap-4 print:mb-8">
             
             {/* Recharts Bar Chart: Participação de Fornecedores */}
             <div className="lg:col-span-1 bg-white rounded-2xl border border-gray-200 p-6 shadow-sm flex flex-col gap-6">

@@ -668,7 +668,7 @@ export function Inventory({ onVoltar, onIrParaIngredientes, ingredientes, onAtua
               
               <div className="px-8 py-6 border-b border-gray-100 flex items-center justify-between">
                 <h4 className="text-xl font-bold text-gray-900 tracking-tight">Rastreamento de Lotes</h4>
-                {!mostrarFormInline && (
+                {!mostrarFormInline && abaAtiva === 'materiais' && (
                   <button
                     onClick={() => {
                       setItemEmEdicao(null);
@@ -678,7 +678,16 @@ export function Inventory({ onVoltar, onIrParaIngredientes, ingredientes, onAtua
                     className="px-4 py-2 rounded-xl bg-gray-900 hover:bg-gray-800 text-white font-bold text-sm transition-colors cursor-pointer border-0 flex items-center gap-2 shadow-sm"
                   >
                     <Plus size={16} />
-                    Cadastrar Insumo
+                    Cadastrar Embalagem/Insumo
+                  </button>
+                )}
+                {!mostrarFormInline && abaAtiva === 'ingredientes' && onIrParaIngredientes && (
+                  <button
+                    onClick={onIrParaIngredientes}
+                    className="px-4 py-2 rounded-xl bg-[#04585a] hover:bg-[#034042] text-white font-bold text-sm transition-colors cursor-pointer border-0 flex items-center gap-2 shadow-sm"
+                  >
+                    <Plus size={16} />
+                    Novo Ingrediente (TACO)
                   </button>
                 )}
               </div>

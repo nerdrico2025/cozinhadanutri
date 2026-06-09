@@ -3,9 +3,10 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import {
-  ArrowLeft, Plus, Trash2, Calendar, ChevronLeft, ChevronRight, PackageOpen, LayoutGrid, Edit2, DollarSign, ShoppingBag
+  ArrowLeft, Plus, Trash2, Calendar, ChevronLeft, ChevronRight, PackageOpen, LayoutGrid, Edit2, DollarSign, ShoppingBag, AlertTriangle, X
 } from "lucide-react";
 import { Refeicao } from "../types";
+import api from "../services/api";
 
 const producaoSchema = z.object({
   data: z.string().min(1, "Data é obrigatória"),
@@ -66,224 +67,15 @@ export function ProductionRegister({ onVoltar, refeicoes }: ProductionRegisterPr
     }
   });
 
-  const handleGerarDadosMock = () => {
-    const mockReceitas = [
-      { id: "rec-1", nome: "Arroz Integral", precoSugerido: 4.5, custoPorPorcao: 1.5, ingredientes: [] },
-      { id: "rec-2", nome: "Frango Grelhado", precoSugerido: 9.0, custoPorPorcao: 3.5, ingredientes: [] },
-      { id: "rec-3", nome: "Purê de Batata Doce", precoSugerido: 5.5, custoPorPorcao: 2.0, ingredientes: [] },
-      { id: "rec-4", nome: "Feijoada Light", precoSugerido: 18.0, custoPorPorcao: 6.0, ingredientes: [] },
-      { id: "rec-5", nome: "Legumes no Vapor", precoSugerido: 6.0, custoPorPorcao: 2.2, ingredientes: [] }
-    ];
+  const [receitasDB, setReceitasDB] = useState<any[]>([]);
 
-    const mockRefeicoes = [
-      {
-        id: "ref-1",
-        nome: "Marmita Fit Frango e Batata Doce",
-        descricao: "Frango grelhado, purê de batata doce e legumes",
-        custoTotal: 7.7,
-        receitas: [
-          { receitaId: "rec-2", porcoesUtilizadas: 1, custoPorPorcao: 3.5 },
-          { receitaId: "rec-3", porcoesUtilizadas: 1, custoPorPorcao: 2.0 },
-          { receitaId: "rec-5", porcoesUtilizadas: 1, custoPorPorcao: 2.2 }
-        ]
-      },
-      {
-        id: "ref-2",
-        nome: "Feijoada Completa Fit",
-        descricao: "Feijoada light com arroz integral e legumes",
-        custoTotal: 9.7,
-        receitas: [
-          { receitaId: "rec-4", porcoesUtilizadas: 1, custoPorPorcao: 6.0 },
-          { receitaId: "rec-1", porcoesUtilizadas: 1, custoPorPorcao: 1.5 },
-          { receitaId: "rec-5", porcoesUtilizadas: 1, custoPorPorcao: 2.2 }
-        ]
-      },
-      {
-        id: "ref-3",
-        nome: "Marmita Low Carb Básica",
-        descricao: "Frango grelhado com legumes no vapor",
-        custoTotal: 5.7,
-        receitas: [
-          { receitaId: "rec-2", porcoesUtilizadas: 1, custoPorPorcao: 3.5 },
-          { receitaId: "rec-5", porcoesUtilizadas: 1, custoPorPorcao: 2.2 }
-        ]
-      }
-    ];
-
-    localStorage.setItem('refeicoes', JSON.stringify(mockRefeicoes));
-    localStorage.setItem('receitas', JSON.stringify(mockReceitas));
-
-    const mockProducoes: ProducaoRegistro[] = [];
-    const hoje = new Date();
-    
-    for (let i = 5; i >= 0; i--) {
-      const dataMes = new Date(hoje.getFullYear(), hoje.getMonth() - i, 15);
-      const mesRef = `${dataMes.getFullYear()}-${String(dataMes.getMonth() + 1).padStart(2, '0')}`;
-      
-      mockRefeicoes.forEach((ref, refIdx) => {
-        for (let loteIdx = 1; loteIdx <= 2; loteIdx++) {
-          const dia = 5 + (loteIdx * 10) + refIdx;
-          const diaStr = String(dia).padStart(2, '0');
-          const dataStr = `${mesRef}-${diaStr}`;
-          
-          const quantidade = 30 + Math.floor(Math.random() * 50); 
-          const custoUnit = ref.custoTotal || 6.0;
-          const custoTotal = custoUnit * quantidade;
-
-          const dataVal = new Date(dataStr + 'T12:00:00');
-          dataVal.setDate(dataVal.getDate() + 30);
-          const dataVencimento = dataVal.toISOString().split('T')[0];
-
-          mockProducoes.push({
-            id: `prod-mock-${mesRef}-${ref.id}-${loteIdx}`,
-            lote: `LT-${dataStr.replace(/-/g, '')}-MCK${refIdx}`,
-            data: dataStr,
-            mesReferencia: mesRef,
-            refeicaoId: ref.id,
-            refeicaoNome: ref.nome,
-            quantidade,
-            custoUnitario: custoUnit,
-            custoTotal,
-            validadeDias: 30,
-            dataVencimento
-          });
-        }
-      });
-    }
-
-    localStorage.setItem('historico_producao', JSON.stringify(mockProducoes));
-    setProducoes(mockProducoes);
-
-    const mockVendas: VendaRegistro[] = [];
-    mockProducoes.forEach((prod) => {
-      const pctVendido = 0.7 + Math.random() * 0.2; // 70% a 90%
-      const qtdVendida = Math.round(prod.quantidade * pctVendido);
-      const ref = mockRefeicoes.find((r) => r.id === prod.refeicaoId);
-      const precoSugeridoUnit = ref ? ref.custoTotal * 1.8 : 15.0; // 80% markup
-      const valorUnit = Math.round(precoSugeridoUnit * 10) / 10;
-      const valorTotal = Math.round(qtdVendida * valorUnit * 10) / 10;
-
-      mockVendas.push({
-        id: `venda-mock-${prod.id}`,
-        data: prod.data,
-        mesReferencia: prod.mesReferencia,
-        refeicaoId: prod.refeicaoId,
-        refeicaoNome: prod.refeicaoNome,
-        quantidade: qtdVendida,
-        valorUnitario: valorUnit,
-        valorTotal: valorTotal,
-      });
-    });
-    localStorage.setItem('historico_vendas', JSON.stringify(mockVendas));
-    setVendas(mockVendas);
-
-    const mockDespesas: any[] = [];
-    for (let i = 5; i >= 0; i--) {
-      const dataMes = new Date(hoje.getFullYear(), hoje.getMonth() - i, 10);
-      const mesRef = `${dataMes.getFullYear()}-${String(dataMes.getMonth() + 1).padStart(2, '0')}`;
-      const dataStr = `${mesRef}-10`;
-
-      mockDespesas.push(
-        {
-          id: `desp-mock-gas-${mesRef}`,
-          data: dataStr,
-          mesReferencia: mesRef,
-          categoria: "Gás de Cozinha",
-          descricao: "Recarga de botijões de gás industrial",
-          tipoCusto: "Variável",
-          statusPagamento: "Pago",
-          valorTotal: 150 + Math.floor(Math.random() * 50)
-        },
-        {
-          id: `desp-mock-aluguel-${mesRef}`,
-          data: dataStr,
-          mesReferencia: mesRef,
-          categoria: "Aluguel",
-          descricao: "Aluguel do espaço físico da cozinha",
-          tipoCusto: "Fixo",
-          statusPagamento: "Pago",
-          valorTotal: 800
-        },
-        {
-          id: `desp-mock-energia-${mesRef}`,
-          data: dataStr,
-          mesReferencia: mesRef,
-          categoria: "Energia Elétrica",
-          descricao: "Conta de luz comercial",
-          tipoCusto: "Variável",
-          statusPagamento: "Pago",
-          valorTotal: 250 + Math.floor(Math.random() * 100)
-        },
-        {
-          id: `desp-mock-embalagens-${mesRef}`,
-          data: dataStr,
-          mesReferencia: mesRef,
-          categoria: "Embalagens",
-          descricao: "Compra mensal de marmitas biodegradáveis",
-          tipoCusto: "Variável",
-          statusPagamento: "Pago",
-          valorTotal: 120 + Math.floor(Math.random() * 60)
-        }
-      );
-    }
-    localStorage.setItem('despesas_operacionais', JSON.stringify(mockDespesas));
-
-    const mockEstoque = [
-      {
-        id: "est-1",
-        nome: "Peito de Frango",
-        categoria: "Proteínas",
-        unidade: "kg",
-        quantidadeAtual: 15,
-        estoqueMinimo: 10,
-        custoMedio: 18.5,
-        lotes: [
-          { id: "l-f-1", quantidadeOriginal: 10, quantidadeAtual: 7, custoUnitario: 18.0, dataValidade: new Date(hoje.getTime() + 10 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], fornecedor: "Granja Sul" },
-          { id: "l-f-2", quantidadeOriginal: 10, quantidadeAtual: 8, custoUnitario: 19.0, dataValidade: new Date(hoje.getTime() + 25 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], fornecedor: "Granja Sul" }
-        ]
-      },
-      {
-        id: "est-2",
-        nome: "Arroz Integral",
-        categoria: "Carboidratos",
-        unidade: "kg",
-        quantidadeAtual: 25,
-        estoqueMinimo: 15,
-        custoMedio: 6.5,
-        lotes: [
-          { id: "l-a-1", quantidadeOriginal: 30, quantidadeAtual: 25, custoUnitario: 6.5, dataValidade: new Date(hoje.getTime() + 90 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], fornecedor: "Distribuidora Secos & Molhados" }
-        ]
-      },
-      {
-        id: "est-3",
-        nome: "Batata Doce",
-        categoria: "Carboidratos",
-        unidade: "kg",
-        quantidadeAtual: 5,
-        estoqueMinimo: 12,
-        custoMedio: 4.8,
-        lotes: [
-          { id: "l-b-1", quantidadeOriginal: 15, quantidadeAtual: 5, custoUnitario: 4.8, dataValidade: new Date(hoje.getTime() - 2 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], fornecedor: "Hortifruti Central" }
-        ]
-      },
-      {
-        id: "est-4",
-        nome: "Marmitas Descartáveis",
-        categoria: "Embalagens",
-        unidade: "unidade",
-        quantidadeAtual: 120,
-        estoqueMinimo: 100,
-        custoMedio: 0.85,
-        lotes: [
-          { id: "l-emb-1", quantidadeOriginal: 200, quantidadeAtual: 120, custoUnitario: 0.85, dataValidade: new Date(hoje.getTime() + 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], fornecedor: "Embala Já" }
-        ]
-      }
-    ];
-    localStorage.setItem('estoque_itens', JSON.stringify(mockEstoque));
-
-    alert("Dados simulados gerados com sucesso! A página será recarregada.");
-    window.location.reload();
-  };
+  useEffect(() => {
+    api.get("/receitas/")
+      .then(response => {
+        setReceitasDB(response.data);
+      })
+      .catch(err => console.error("Erro ao buscar refeições do banco:", err));
+  }, []);
 
   const [mesSelecionado, setMesSelecionado] = useState(() => {
     const hoje = new Date();
@@ -304,6 +96,8 @@ export function ProductionRegister({ onVoltar, refeicoes }: ProductionRegisterPr
   });
   const [mostrarFormInlineVenda, setMostrarFormInlineVenda] = useState(false);
   const [editandoVendaId, setEditandoVendaId] = useState<string | null>(null);
+
+  const [deleteConfirm, setDeleteConfirm] = useState<{ isOpen: boolean, id: string, tipo: 'producao' | 'venda' } | null>(null);
 
   const [tipoVencimento, setTipoVencimento] = useState<"dias" | "data">("dias");
   const [dataVencimentoEspecifica, setDataVencimentoEspecifica] = useState<string>(() => {
@@ -344,13 +138,13 @@ export function ProductionRegister({ onVoltar, refeicoes }: ProductionRegisterPr
   const selectedRefeicaoIdVenda = watchVenda("refeicaoId");
   useEffect(() => {
     if (selectedRefeicaoIdVenda && !editandoVendaId) {
-      const refeicao = refeicoes.find(r => r.id === selectedRefeicaoIdVenda);
+      const refeicao = receitasDB.find(r => String(r.id) === String(selectedRefeicaoIdVenda));
       if (refeicao) {
-        const precoSugerido = refeicao.custoTotal ? Math.round(refeicao.custoTotal * 1.8 * 10) / 10 : 15.0;
-        setValueVenda("valorUnitario", precoSugerido);
+        // Se quisermos basear no backend, como não temos custo total imediato, deixamos o usuário preencher
+        setValueVenda("valorUnitario", 0);
       }
     }
-  }, [selectedRefeicaoIdVenda, refeicoes, setValueVenda, editandoVendaId]);
+  }, [selectedRefeicaoIdVenda, receitasDB, setValueVenda, editandoVendaId]);
 
   const dataProducao = watch("data");
   const validadeDias = watch("validadeDias");
@@ -391,11 +185,11 @@ export function ProductionRegister({ onVoltar, refeicoes }: ProductionRegisterPr
   }, [dataProducao, tipoVencimento]);
 
   const onAddProducao = (data: ProducaoForm) => {
-    const refeicao = refeicoes.find(r => r.id === data.refeicaoId);
+    const refeicao = receitasDB.find(r => String(r.id) === String(data.refeicaoId));
     if (!refeicao) return;
 
-    // Se o usuário digitou um valor unitário, usa ele; senão usa o custo total da ficha.
-    const custoUnit = data.valorUnitario && data.valorUnitario > 0 ? data.valorUnitario : (refeicao.custoTotal || 0);
+    // Se o usuário digitou um valor unitário, usa ele; senão 0
+    const custoUnit = data.valorUnitario && data.valorUnitario > 0 ? data.valorUnitario : 0;
     const custoTotal = custoUnit * data.quantidade;
 
     const dataProd = new Date(data.data + 'T12:00:00');
@@ -475,13 +269,11 @@ export function ProductionRegister({ onVoltar, refeicoes }: ProductionRegisterPr
   };
 
   const handleRemover = (id: string) => {
-    if (confirm("Remover este registro de produção?")) {
-      setProducoes(producoes.filter(d => d.id !== id));
-    }
+    setDeleteConfirm({ isOpen: true, id, tipo: 'producao' });
   };
 
   const onAddVenda = (data: VendaForm) => {
-    const refeicao = refeicoes.find(r => r.id === data.refeicaoId);
+    const refeicao = receitasDB.find(r => String(r.id) === String(data.refeicaoId));
     if (!refeicao) return;
 
     const valorTotal = data.valorUnitario * data.quantidade;
@@ -539,9 +331,17 @@ export function ProductionRegister({ onVoltar, refeicoes }: ProductionRegisterPr
   };
 
   const handleRemoverVenda = (id: string) => {
-    if (confirm("Remover este registro de venda?")) {
-      setVendas(vendas.filter(v => v.id !== id));
+    setDeleteConfirm({ isOpen: true, id, tipo: 'venda' });
+  };
+
+  const confirmDelete = () => {
+    if (!deleteConfirm) return;
+    if (deleteConfirm.tipo === 'producao') {
+      setProducoes(producoes.filter(d => d.id !== deleteConfirm.id));
+    } else {
+      setVendas(vendas.filter(v => v.id !== deleteConfirm.id));
     }
+    setDeleteConfirm(null);
   };
 
   const vendasDoMes = useMemo(() => {
@@ -784,13 +584,6 @@ export function ProductionRegister({ onVoltar, refeicoes }: ProductionRegisterPr
                   {!mostrarFormInline && (
                     <>
                       <button
-                        type="button"
-                        onClick={handleGerarDadosMock}
-                        className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-sm transition-colors cursor-pointer border-0 flex items-center gap-2 shadow-sm whitespace-nowrap"
-                      >
-                        Simular Dados (Mock)
-                      </button>
-                      <button
                         onClick={() => setMostrarFormInline(true)}
                         className="px-4 py-2 rounded-xl bg-[#04585a] hover:bg-[#034446] text-white font-bold text-sm transition-colors cursor-pointer border-0 flex items-center gap-2 shadow-sm whitespace-nowrap"
                       >
@@ -840,7 +633,7 @@ export function ProductionRegister({ onVoltar, refeicoes }: ProductionRegisterPr
                         <label className={labelCls}>Marmita / Refeição</label>
                         <select {...register("refeicaoId")} className={inputCls(!!errors.refeicaoId)}>
                           <option value="" disabled>Selecione a marmita produzida...</option>
-                          {refeicoes.map(r => <option key={r.id} value={r.id}>{r.nome} (Custo: {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(r.custoTotal || 0)})</option>)}
+                          {receitasDB.map(r => <option key={r.id} value={r.id}>{r.nome}</option>)}
                         </select>
                       </div>
                     </div>
@@ -1066,9 +859,9 @@ export function ProductionRegister({ onVoltar, refeicoes }: ProductionRegisterPr
                         <label className={labelCls}>Marmita / Refeição</label>
                         <select {...registerVenda("refeicaoId")} className={inputCls(!!errorsVenda.refeicaoId)}>
                           <option value="" disabled>Selecione a marmita vendida...</option>
-                          {refeicoes.map((r) => (
+                          {receitasDB.map((r) => (
                             <option key={r.id} value={r.id}>
-                              {r.nome} (Custo: {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(r.custoTotal || 0)})
+                              {r.nome}
                             </option>
                           ))}
                         </select>
@@ -1192,6 +985,37 @@ export function ProductionRegister({ onVoltar, refeicoes }: ProductionRegisterPr
           </section>
         )}
       </main>
+
+      {/* Modal de Confirmação de Exclusão */}
+      {deleteConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/40 backdrop-blur-sm animate-fadeIn">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm overflow-hidden animate-slideUp border border-gray-100">
+            <div className="p-6">
+              <div className="w-12 h-12 rounded-full bg-red-50 flex items-center justify-center mb-4">
+                <AlertTriangle size={24} className="text-red-500" />
+              </div>
+              <h3 className="text-xl font-bold text-gray-900 tracking-tight mb-2">Confirmar Exclusão</h3>
+              <p className="text-sm text-gray-500 leading-relaxed">
+                Tem certeza que deseja remover este registro de {deleteConfirm.tipo === 'producao' ? 'produção' : 'venda'}? Esta ação não poderá ser desfeita e os dados sairão dos seus relatórios.
+              </p>
+            </div>
+            <div className="bg-gray-50 px-6 py-4 flex items-center justify-end gap-3 border-t border-gray-100">
+              <button
+                onClick={() => setDeleteConfirm(null)}
+                className="px-4 py-2 text-sm font-bold text-gray-600 hover:text-gray-900 bg-transparent hover:bg-gray-200 rounded-xl transition-colors border-0 cursor-pointer"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={confirmDelete}
+                className="px-4 py-2 text-sm font-bold text-white bg-red-500 hover:bg-red-600 rounded-xl transition-colors border-0 cursor-pointer shadow-sm"
+              >
+                Sim, Remover
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
