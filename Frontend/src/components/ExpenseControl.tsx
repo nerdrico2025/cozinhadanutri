@@ -6,21 +6,17 @@ import {
   ArrowLeft, Plus, Trash2, Edit2, Calendar, LayoutGrid, Type, Hash, DollarSign, X, ChevronLeft, ChevronRight, CheckCircle2, Circle, Check, Search, Lock
 } from "lucide-react";
 
-const CATEGORIAS = [
-  "Embalagens e Insumos",
-  "Pessoal e Encargos",
-  "Estrutura e Instalações (Água, Luz, Gás, Aluguel)",
-  "Equipamentos e Acessórios (Panelas, Forno)",
-  "Transporte e Entregas",
-  "Marketing e Vendas",
-  "Administrativas e Software",
-  "Impostos e Taxas",
-  "Limpeza e Higiene",
-  "Segurança e Conformidade",
-  "Outros"
-] as const;
+const CATEGORIAS_FIXAS = [
+  "Aluguel", "Internet", "Contabilidade", "Pró-labore", "Funcionários", "Sistemas", "Marketing", "Outros (Fixo)"
+];
 
-type Categoria = typeof CATEGORIAS[number];
+const CATEGORIAS_VARIAVEIS = [
+  "Energia", "Água", "Gás", "Taxas de cartão", "Entrega", "Embalagens", "Outros (Variável)"
+];
+
+const CATEGORIAS = [...CATEGORIAS_FIXAS, ...CATEGORIAS_VARIAVEIS];
+
+type Categoria = string;
 
 interface Despesa {
   id: string;
@@ -133,6 +129,7 @@ export function ExpenseControl({ onVoltar }: ExpenseControlProps) {
   const quantidadeWatcher = watch("quantidade", 1);
   const valorUnitarioWatcher = watch("valorUnitario", 0);
   const statusWatcher = watch("statusPagamento");
+  const tipoCustoWatcher = watch("tipoCusto");
 
   const onAddExpense = (data: ExpenseForm) => {
     const novaDespesa: Despesa = {
@@ -426,7 +423,9 @@ export function ExpenseControl({ onVoltar }: ExpenseControlProps) {
                         <label className={labelCls}>Categoria</label>
                         <select {...register("categoria")} className={inputCls(!!errors.categoria)}>
                           <option value="" disabled>Selecione...</option>
-                          {CATEGORIAS.map(c => <option key={c} value={c}>{c}</option>)}
+                          {tipoCustoWatcher === "Fixo" && CATEGORIAS_FIXAS.map(c => <option key={c} value={c}>{c}</option>)}
+                          {tipoCustoWatcher === "Variável" && CATEGORIAS_VARIAVEIS.map(c => <option key={c} value={c}>{c}</option>)}
+                          {tipoCustoWatcher === "Investimento" && <option value="Investimento">Investimento / Equipamentos</option>}
                         </select>
                       </div>
                       <div className="flex-1">
@@ -570,10 +569,24 @@ export function ExpenseControl({ onVoltar }: ExpenseControlProps) {
                           <td className="px-4 py-4 text-right">
                             <span className="text-sm text-gray-600">{formatCurrency(despesa.valorUnitario)}</span>
                           </td>
-                          <td className="px-8 py-4 text-right">
-                            <span className="text-sm font-medium text-gray-900">{formatCurrency(despesa.valorTotal)}</span>
-                          </td>
-                          <td className="px-4 py-4 text-right">
+                            <td className="px-8 py-4 text-right">
+                              <div className="flex items-center justify-end gap-3">
+                                <span className="text-sm font-medium text-gray-900">{formatCurrency(despesa.valorTotal)}</span>
+                                {despesa.statusPagamento === 'A Pagar' && (
+                                  <button
+                                    onClick={() => {
+                                      setEditDataPagamento(new Date().toISOString().split('T')[0]);
+                                      setEditMetodoPagamento("Pix");
+                                      setPagamentoEmEdicao(despesa.id);
+                                    }}
+                                    className="px-3 py-1 rounded-md bg-amber-500 hover:bg-amber-600 text-white text-[10px] font-bold uppercase tracking-wider cursor-pointer border-0 shadow-sm transition-colors"
+                                  >
+                                    Pagar
+                                  </button>
+                                )}
+                              </div>
+                            </td>
+                            <td className="px-4 py-4 text-right">
                               <button
                                 onClick={() => handleRemover(despesa.id)}
                                 className="p-2 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-full transition-colors opacity-0 group-hover:opacity-100 border-0 bg-transparent cursor-pointer"
@@ -584,10 +597,10 @@ export function ExpenseControl({ onVoltar }: ExpenseControlProps) {
                             </td>
                           </tr>
 
-                          {/* Expanded Editor Row for Payment Info */}
+                          {/* Dropdown / Linha expandida de pagamento */}
                           {pagamentoEmEdicao === despesa.id && (
-                            <tr className="bg-blue-50/50">
-                              <td colSpan={7} className="px-8 py-6 border-l-4 border-blue-500">
+                            <tr className="bg-emerald-50/50">
+                              <td colSpan={7} className="px-8 py-6 border-l-4 border-emerald-500">
                                 <div className="flex flex-col md:flex-row items-end gap-6 w-full">
                                   <div className="flex-1">
                                     <label className={labelCls}>Data do Pagamento</label>
@@ -606,9 +619,9 @@ export function ExpenseControl({ onVoltar }: ExpenseControlProps) {
                                   </div>
                                   <div className="flex items-center gap-2 pb-1">
                                     <button onClick={() => setPagamentoEmEdicao(null)} className="px-4 py-2 h-11 text-sm font-medium text-gray-500 hover:text-gray-900 transition-colors border-0 bg-transparent cursor-pointer">Cancelar</button>
-                                    <button onClick={() => confirmarPagamento(despesa.id)} className="px-6 py-2 h-11 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm transition-colors cursor-pointer border-0 shadow-sm flex items-center gap-2">
-                                      <Check size={16} />
-                                      Confirmar Pagamento
+                                    <button onClick={() => confirmarPagamento(despesa.id)} className="px-6 py-2 h-11 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm transition-colors cursor-pointer border-0 shadow-sm flex items-center gap-2">
+                                      <CheckCircle2 size={16} />
+                                      Confirmar
                                     </button>
                                   </div>
                                 </div>
@@ -623,6 +636,7 @@ export function ExpenseControl({ onVoltar }: ExpenseControlProps) {
               )}
             </div>
         </section>
+
       </main>
     </div>
   );

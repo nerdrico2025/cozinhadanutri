@@ -389,7 +389,7 @@ export function ListaReceitas({ receitas, onEditar, onRemover, onGerarRotulo }: 
         message={`Tem certeza que deseja remover a receita "${deleteModal.recipeName}"? Esta ação não pode ser desfeita.`}
         confirmText="Sim, excluir"
         cancelText="Manter receita"
-        requirePassword={true}
+        requirePassword={false}
       />
     </div>
   );

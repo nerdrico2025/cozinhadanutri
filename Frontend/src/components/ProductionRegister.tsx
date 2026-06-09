@@ -845,17 +845,19 @@ export function ProductionRegister({ onVoltar, refeicoes }: ProductionRegisterPr
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-4 gap-6 items-end">
-                      <div>
-                        <label className={labelCls}>Quantidade Produzida</label>
-                        <input type="number" min={1} step={1} {...register("quantidade", { valueAsNumber: true })} className={inputCls(!!errors.quantidade)} />
-                      </div>
-                      <div>
-                        <label className={labelCls}>Valor Unit. (Opcional)</label>
-                        <input type="number" min={0} step={0.01} placeholder="R$ 0,00" {...register("valorUnitario", { valueAsNumber: true })} className={inputCls(!!errors.valorUnitario)} />
+                    <div className="flex flex-col gap-5">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
+                        <div>
+                          <label className={labelCls}>Quantidade Produzida</label>
+                          <input type="number" min={1} step={1} {...register("quantidade", { valueAsNumber: true })} className={inputCls(!!errors.quantidade)} />
+                        </div>
+                        <div>
+                          <label className={labelCls}>Valor Unit. (Opcional)</label>
+                          <input type="number" min={0} step={0.01} placeholder="R$ 0,00" {...register("valorUnitario", { valueAsNumber: true })} className={inputCls(!!errors.valorUnitario)} />
+                        </div>
                       </div>
                       
-                      <div className="md:col-span-2 bg-gray-50/50 p-4 rounded-xl border border-gray-100 flex flex-col gap-3">
+                      <div className="bg-gray-50/50 p-4 rounded-xl border border-gray-100 flex flex-col gap-3 w-full md:w-1/2">
                         <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">
                           Validade do Lote
                         </label>
@@ -864,7 +866,7 @@ export function ProductionRegister({ onVoltar, refeicoes }: ProductionRegisterPr
                           <button
                             type="button"
                             onClick={() => setTipoVencimento("dias")}
-                            className={`flex-1 py-1 text-[11px] font-bold rounded-md border-0 cursor-pointer transition-all ${
+                            className={`flex-1 py-1.5 text-[11px] font-bold rounded-md border-0 cursor-pointer transition-all ${
                               tipoVencimento === "dias"
                                 ? "bg-white text-[#04585a] shadow-sm"
                                 : "bg-transparent text-gray-500 hover:text-gray-900"
@@ -875,7 +877,7 @@ export function ProductionRegister({ onVoltar, refeicoes }: ProductionRegisterPr
                           <button
                             type="button"
                             onClick={() => setTipoVencimento("data")}
-                            className={`flex-1 py-1 text-[11px] font-bold rounded-md border-0 cursor-pointer transition-all ${
+                            className={`flex-1 py-1.5 text-[11px] font-bold rounded-md border-0 cursor-pointer transition-all ${
                               tipoVencimento === "data"
                                 ? "bg-white text-[#04585a] shadow-sm"
                                 : "bg-transparent text-gray-500 hover:text-gray-900"

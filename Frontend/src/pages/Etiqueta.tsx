@@ -326,14 +326,16 @@ export function Etiqueta({ onVoltar, usuario }: EtiquetaProps): JSX.Element {
   const checkIngredientes = receita.ingredientes && receita.ingredientes.length > 0;
   const checkAlergenicos = contemGluten !== undefined && contemLactose !== undefined;
   const checkPesoLiquido = totalWeight > 0;
-  const checkValidade = !!dataValidade;
+  const checkValidade = !!dataValidade && dataValidade.trim() !== '';
+  const checkLote = !!lote && lote.trim() !== '';
+  const checkConservacao = !!instrucoesConservacao && instrucoesConservacao.trim() !== '';
   const checkTabelaCompleta = receita.dadosNutricionaisPorPorcao && receita.dadosNutricionaisPorPorcao.calorias !== undefined;
   const checkAcucaresTotais = receita.dadosNutricionaisPorPorcao.acucares_totais !== undefined && receita.dadosNutricionaisPorPorcao.acucares_totais >= 0;
   const checkAcucaresAdicionados = receita.dadosNutricionaisPorPorcao.acucares_adicionados !== undefined && receita.dadosNutricionaisPorPorcao.acucares_adicionados >= 0;
   const checkGorduraTrans = receita.dadosNutricionaisPorPorcao.gorduras_trans !== undefined && receita.dadosNutricionaisPorPorcao.gorduras_trans >= 0;
   const checkLupa = true; // Lupa ANVISA sempre avaliada
 
-  const isRotoApto = checkIngredientes && checkPesoLiquido && checkValidade && checkTabelaCompleta && checkAcucaresTotais && checkAcucaresAdicionados && checkGorduraTrans;
+  const isRotoApto = checkIngredientes && checkPesoLiquido && checkValidade && checkLote && checkConservacao && checkTabelaCompleta && checkAcucaresTotais && checkAcucaresAdicionados && checkGorduraTrans;
 
   const renderIdentificacaoFabricante = (tamanhoFonte: string, centered = false) => {
     if (ocultarCabecalho) return null;
@@ -1116,6 +1118,14 @@ export function Etiqueta({ onVoltar, usuario }: EtiquetaProps): JSX.Element {
                   <span>{checkValidade ? '✅' : '❌'}</span>
                 </div>
                 <div className="flex items-center justify-between">
+                  <span>Lote informado</span>
+                  <span>{checkLote ? '✅' : '❌'}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span>Conservação informada</span>
+                  <span>{checkConservacao ? '✅' : '❌'}</span>
+                </div>
+                <div className="flex items-center justify-between">
                   <span>Tabela nutricional completa</span>
                   <span>{checkTabelaCompleta ? '✅' : '❌'}</span>
                 </div>
@@ -1265,9 +1275,15 @@ export function Etiqueta({ onVoltar, usuario }: EtiquetaProps): JSX.Element {
                             </span>
                           </div>
 
+                          {/* Front-of-Package Nutrition Warning */}
+                          {renderLupaFrontal()}
+
+                          {/* Nutritional Information Table */}
+                          {renderTabelaNutricional(fs(2.9), fs(2.1), fs(1.7))}
+
                           {/* Ingredients section */}
                           {!ocultarIngredientes && (
-                            <div className="mb-2.5 leading-snug border-b border-black pb-2 text-justify" style={{ fontSize: fs(2.6) }}>
+                            <div className="mt-2.5 leading-snug border-t border-black pt-2 text-justify" style={{ fontSize: fs(2.6) }}>
                               <p>
                                 <strong>Ingredientes:</strong> {ingredientesTexto}.
                               </p>
@@ -1279,12 +1295,6 @@ export function Etiqueta({ onVoltar, usuario }: EtiquetaProps): JSX.Element {
                               )}
                             </div>
                           )}
-
-                          {/* Front-of-Package Nutrition Warning */}
-                          {renderLupaFrontal()}
-
-                          {/* Nutritional Information Table */}
-                          {renderTabelaNutricional(fs(2.9), fs(2.1), fs(1.7))}
                         </div>
 
                         {/* Expiry and Batch Details */}

@@ -193,6 +193,7 @@ export function Inventory({ onVoltar, onIrParaIngredientes, ingredientes, onAtua
   const [termoBusca, setTermoBusca] = useState('');
   const [filtroCategoria, setFiltroCategoria] = useState('');
   const [ordenarPor, setOrdenarPor] = useState('nome-asc');
+  const [abaAtiva, setAbaAtiva] = useState<'ingredientes' | 'materiais'>('ingredientes');
 
   // Row Expansion
   const [linhaExpandida, setLinhaExpandida] = useState<string | null>(null);
@@ -507,8 +508,15 @@ export function Inventory({ onVoltar, onIrParaIngredientes, ingredientes, onAtua
     fecharModal();
   };
 
+  const itensDaAbaAtual = useMemo(() => {
+    return itens.filter(item => {
+      const isIngred = item.categoria === "Ingrediente" || !!item.tacoId;
+      return abaAtiva === 'ingredientes' ? isIngred : !isIngred;
+    });
+  }, [itens, abaAtiva]);
+
   const itensFiltrados = useMemo(() => {
-    let resultado = [...itens];
+    let resultado = [...itensDaAbaAtual];
 
     if (termoBusca) {
       const termo = termoBusca.toLowerCase();
@@ -541,15 +549,15 @@ export function Inventory({ onVoltar, onIrParaIngredientes, ingredientes, onAtua
     });
 
     return resultado;
-  }, [itens, termoBusca, filtroCategoria, ordenarPor]);
+  }, [itensDaAbaAtual, termoBusca, filtroCategoria, ordenarPor]);
 
   const valorTotalParado = useMemo(() => {
-    return itens.reduce((acc, curr) => acc + (curr.quantidadeAtual > 0 ? curr.quantidadeAtual * curr.custoMedio : 0), 0);
-  }, [itens]);
+    return itensDaAbaAtual.reduce((acc, curr) => acc + (curr.quantidadeAtual > 0 ? curr.quantidadeAtual * curr.custoMedio : 0), 0);
+  }, [itensDaAbaAtual]);
 
   const itensEmAlerta = useMemo(() => {
-    return itens.filter(i => i.quantidadeAtual <= i.estoqueMinimo).length;
-  }, [itens]);
+    return itensDaAbaAtual.filter(i => i.quantidadeAtual <= i.estoqueMinimo).length;
+  }, [itensDaAbaAtual]);
 
   const formatCurrency = (val: number) => {
     return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
@@ -577,6 +585,32 @@ export function Inventory({ onVoltar, onIrParaIngredientes, ingredientes, onAtua
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 py-10 flex flex-col gap-8">
         
+        {/* Sub-navegação com alto destaque */}
+        <div className="bg-white p-2 rounded-2xl border border-gray-200 shadow-sm flex gap-2 w-full max-w-lg mx-auto">
+          <button 
+            type="button"
+            onClick={() => setAbaAtiva('ingredientes')}
+            className={`flex-1 flex items-center justify-center gap-2.5 py-3 px-4 rounded-xl font-bold text-sm border-0 cursor-pointer transition-all ${
+              abaAtiva === 'ingredientes'
+                ? "bg-[#04585a] text-white shadow-md shadow-[#04585a]/15"
+                : "bg-transparent text-gray-500 hover:text-gray-900 hover:bg-gray-50"
+            }`}
+          >
+            Ingredientes
+          </button>
+          <button 
+            type="button"
+            onClick={() => setAbaAtiva('materiais')}
+            className={`flex-1 flex items-center justify-center gap-2.5 py-3 px-4 rounded-xl font-bold text-sm border-0 cursor-pointer transition-all ${
+              abaAtiva === 'materiais'
+                ? "bg-[#04585a] text-white shadow-md shadow-[#04585a]/15"
+                : "bg-transparent text-gray-500 hover:text-gray-900 hover:bg-gray-50"
+            }`}
+          >
+            Embalagens e Insumos
+          </button>
+        </div>
+
         {/* ── Unified Command Center (KPIs) ────────────────────────────────── */}
         <section className="bg-white rounded-2xl border border-gray-200 shadow-sm flex flex-col md:flex-row divide-y md:divide-y-0 md:divide-x divide-gray-100 overflow-hidden">
           
@@ -601,7 +635,7 @@ export function Inventory({ onVoltar, onIrParaIngredientes, ingredientes, onAtua
               <Archive size={20} className="text-gray-300" />
             </div>
             <h3 className="text-4xl font-light tracking-tight text-gray-900">
-              {itens.length}
+              {itensDaAbaAtual.length}
               <span className="text-xl text-gray-400 ml-2 font-normal">itens</span>
             </h3>
           </div>

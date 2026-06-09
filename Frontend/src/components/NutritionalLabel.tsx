@@ -56,6 +56,20 @@ export function RotuloNutricional({ receita, onFechar, onImprimir }: RotuloNutri
     sodio: rotuloData.tabela_nutricional.sodio / receita.porcoes
   } : receita.dadosNutricionaisPorPorcao;
 
+  // Sort ingredients list by quantity descending (as per ANVISA standards)
+  const sortedIngredients = receita.ingredientes 
+    ? [...receita.ingredientes].sort((a, b) => b.quantidade - a.quantidade)
+    : [];
+
+  const formatarIngredientes = () => {
+    const nomes = sortedIngredients.map(i => i.nome.trim().toLowerCase());
+    if (nomes.length === 0) return '';
+    if (nomes.length === 1) return nomes[0];
+    const ultimo = nomes.pop();
+    return `${nomes.join(', ')} e ${ultimo}`;
+  };
+  const ingredientesTexto = formatarIngredientes();
+
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
       <div className="bg-white rounded-xl shadow-2xl max-w-[440px] w-full max-h-[90vh] overflow-y-auto">
@@ -150,6 +164,13 @@ export function RotuloNutricional({ receita, onFechar, onImprimir }: RotuloNutri
               <p><strong>Data:</strong> {new Date().toLocaleDateString('pt-BR')}</p>
               {receita.descricao && <p><strong>Descricao:</strong> {receita.descricao}</p>}
             </div>
+
+            {/* Ingredientes */}
+            {ingredientesTexto && (
+              <div className="mt-4 pt-4 border-t border-gray-300 text-[11px] text-justify leading-relaxed">
+                <p><strong>Ingredientes:</strong> {ingredientesTexto}.</p>
+              </div>
+            )}
           </div>
 
           {/* Rodape complementar */}

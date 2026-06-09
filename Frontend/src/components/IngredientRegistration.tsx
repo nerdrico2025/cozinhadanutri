@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useMemo } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -87,9 +87,33 @@ export function CadastroIngrediente({ ingredienteInicial, onSalvar, onCancelar, 
   const [incluirNoEstoque, setIncluirNoEstoque] = useState(!ingredienteInicial);
   const [estoqueQuantidade, setEstoqueQuantidade] = useState<number | ''>('');
   const [estoqueMinimo, setEstoqueMinimo] = useState<number | ''>(0);
-  const [estoqueValidade, setEstoqueValidade] = useState<string>('');
   const [estoqueFornecedor, setEstoqueFornecedor] = useState<string>('');
   const [estoqueCustoUnitario, setEstoqueCustoUnitario] = useState<number | ''>('');
+
+  const [tipoVencimento, setTipoVencimento] = useState<"dias" | "data">("dias");
+  const [validadeDias, setValidadeDias] = useState<number | ''>(30);
+  const [dataVencimentoEspecifica, setDataVencimentoEspecifica] = useState<string>('');
+
+  const dataVencimentoCalculada = useMemo(() => {
+    if (tipoVencimento === "dias" && typeof validadeDias === "number" && validadeDias > 0) {
+      const date = new Date();
+      date.setDate(date.getDate() + validadeDias);
+      return date.toLocaleDateString("pt-BR");
+    }
+    return "-";
+  }, [validadeDias, tipoVencimento]);
+
+  const handleDataVencimentoChange = (val: string) => {
+    setDataVencimentoEspecifica(val);
+    if (val) {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const selected = new Date(val + "T00:00:00");
+      const diffTime = selected.getTime() - today.getTime();
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+      setValidadeDias(diffDays > 0 ? diffDays : 1);
+    }
+  };
 
   const { register, handleSubmit, formState: { errors }, setValue, reset, watch } = useForm<IngredienteForm>({
     resolver: zodResolver(ingredienteSchema),
@@ -158,7 +182,9 @@ export function CadastroIngrediente({ ingredienteInicial, onSalvar, onCancelar, 
       setIncluirNoEstoque(true);
       setEstoqueQuantidade('');
       setEstoqueMinimo(0);
-      setEstoqueValidade('');
+      setTipoVencimento('dias');
+      setValidadeDias(30);
+      setDataVencimentoEspecifica('');
       setEstoqueFornecedor('');
     }
   }, [ingredienteInicial, reset]);
@@ -248,7 +274,9 @@ export function CadastroIngrediente({ ingredienteInicial, onSalvar, onCancelar, 
           quantidadeOriginal: qtd,
           quantidadeAtual: qtd,
           custoUnitario: custoUnit,
-          dataValidade: estoqueValidade || new Date().toISOString().split('T')[0],
+          dataValidade: tipoVencimento === "dias" 
+            ? (() => { const d = new Date(); d.setDate(d.getDate() + (Number(validadeDias) || 1)); return d.toISOString().split('T')[0]; })()
+            : (dataVencimentoEspecifica || new Date().toISOString().split('T')[0]),
           fornecedor: estoqueFornecedor
         };
 
@@ -515,38 +543,82 @@ export function CadastroIngrediente({ ingredienteInicial, onSalvar, onCancelar, 
                   </label>
                   
                   {incluirNoEstoque && (
-                    <div className="grid grid-cols-4 gap-4">
-                      <div>
-                        <label className="block text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-1">Custo do Lote (R$)</label>
-                        <input 
-                          type="number" min={0.01} step="0.01" required
-                          value={estoqueCustoUnitario} onChange={e => setEstoqueCustoUnitario(e.target.value === '' ? '' : Number(e.target.value))}
-                          placeholder="Ex: 5.50" className={inputCls(false)}
-                        />
+                    <div className="flex flex-col gap-5">
+                      {/* Primeira Linha */}
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
+                        <div>
+                          <label className="block text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-1">Custo do Lote (R$)</label>
+                          <input 
+                            type="number" min={0.01} step="0.01" required
+                            value={estoqueCustoUnitario} onChange={e => setEstoqueCustoUnitario(e.target.value === '' ? '' : Number(e.target.value))}
+                            placeholder="Ex: 5.50" className={inputCls(false)}
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-1">Fornecedor (Opcional)</label>
+                          <input 
+                            type="text"
+                            value={estoqueFornecedor} onChange={e => setEstoqueFornecedor(e.target.value)}
+                            placeholder="Nome do fornecedor" className={inputCls(false)}
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-1">Estoque Mínimo (Alerta)</label>
+                          <input 
+                            type="number" min={0} step="any"
+                            value={estoqueMinimo} onChange={e => setEstoqueMinimo(e.target.value === '' ? '' : Number(e.target.value))}
+                            placeholder="Ex: 1" className={inputCls(false)}
+                          />
+                        </div>
                       </div>
-                      <div>
-                        <label className="block text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-1">Validade do Lote</label>
-                        <input 
-                          type="date"
-                          value={estoqueValidade} onChange={e => setEstoqueValidade(e.target.value)}
-                          className={inputCls(false)}
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-1">Fornecedor (Opcional)</label>
-                        <input 
-                          type="text"
-                          value={estoqueFornecedor} onChange={e => setEstoqueFornecedor(e.target.value)}
-                          placeholder="Nome do fornecedor" className={inputCls(false)}
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-1">Estoque Mínimo (Alerta)</label>
-                        <input 
-                          type="number" min={0} step="any"
-                          value={estoqueMinimo} onChange={e => setEstoqueMinimo(e.target.value === '' ? '' : Number(e.target.value))}
-                          placeholder="Ex: 1" className={inputCls(false)}
-                        />
+
+                      {/* Segunda Linha */}
+                      <div className="bg-gray-50/50 p-4 rounded-xl border border-gray-100 flex flex-col gap-3">
+                        <label className="block text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-0">Validade do Lote</label>
+                        <div className="flex bg-gray-200/60 p-0.5 rounded-lg w-full md:w-1/2 mb-1">
+                          <button
+                            type="button"
+                            onClick={() => setTipoVencimento("dias")}
+                            className={`flex-1 py-1.5 text-[11px] font-bold rounded-md border-0 cursor-pointer transition-all ${
+                              tipoVencimento === "dias" ? "bg-white text-[#04585a] shadow-sm" : "bg-transparent text-gray-500 hover:text-gray-900"
+                            }`}
+                          >
+                            Dias Corridos
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setTipoVencimento("data")}
+                            className={`flex-1 py-1.5 text-[11px] font-bold rounded-md border-0 cursor-pointer transition-all ${
+                              tipoVencimento === "data" ? "bg-white text-[#04585a] shadow-sm" : "bg-transparent text-gray-500 hover:text-gray-900"
+                            }`}
+                          >
+                            Data Específica
+                          </button>
+                        </div>
+                        {tipoVencimento === "dias" ? (
+                          <div className="flex flex-col gap-1 w-full md:w-1/2">
+                            <div className="flex items-center gap-2">
+                              <input
+                                type="number" min={1} step={1}
+                                value={validadeDias}
+                                onChange={(e) => setValidadeDias(e.target.value === '' ? '' : Number(e.target.value))}
+                                className={inputCls(false)}
+                              />
+                              <span className="text-[10px] font-bold text-gray-400 shrink-0">dias</span>
+                            </div>
+                            <span className="text-[10px] font-bold text-emerald-600 mt-1">🗓️ Vence em: {dataVencimentoCalculada}</span>
+                          </div>
+                        ) : (
+                          <div className="flex flex-col gap-1 w-full md:w-1/2">
+                            <input
+                              type="date"
+                              value={dataVencimentoEspecifica}
+                              onChange={(e) => handleDataVencimentoChange(e.target.value)}
+                              className={inputCls(false)}
+                            />
+                            <span className="text-[10px] font-bold text-indigo-600 mt-1">⏱️ Equivale a: {validadeDias || 1} dias</span>
+                          </div>
+                        )}
                       </div>
                     </div>
                   )}
