@@ -162,6 +162,7 @@ export function Statistic({ onVoltar, refeicoes, receitas }: StatisticProps) {
   const getPrecoVendaRefeicao = (refId: string) => {
     const ref = refeicoes.find((r) => r.id === refId);
     if (!ref) return 0;
+    if (ref.precoSugerido && ref.precoSugerido > 0) return ref.precoSugerido;
     return ref.receitas.reduce((acc, recRef) => {
       const rec = receitas.find((r) => r.id === recRef.receitaId);
       const precoSugerido = rec ? rec.precoSugerido : (recRef.custoPorPorcao * 2); 

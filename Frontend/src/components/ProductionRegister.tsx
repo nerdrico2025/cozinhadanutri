@@ -6,7 +6,6 @@ import {
   ArrowLeft, Plus, Trash2, Calendar, ChevronLeft, ChevronRight, PackageOpen, LayoutGrid, Edit2, DollarSign, ShoppingBag, AlertTriangle, X
 } from "lucide-react";
 import { Refeicao } from "../types";
-import api from "../services/api";
 
 const producaoSchema = z.object({
   data: z.string().min(1, "Data é obrigatória"),
@@ -67,15 +66,7 @@ export function ProductionRegister({ onVoltar, refeicoes }: ProductionRegisterPr
     }
   });
 
-  const [receitasDB, setReceitasDB] = useState<any[]>([]);
-
-  useEffect(() => {
-    api.get("/receitas/")
-      .then(response => {
-        setReceitasDB(response.data);
-      })
-      .catch(err => console.error("Erro ao buscar refeições do banco:", err));
-  }, []);
+  // Custo/valor unitário é atualizado conforme a marmita selecionada
 
   const [mesSelecionado, setMesSelecionado] = useState(() => {
     const hoje = new Date();
@@ -135,16 +126,25 @@ export function ProductionRegister({ onVoltar, refeicoes }: ProductionRegisterPr
     }
   });
 
+  const selectedRefeicaoId = watch("refeicaoId");
+  useEffect(() => {
+    if (selectedRefeicaoId && !editandoId) {
+      const refeicao = refeicoes.find(r => String(r.id) === String(selectedRefeicaoId));
+      if (refeicao) {
+        setValue("valorUnitario", refeicao.custoTotal || 0);
+      }
+    }
+  }, [selectedRefeicaoId, refeicoes, setValue, editandoId]);
+
   const selectedRefeicaoIdVenda = watchVenda("refeicaoId");
   useEffect(() => {
     if (selectedRefeicaoIdVenda && !editandoVendaId) {
-      const refeicao = receitasDB.find(r => String(r.id) === String(selectedRefeicaoIdVenda));
+      const refeicao = refeicoes.find(r => String(r.id) === String(selectedRefeicaoIdVenda));
       if (refeicao) {
-        // Se quisermos basear no backend, como não temos custo total imediato, deixamos o usuário preencher
         setValueVenda("valorUnitario", 0);
       }
     }
-  }, [selectedRefeicaoIdVenda, receitasDB, setValueVenda, editandoVendaId]);
+  }, [selectedRefeicaoIdVenda, refeicoes, setValueVenda, editandoVendaId]);
 
   const dataProducao = watch("data");
   const validadeDias = watch("validadeDias");
@@ -185,11 +185,11 @@ export function ProductionRegister({ onVoltar, refeicoes }: ProductionRegisterPr
   }, [dataProducao, tipoVencimento]);
 
   const onAddProducao = (data: ProducaoForm) => {
-    const refeicao = receitasDB.find(r => String(r.id) === String(data.refeicaoId));
+    const refeicao = refeicoes.find(r => String(r.id) === String(data.refeicaoId));
     if (!refeicao) return;
 
-    // Se o usuário digitou um valor unitário, usa ele; senão 0
-    const custoUnit = data.valorUnitario && data.valorUnitario > 0 ? data.valorUnitario : 0;
+    // Se o usuário digitou um valor unitário, usa ele; senão o custoTotal da refeição
+    const custoUnit = data.valorUnitario && data.valorUnitario > 0 ? data.valorUnitario : (refeicao.custoTotal || 0);
     const custoTotal = custoUnit * data.quantidade;
 
     const dataProd = new Date(data.data + 'T12:00:00');
@@ -273,7 +273,7 @@ export function ProductionRegister({ onVoltar, refeicoes }: ProductionRegisterPr
   };
 
   const onAddVenda = (data: VendaForm) => {
-    const refeicao = receitasDB.find(r => String(r.id) === String(data.refeicaoId));
+    const refeicao = refeicoes.find(r => String(r.id) === String(data.refeicaoId));
     if (!refeicao) return;
 
     const valorTotal = data.valorUnitario * data.quantidade;
@@ -633,7 +633,7 @@ export function ProductionRegister({ onVoltar, refeicoes }: ProductionRegisterPr
                         <label className={labelCls}>Marmita / Refeição</label>
                         <select {...register("refeicaoId")} className={inputCls(!!errors.refeicaoId)}>
                           <option value="" disabled>Selecione a marmita produzida...</option>
-                          {receitasDB.map(r => <option key={r.id} value={r.id}>{r.nome}</option>)}
+                          {refeicoes.map(r => <option key={r.id} value={r.id}>{r.nome}</option>)}
                         </select>
                       </div>
                     </div>
@@ -859,7 +859,7 @@ export function ProductionRegister({ onVoltar, refeicoes }: ProductionRegisterPr
                         <label className={labelCls}>Marmita / Refeição</label>
                         <select {...registerVenda("refeicaoId")} className={inputCls(!!errorsVenda.refeicaoId)}>
                           <option value="" disabled>Selecione a marmita vendida...</option>
-                          {receitasDB.map((r) => (
+                          {refeicoes.map((r) => (
                             <option key={r.id} value={r.id}>
                               {r.nome}
                             </option>

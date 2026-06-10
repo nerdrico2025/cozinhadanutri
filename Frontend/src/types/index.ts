@@ -109,6 +109,16 @@ export interface Refeicao {
   valorEmbalagem?: number;
   embalagemId?: string;
   embalagens?: ItemEmbalagemSelecionada[];
+  custoOperacional?: number;
+  margemLucro?: number;
+  precoSugerido?: number;
   dadosNutricionaisTotais: DadosNutricionais;
+  dataValidade?: string;
+  validadeDias?: number;
+  contemGluten?: boolean;
+  contemLactose?: boolean;
+  alergicos?: Record<string, boolean>;
+  podeConter?: Record<string, boolean>;
+  outrosAlergenicos?: string;
   createdAt: string; // ISO string
 }

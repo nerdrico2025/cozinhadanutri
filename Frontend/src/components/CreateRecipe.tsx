@@ -73,6 +73,7 @@ interface CriarReceitaProps {
   onSalvar: (receita: Receita) => void;
   onCancelar: () => void;
   onSolicitarCadastro?: (dadosIniciais: Partial<Ingrediente>, rascunho: Receita) => void;
+  ingredientes: Ingrediente[];
 }
 
 interface Calculos {
@@ -91,7 +92,7 @@ const inputCls = (hasError?: boolean) =>
       : "border-gray-200 bg-white focus:border-brand focus:ring-1 focus:ring-brand/20"
   }`;
 
-export function CriarReceita({ receitaInicial, onSalvar, onCancelar, onSolicitarCadastro }: CriarReceitaProps) {
+export function CriarReceita({ receitaInicial, onSalvar, onCancelar, onSolicitarCadastro, ingredientes }: CriarReceitaProps) {
   const [rowSearches, setRowSearches] = useState<RowSearch[]>(
     receitaInicial
       ? receitaInicial.ingredientes.map((i) => ({ query: i.nome, results: [], loading: false, open: false }))
@@ -106,10 +107,27 @@ export function CriarReceita({ receitaInicial, onSalvar, onCancelar, onSolicitar
   const { register, handleSubmit, control, formState: { errors }, watch, setValue, reset, getValues } =
     useForm<ReceitaForm>({
       resolver: zodResolver(receitaSchema),
-      defaultValues: receitaInicial ?? {
-        porcoes: 1,
-        ingredientes: [{ tacoId: 0, nome: "", quantidade: 0, preco: 0, unidade: "g", baseUnidade: "g", cadastrado: false, precoBase: 0 }],
-      },
+      defaultValues: receitaInicial
+        ? {
+            ...receitaInicial,
+            ingredientes: receitaInicial.ingredientes.map((i) => {
+              const baseIng = ingredientes.find((ing) => String(ing.id) === String(i.tacoId));
+              return {
+                tacoId: i.tacoId,
+                nome: i.nome,
+                quantidade: i.quantidade,
+                preco: i.preco,
+                unidade: i.unidade,
+                baseUnidade: baseIng?.unidade || i.baseUnidade || 'g',
+                cadastrado: !!baseIng,
+                precoBase: baseIng?.preco || i.preco || 0,
+              };
+            }),
+          }
+        : {
+            porcoes: 1,
+            ingredientes: [{ tacoId: 0, nome: "", quantidade: 0, preco: 0, unidade: "g", baseUnidade: "g", cadastrado: false, precoBase: 0 }],
+          },
     });
 
   const { fields, append, remove } = useFieldArray({ control, name: "ingredientes" });
@@ -141,12 +159,15 @@ export function CriarReceita({ receitaInicial, onSalvar, onCancelar, onSolicitar
     }
 
     const custos = calcularCustosReceita(
-      validos.map(v => ({ 
-        quantidade: parseFloat(String(v.quantidade).replace(',', '.')), 
-        preco: parseFloat(String(v.preco).replace(',', '.')), 
-        unidade: v.unidade, 
-        baseUnidade: v.baseUnidade 
-      })), 
+      validos.map(v => {
+        const baseUn = v.cadastrado ? v.baseUnidade : v.unidade;
+        return { 
+          quantidade: parseFloat(String(v.quantidade).replace(',', '.')), 
+          preco: parseFloat(String(v.preco).replace(',', '.')), 
+          unidade: v.unidade, 
+          baseUnidade: baseUn
+        };
+      }), 
       porcoesVal, 
       margemLucroVal
     );
@@ -158,11 +179,16 @@ export function CriarReceita({ receitaInicial, onSalvar, onCancelar, onSolicitar
     };
 
     validos.forEach((item) => {
-      const searchResult = rowSearches
-        .flatMap(rs => rs.results)
-        .find(r => String(r.id) === String(item.tacoId));
-      
-      const ingredienteCompleto = searchResult?.originalData as Ingrediente | undefined;
+      // 1. Procurar na lista de ingredientes cadastrados (prop)
+      let ingredienteCompleto = ingredientes.find(ing => String(ing.id) === String(item.tacoId));
+
+      // 2. Se não achar, procurar nos resultados de pesquisa temporários do rowSearches
+      if (!ingredienteCompleto) {
+        const searchResult = rowSearches
+          .flatMap(rs => rs.results)
+          .find(r => String(r.id) === String(item.tacoId));
+        ingredienteCompleto = searchResult?.originalData as Ingrediente | undefined;
+      }
       
       if (ingredienteCompleto?.dadosNutricionais) {
         const qtd = parseFloat(String(item.quantidade).replace(',', '.'));
@@ -188,7 +214,7 @@ export function CriarReceita({ receitaInicial, onSalvar, onCancelar, onSolicitar
       dadosNutricionaisTotais: totais, 
       dadosNutricionaisPorPorcao: calcularDadosNutricionaisPorPorcao(totais, porcoesVal) 
     });
-  }, [rowSearches, getValues]);
+  }, [rowSearches, getValues, ingredientes]);
 
   useEffect(() => {
     executarCalculos();
@@ -312,11 +338,36 @@ export function CriarReceita({ receitaInicial, onSalvar, onCancelar, onSolicitar
     if (!calculos) return;
     setSalvando(true);
     try {
-      const ingredientesComNumeros = (data.ingredientes as any[]).map(i => ({
-        ...i,
-        quantidade: parseFloat(String(i.quantidade).replace(',', '.')),
-        preco: parseFloat(String(i.preco).replace(',', '.'))
-      })) as IngredienteReceita[];
+      const ingredientesComNumeros = (data.ingredientes as any[]).map(i => {
+        const rawQtd = parseFloat(String(i.quantidade).replace(',', '.'));
+        const qtd = isNaN(rawQtd) ? 0 : rawQtd;
+        const rawPreco = parseFloat(String(i.preco).replace(',', '.'));
+        const preco = isNaN(rawPreco) ? 0 : rawPreco;
+
+        // Converter a quantidade para a unidade base antes de salvar no backend
+        const bUnidade = i.baseUnidade || i.unidade || 'g';
+        const rUnidade = i.unidade || 'g';
+        let quantidadeBase = qtd;
+        if (bUnidade === 'l' && rUnidade === 'ml') {
+          quantidadeBase = qtd / 1000;
+        } else if (bUnidade === 'ml' && rUnidade === 'l') {
+          quantidadeBase = qtd * 1000;
+        } else if (bUnidade === 'kg' && rUnidade === 'g') {
+          quantidadeBase = qtd / 1000;
+        } else if (bUnidade === 'g' && rUnidade === 'kg') {
+          quantidadeBase = qtd * 1000;
+        }
+
+        // Para ingredientes cadastrados, o preço a ser salvo é o preço base (precoBase ou preco)
+        const precoSalvar = i.cadastrado ? (i.precoBase ?? preco) : preco;
+
+        return {
+          ...i,
+          quantidade: quantidadeBase,
+          preco: precoSalvar,
+          unidade: bUnidade,
+        };
+      }) as IngredienteReceita[];
 
       const custos = calcularCustosReceita(ingredientesComNumeros, data.porcoes, 0);
       onSalvar({

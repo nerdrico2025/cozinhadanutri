@@ -1,13 +1,10 @@
 import { useState } from 'react';
 import { 
   ChefHat, 
-  DollarSign, 
   Calculator, 
-  Printer, 
   Trash2, 
   Pencil, 
   UtensilsCrossed, 
-  TrendingUp, 
   CalendarDays, 
   Search, 
   X, 
@@ -137,10 +134,6 @@ export function ListaReceitas({ receitas, onEditar, onRemover, onGerarRotulo }: 
                       <p className="text-sm text-gray-500 truncate max-w-md">{receita.descricao}</p>
                     )}
                     <div className="flex items-center gap-4 mt-2">
-                       <span className="flex items-center gap-1.5 text-xs font-medium text-gray-400">
-                        <TrendingUp size={14} className="text-teal-500" />
-                        Margem: <span className="text-gray-700">{receita.margemLucro}%</span>
-                      </span>
                       <span className="flex items-center gap-1.5 text-xs font-medium text-gray-400">
                         <CalendarDays size={14} />
                         {new Date(receita.createdAt).toLocaleDateString('pt-BR')}
@@ -150,10 +143,6 @@ export function ListaReceitas({ receitas, onEditar, onRemover, onGerarRotulo }: 
                 </div>
 
                 <div className="flex items-center gap-3">
-                  <div className="hidden md:flex flex-col items-end mr-4">
-                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Preço Sugerido / Porção</span>
-                    <span className="text-lg font-black text-teal-600">R$ {receita.precoSugerido.toFixed(2)}</span>
-                  </div>
                   
                   <div className="flex items-center gap-3">
                     <button
@@ -214,97 +203,20 @@ export function ListaReceitas({ receitas, onEditar, onRemover, onGerarRotulo }: 
                           <div key={i} className="flex items-center justify-between p-3 bg-gray-50 rounded-xl border border-gray-100 hover:bg-white hover:shadow-sm transition-all group">
                             <div className="flex flex-col">
                               <span className="text-sm font-bold text-gray-700">{item.nome}</span>
-                              <span className="text-[10px] text-gray-400 font-medium">
-                                R$ {item.preco.toFixed(2)} / {['g', 'ml'].includes(item.unidade || 'g') ? '100' : ''}{item.unidade === 'unidade' ? 'un' : item.unidade || 'g'}
-                              </span>
                             </div>
                             <div className="flex flex-col items-end">
                               <span className="text-sm font-black text-teal-600">
                                 {item.quantidade}{item.unidade === 'unidade' ? ' un' : item.unidade || 'g'}
                               </span>
-                              <span className="text-[10px] text-gray-400 font-medium">
-                                R$ {(() => {
-                                  let proporcao = item.quantidade / 100;
-                                  if (item.unidade === 'kg' || item.unidade === 'l' || item.unidade === 'unidade') {
-                                    proporcao = item.quantidade;
-                                  }
-                                  return (proporcao * item.preco).toFixed(2);
-                                })()}
-                              </span>
                             </div>
                           </div>
                         ))}
                       </div>
-                      
-                      {onGerarRotulo && (
-                        <button
-                          onClick={() => onGerarRotulo(receita)}
-                          style={{ backgroundColor: '#f49100' }}
-                          className="w-full mt-6 flex items-center justify-center gap-2 py-3 text-white rounded-xl font-bold text-sm hover:brightness-110 transition-all shadow-lg shadow-orange-200 border-0 cursor-pointer"
-                        >
-                          <Printer size={18} />
-                          Gerar Rótulo Nutricional
-                        </button>
-                      )}
                     </div>
 
                     {/* Right Column: Detailed Info Panels */}
                     <div className="lg:col-span-8 flex flex-col gap-6">
                       
-                      {/* Precificação Panel */}
-                      <div className="bg-teal-50/50 rounded-2xl p-6 border border-teal-100">
-                        <div className="flex items-center justify-between mb-4">
-                          <h4 className="flex items-center gap-2 text-sm font-bold text-teal-800 uppercase tracking-wider">
-                            <DollarSign size={16} /> Precificação
-                          </h4>
-                          <span className="text-[10px] font-bold bg-teal-100 text-teal-700 px-2 py-1 rounded-full uppercase">Cálculos Financeiros</span>
-                        </div>
-                        
-                        <div className="flex flex-col gap-4">
-                          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                            <div className="bg-white p-4 rounded-xl shadow-sm border border-teal-50">
-                              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Custo Total</p>
-                              <p className="text-base font-black text-gray-800">R$ {receita.custoTotal.toFixed(2)}</p>
-                            </div>
-                            <div className="bg-white p-4 rounded-xl shadow-sm border border-teal-50">
-                              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Custo / Porção</p>
-                              <p className="text-base font-black text-gray-800">R$ {receita.custoPorPorcao.toFixed(2)}</p>
-                            </div>
-                            <div className="bg-white p-4 rounded-xl shadow-sm border border-teal-50">
-                              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Lucro / Porção</p>
-                              <p className="text-base font-black text-teal-600">R$ {(receita.precoSugerido - receita.custoPorPorcao).toFixed(2)}</p>
-                            </div>
-                            <div className="bg-white p-4 rounded-xl shadow-sm border border-teal-50">
-                              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Lucro Total</p>
-                              <p className="text-base font-black text-teal-600">R$ {(receita.precoSugerido * receita.porcoes - receita.custoTotal).toFixed(2)}</p>
-                            </div>
-                          </div>
-
-                          <div className="flex flex-col gap-3">
-                            <div className="bg-teal-600 p-5 rounded-2xl shadow-lg shadow-teal-600/20 flex items-center justify-between">
-                              <div>
-                                <p className="text-xs font-bold text-teal-100 uppercase tracking-widest mb-0.5">Sugestão de Venda / Porção</p>
-                                <p className="text-sm text-teal-50/70 font-medium">Margem de {receita.margemLucro}%</p>
-                              </div>
-                              <div className="text-right">
-                                <p className="text-3xl font-black text-white">R$ {receita.precoSugerido.toFixed(2)}</p>
-                              </div>
-                            </div>
-                            
-                            {receita.porcoes > 1 && (
-                              <div className="bg-[#04585a] p-4 rounded-xl flex items-center justify-between text-white shadow-sm">
-                                <div>
-                                  <p className="text-xs font-bold text-teal-100 uppercase tracking-widest mb-0.5">Venda Total da Receita</p>
-                                  <p className="text-[10px] text-teal-50/70 font-medium">Lote inteiro ({receita.porcoes} porções)</p>
-                                </div>
-                                <div className="text-right">
-                                  <p className="text-xl font-black text-white">R$ {(receita.precoSugerido * receita.porcoes).toFixed(2)}</p>
-                                </div>
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      </div>
 
                       {/* Nutritional Grid */}
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

@@ -35,6 +35,13 @@ const menuCategories = [
         Icon: FilePlus2,
         iconBgClass: 'bg-green-100',
         iconColor: '#16a34a',
+      },
+      {
+        tela: 'receitas' as TelaAtiva,
+        titulo: 'Lista de Receitas',
+        Icon: ScrollText,
+        iconBgClass: 'bg-blue-100',
+        iconColor: '#2563eb',
       }
     ],
   },
@@ -48,10 +55,9 @@ const menuCategories = [
         iconBgClass: 'bg-emerald-100',
         iconColor: '#059669',
       },
-      
       {
-        tela: 'receitas' as TelaAtiva,
-        titulo: 'Minhas Receitas & Rótulos',
+        tela: 'lista-refeicoes' as TelaAtiva,
+        titulo: 'Refeições e Rótulos',
         Icon: ScrollText,
         iconBgClass: 'bg-blue-100',
         iconColor: '#2563eb',

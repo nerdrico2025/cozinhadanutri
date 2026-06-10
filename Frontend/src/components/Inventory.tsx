@@ -71,89 +71,6 @@ const inputCls = (hasError?: boolean) =>
 
 const labelCls = "block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1";
 
-const MOCK_DATA: ItemEstoque[] = [
-  {
-    id: "1",
-    nome: "Arroz Branco Tipo 1",
-    categoria: "Ingrediente",
-    unidade: "kg",
-    quantidadeAtual: 25,
-    estoqueMinimo: 10,
-    custoMedio: 5.50,
-    ultimaAtualizacao: new Date().toISOString(),
-    lotes: [
-      {
-        id: "l1",
-        quantidadeOriginal: 30,
-        quantidadeAtual: 25,
-        custoUnitario: 5.50,
-        dataValidade: new Date(Date.now() + 30 * 86400000).toISOString().split('T')[0],
-        fornecedor: "Atacadão",
-      }
-    ]
-  },
-  {
-    id: "2",
-    nome: "Leite Condensado",
-    categoria: "Ingrediente",
-    unidade: "unidade",
-    quantidadeAtual: 5,
-    estoqueMinimo: 15,
-    custoMedio: 6.90,
-    ultimaAtualizacao: new Date().toISOString(),
-    lotes: [
-      {
-        id: "l2",
-        quantidadeOriginal: 20,
-        quantidadeAtual: 5,
-        custoUnitario: 6.90,
-        dataValidade: new Date(Date.now() + 5 * 86400000).toISOString().split('T')[0],
-        fornecedor: "Nestlé Distribuidora",
-      }
-    ]
-  },
-  {
-    id: "3",
-    nome: "Detergente Neutro",
-    categoria: "Limpeza e Higiene",
-    unidade: "l",
-    quantidadeAtual: 10,
-    estoqueMinimo: 5,
-    custoMedio: 3.20,
-    ultimaAtualizacao: new Date().toISOString(),
-    lotes: [
-      {
-        id: "l3",
-        quantidadeOriginal: 15,
-        quantidadeAtual: 10,
-        custoUnitario: 3.20,
-        dataValidade: new Date(Date.now() + 365 * 86400000).toISOString().split('T')[0],
-        fornecedor: "Limpa Mais Cia",
-      }
-    ]
-  },
-  {
-    id: "4",
-    nome: "Embalagem Marmita 500ml",
-    categoria: "Embalagem",
-    unidade: "unidade",
-    quantidadeAtual: 150,
-    estoqueMinimo: 200,
-    custoMedio: 0.85,
-    ultimaAtualizacao: new Date().toISOString(),
-    lotes: [
-      {
-        id: "l4",
-        quantidadeOriginal: 500,
-        quantidadeAtual: 150,
-        custoUnitario: 0.85,
-        dataValidade: new Date(Date.now() + 700 * 86400000).toISOString().split('T')[0],
-        fornecedor: "EmbalaTudo",
-      }
-    ]
-  }
-];
-
 export function Inventory({ onVoltar, onIrParaIngredientes, ingredientes, onAtualizarPrecoIngrediente }: InventoryProps) {
   const [itens, setItens] = useState<ItemEstoque[]>(() => {
     try {
@@ -167,9 +84,9 @@ export function Inventory({ onVoltar, onIrParaIngredientes, ingredientes, onAtua
           }));
         }
       }
-      return MOCK_DATA;
+      return [];
     } catch {
-      return MOCK_DATA;
+      return [];
     }
   });
 

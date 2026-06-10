@@ -15,6 +15,7 @@ import { NotFound } from './pages/NotFound';
 import { CriarReceita } from './components/CreateRecipe';
 import { ListaReceitas } from './components/RecipeList';
 import { CreateMeal } from './components/CreateMeal';
+import { MealList } from './components/MealList';
 import { ExpenseControl } from './components/ExpenseControl';
 import { Inventory } from './components/Inventory';
 import { CadastroIngrediente } from './components/IngredientRegistration';
@@ -64,13 +65,14 @@ type TelaAtiva =
   | 'boas-vindas'
   | 'not-found'
   | 'configuracaovisual'
+  | 'lista-refeicoes'
   | 'etiqueta';
 
 
 const validTelas: TelaAtiva[] = [
   'home', 'login', 'register', 'esqueci-senha', 'perfil',
   'dashboard', 'receitas', 'criar-receita', 'cadastro-ingrediente',
-  'lista-ingredientes', 'refeicao', 'despesas', 'producao', 'estatisticas', 'aulas', 'planos', 'faq', 'suporte', 'termos', 'privacidade', 'pagamento', 'adm', 'boas-vindas', 'not-found', 'configuracaovisual', 'etiqueta'
+  'lista-ingredientes', 'refeicao', 'lista-refeicoes', 'despesas', 'producao', 'estatisticas', 'aulas', 'planos', 'faq', 'suporte', 'termos', 'privacidade', 'pagamento', 'adm', 'boas-vindas', 'not-found', 'configuracaovisual', 'etiqueta'
 ];
 
 const getTelaFromHash = (): TelaAtiva => {
@@ -105,7 +107,7 @@ function App() {
 
   const isDashboardScreen = !!usuario && [
     'dashboard', 'receitas', 'criar-receita', 'cadastro-ingrediente',
-    'lista-ingredientes', 'estoque', 'refeicao', 'despesas', 'producao', 'estatisticas', 'aulas', 'perfil'
+    'lista-ingredientes', 'estoque', 'refeicao', 'lista-refeicoes', 'despesas', 'producao', 'estatisticas', 'aulas', 'perfil'
   ].includes(telaAtiva);
 
   const setTelaAtiva = (tela: TelaAtiva) => {
@@ -229,7 +231,8 @@ function App() {
                 calorias: 0, proteinas: 0, carboidratos: 0, gorduras: 0,
                 acucares_totais: 0, acucares_adicionados: 0, gorduras_saturadas: 0,
                 gorduras_trans: 0, fibras: 0, sodio: 0, vitaminas: 0, minerais: 0
-              }
+              },
+              unidade: base?.unidade || 'g'
             };
           });
 
@@ -346,7 +349,8 @@ function App() {
             calorias: 0, proteinas: 0, carboidratos: 0, gorduras: 0,
             acucares_totais: 0, acucares_adicionados: 0, gorduras_saturadas: 0,
             gorduras_trans: 0, fibras: 0, sodio: 0, vitaminas: 0, minerais: 0
-          }
+          },
+          unidade: base?.unidade || 'g'
         };
       });
 
@@ -409,13 +413,15 @@ function App() {
 
   const handleRemoverReceita = async (id: string, senha?: string) => {
     try {
-      if (!usuario || !senha) return;
+      if (!usuario) return;
       
-      // Validação redundante de senha
-      const validado = await login(usuario.email, senha);
-      if (!validado) {
-        alert("Senha incorreta. A exclusão foi cancelada.");
-        return;
+      // Validação redundante de senha se ela for informada
+      if (senha) {
+        const validado = await login(usuario.email, senha);
+        if (!validado) {
+          alert("Senha incorreta. A exclusão foi cancelada.");
+          return;
+        }
       }
 
       await excluirReceita(id);
@@ -569,6 +575,29 @@ function App() {
             onIrParaEstoque={() => setTelaAtiva('estoque')}
           />
         );
+      case 'lista-refeicoes':
+        return (
+          <MealList
+            refeicoes={refeicoes}
+            receitasDisponiveis={receitas}
+            onEditar={(ref) => {
+              setRefeicaoEmEdicao(ref);
+              setTelaAtiva('refeicao');
+            }}
+            onRemover={(id) => {
+              const novaLista = refeicoes.filter((r) => r.id !== id);
+              setRefeicoes(novaLista);
+              localStorage.setItem('refeicoes', JSON.stringify(novaLista));
+            }}
+            onGerarRotulo={(ref) => {
+              window.location.hash = `etiqueta?id=${ref.id}&tipo=refeicao`;
+            }}
+            onNovaRefeicao={() => {
+              setRefeicaoEmEdicao(undefined);
+              setTelaAtiva('refeicao');
+            }}
+          />
+        );
       case 'despesas':
         return <ExpenseControl onVoltar={() => setTelaAtiva('dashboard')} />;
       case 'producao':
@@ -619,6 +648,7 @@ function App() {
         return (
           <CriarReceita
             receitaInicial={receitaEmEdicao || rascunhoReceita}
+            ingredientes={ingredientes}
             onSalvar={(r) => {
               handleSalvarReceita(r);
               setRascunhoReceita(undefined);
@@ -783,7 +813,13 @@ function App() {
       case 'etiqueta':
         return (
           <Etiqueta
-            onVoltar={() => setTelaAtiva('receitas')}
+            onVoltar={() => {
+              if (window.location.hash.includes('tipo=refeicao')) {
+                setTelaAtiva('lista-refeicoes');
+              } else {
+                setTelaAtiva('receitas');
+              }
+            }}
             usuario={usuario}
           />
         );

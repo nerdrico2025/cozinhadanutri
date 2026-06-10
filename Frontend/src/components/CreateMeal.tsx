@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -14,6 +14,10 @@ import { Receita, Refeicao, ReceitaRefeicao, DadosNutricionais, ItemEmbalagemSel
 const mealSchema = z.object({
   nome: z.string().min(1, "Nome da refeição é obrigatório"),
   descricao: z.string().optional(),
+  custoOperacional: z.number().min(0, "O custo operacional não pode ser negativo").optional(),
+  margemLucro: z.number().min(0, "A margem de lucro não pode ser negativa").optional(),
+  dataValidade: z.string().optional(),
+  validadeDias: z.number().min(1, "Validade mínima de 1 dia").optional(),
   receitas: z
     .array(
       z.object({
@@ -37,6 +41,8 @@ interface CreateMealProps {
 
 interface CalculosRefeicao {
   custoTotal: number;
+  precoSugerido: number;
+  margemLucroReal: number;
   dadosNutricionaisTotais: DadosNutricionais;
 }
 
@@ -50,6 +56,56 @@ const inputCls = (hasError?: boolean) =>
 export function CreateMeal({ refeicaoInicial, receitasDisponiveis, onSalvar, onCancelar, onIrParaEstoque }: CreateMealProps) {
   const [salvando, setSalvando] = useState(false);
   const [calculos, setCalculos] = useState<CalculosRefeicao | null>(null);
+  const [sugestaoCustoOperacional, setSugestaoCustoOperacional] = useState<{ mes: string; valor: number } | null>(null);
+
+  useEffect(() => {
+    try {
+      const rawDespesas = localStorage.getItem('despesas_operacionais');
+      const rawProducoes = localStorage.getItem('historico_producao');
+      if (rawDespesas && rawProducoes) {
+        const despesas = JSON.parse(rawDespesas) as any[];
+        const producoes = JSON.parse(rawProducoes) as any[];
+
+        const despesasPorMes: Record<string, number> = {};
+        despesas.forEach(d => {
+          if (d.embutirNoRateio) {
+            const mes = d.mesReferencia || d.data.substring(0, 7);
+            despesasPorMes[mes] = (despesasPorMes[mes] || 0) + (d.valorTotal || 0);
+          }
+        });
+
+        const producaoPorMes: Record<string, number> = {};
+        producoes.forEach(p => {
+          const mes = p.mesReferencia || p.data.substring(0, 7);
+          producaoPorMes[mes] = (producaoPorMes[mes] || 0) + (p.quantidade || 0);
+        });
+
+        const mesesComDados = Object.keys(despesasPorMes).filter(mes => producaoPorMes[mes] > 0);
+        
+        if (mesesComDados.length > 0) {
+          mesesComDados.sort((a, b) => b.localeCompare(a));
+          const mesRecente = mesesComDados[0];
+          const totalDespesas = despesasPorMes[mesRecente];
+          const totalProducao = producaoPorMes[mesRecente];
+          
+          if (totalProducao > 0) {
+            const rateio = totalDespesas / totalProducao;
+            const [y, m] = mesRecente.split('-');
+            const date = new Date(parseInt(y), parseInt(m) - 1);
+            const monthName = date.toLocaleDateString('pt-BR', { month: 'long' });
+            const mesFormatado = `${monthName.charAt(0).toUpperCase() + monthName.slice(1)}/${y}`;
+
+            setSugestaoCustoOperacional({
+              mes: mesFormatado,
+              valor: rateio
+            });
+          }
+        }
+      }
+    } catch (e) {
+      console.error("Erro ao calcular sugestão de custo operacional:", e);
+    }
+  }, []);
 
   interface ItemEstoque {
     id: string;
@@ -122,6 +178,84 @@ export function CreateMeal({ refeicaoInicial, receitasDisponiveis, onSalvar, onC
     }
   }, [refeicaoInicial]);
 
+  const [tipoVencimento, setTipoVencimento] = useState<"dias" | "data">(
+    refeicaoInicial && !refeicaoInicial.validadeDias && refeicaoInicial.dataValidade ? "data" : "dias"
+  );
+
+  const [contemGluten, setContemGluten] = useState<boolean>(refeicaoInicial?.contemGluten ?? false);
+  const [contemLactose, setContemLactose] = useState<boolean>(refeicaoInicial?.contemLactose ?? false);
+  const [alergicos, setAlergicos] = useState<Record<string, boolean>>(() => ({
+    leite: false,
+    ovo: false,
+    trigo: false,
+    soja: false,
+    peixe: false,
+    amendoim: false,
+    castanhas: false,
+    ...(refeicaoInicial?.alergicos || {})
+  }));
+  const [podeConter, setPodeConter] = useState<Record<string, boolean>>(() => ({
+    leite: false,
+    ovo: false,
+    trigo: false,
+    soja: false,
+    peixe: false,
+    amendoim: false,
+    castanhas: false,
+    ...(refeicaoInicial?.podeConter || {})
+  }));
+  const [outrosAlergenicos, setOutrosAlergenicos] = useState<string>(refeicaoInicial?.outrosAlergenicos ?? '');
+
+  useEffect(() => {
+    if (refeicaoInicial) {
+      setContemGluten(refeicaoInicial.contemGluten ?? false);
+      setContemLactose(refeicaoInicial.contemLactose ?? false);
+      setAlergicos({
+        leite: false,
+        ovo: false,
+        trigo: false,
+        soja: false,
+        peixe: false,
+        amendoim: false,
+        castanhas: false,
+        ...(refeicaoInicial.alergicos || {})
+      });
+      setPodeConter({
+        leite: false,
+        ovo: false,
+        trigo: false,
+        soja: false,
+        peixe: false,
+        amendoim: false,
+        castanhas: false,
+        ...(refeicaoInicial.podeConter || {})
+      });
+      setOutrosAlergenicos(refeicaoInicial.outrosAlergenicos ?? '');
+    } else {
+      setContemGluten(false);
+      setContemLactose(false);
+      setAlergicos({
+        leite: false,
+        ovo: false,
+        trigo: false,
+        soja: false,
+        peixe: false,
+        amendoim: false,
+        castanhas: false,
+      });
+      setPodeConter({
+        leite: false,
+        ovo: false,
+        trigo: false,
+        soja: false,
+        peixe: false,
+        amendoim: false,
+        castanhas: false,
+      });
+      setOutrosAlergenicos('');
+    }
+  }, [refeicaoInicial]);
+
   const { register, handleSubmit, control, formState: { errors }, watch, reset, getValues, setValue } =
     useForm<MealForm>({
       resolver: zodResolver(mealSchema) as any,
@@ -129,6 +263,10 @@ export function CreateMeal({ refeicaoInicial, receitasDisponiveis, onSalvar, onC
         ? {
             nome: refeicaoInicial.nome,
             descricao: refeicaoInicial.descricao,
+            custoOperacional: refeicaoInicial.custoOperacional || 0,
+            margemLucro: refeicaoInicial.margemLucro || 0,
+            dataValidade: refeicaoInicial.dataValidade || "",
+            validadeDias: refeicaoInicial.validadeDias || 3,
             receitas: refeicaoInicial.receitas.map((r) => ({
               receitaId: r.receitaId,
               quantidadeUtilizada: r.quantidadeUtilizada ?? r.porcoesUtilizadas,
@@ -138,6 +276,10 @@ export function CreateMeal({ refeicaoInicial, receitasDisponiveis, onSalvar, onC
         : {
             nome: "",
             descricao: "",
+            custoOperacional: 0,
+            margemLucro: 0,
+            dataValidade: "",
+            validadeDias: 3,
             receitas: [{ receitaId: "", quantidadeUtilizada: 1, unidadeMedida: "porcoes" as const }],
           }) as any,
     });
@@ -145,6 +287,96 @@ export function CreateMeal({ refeicaoInicial, receitasDisponiveis, onSalvar, onC
   const { fields, append, remove } = useFieldArray({ control, name: "receitas" });
 
   const watchedReceitas = watch("receitas");
+  const watchedMargem = watch("margemLucro");
+  const watchedCustoOperacional = watch("custoOperacional");
+  const watchedValidade = watch("dataValidade");
+  const watchedValidadeDias = watch("validadeDias");
+
+  const dataVencimentoCalculada = useMemo(() => {
+    if (!watchedValidadeDias || watchedValidadeDias <= 0) return "";
+    try {
+      const d = new Date();
+      d.setDate(d.getDate() + Number(watchedValidadeDias));
+      return d.toLocaleDateString('pt-BR');
+    } catch {
+      return "";
+    }
+  }, [watchedValidadeDias]);
+
+  useEffect(() => {
+    if (tipoVencimento === "dias" && watchedValidadeDias && watchedValidadeDias > 0) {
+      const d = new Date();
+      d.setDate(d.getDate() + Number(watchedValidadeDias));
+      const dateStr = d.toISOString().split('T')[0];
+      setValue("dataValidade", dateStr);
+    }
+  }, [watchedValidadeDias, tipoVencimento, setValue]);
+
+  useEffect(() => {
+    if (tipoVencimento === "data" && watchedValidade) {
+      try {
+        const start = new Date();
+        start.setHours(12, 0, 0, 0);
+        const end = new Date(watchedValidade + 'T12:00:00');
+        const diffTime = end.getTime() - start.getTime();
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        if (diffDays >= 1) {
+          setValue("validadeDias", diffDays);
+        } else {
+          setValue("validadeDias", 1);
+        }
+      } catch {
+        // ignore
+      }
+    }
+  }, [watchedValidade, tipoVencimento, setValue]);
+
+  const obterValidadeMinimaIngredientes = useCallback((): { data: string; ingrediente: string } | null => {
+    try {
+      const raw = localStorage.getItem('estoque_itens');
+      if (!raw) return null;
+      const estoque = JSON.parse(raw) as any[];
+
+      const currentValues = getValues();
+      const receitasList = currentValues.receitas ?? [];
+
+      let minValidadeDate: Date | null = null;
+      let minValidadeIngrediente = "";
+      let minValidadeStr = "";
+
+      receitasList.forEach((item) => {
+        if (!item || !item.receitaId) return;
+        const recipe = receitasDisponiveis.find((r) => r.id === item.receitaId);
+        if (!recipe) return;
+
+        recipe.ingredientes.forEach((ing) => {
+          const estoqueItem = estoque.find((e) => 
+            e.nome.trim().toLowerCase() === ing.nome.trim().toLowerCase()
+          );
+
+          if (estoqueItem && estoqueItem.lotes && estoqueItem.lotes.length > 0) {
+            estoqueItem.lotes.forEach((lote: any) => {
+              if (lote.dataValidade && lote.quantidadeAtual > 0) {
+                const loteDate = new Date(lote.dataValidade + "T12:00:00");
+                if (!minValidadeDate || loteDate < minValidadeDate) {
+                  minValidadeDate = loteDate;
+                  minValidadeStr = lote.dataValidade;
+                  minValidadeIngrediente = ing.nome;
+                }
+              }
+            });
+          }
+        });
+      });
+
+      if (minValidadeDate && minValidadeStr) {
+        return { data: minValidadeStr, ingrediente: minValidadeIngrediente };
+      }
+    } catch (e) {
+      console.error("Erro ao obter validade mínima dos ingredientes:", e);
+    }
+    return null;
+  }, [watchedReceitas, receitasDisponiveis, getValues]);
 
   const obterPesoTotalReceita = useCallback((receita: Receita) => {
     let totalGrams = 0;
@@ -186,6 +418,8 @@ export function CreateMeal({ refeicaoInicial, receitasDisponiveis, onSalvar, onC
 
   const executarCalculos = useCallback(() => {
     const currentValues = getValues();
+    const margemLucroVal = currentValues.margemLucro || 0;
+    const custoOperacionalVal = currentValues.custoOperacional || 0;
     const receitasList = currentValues.receitas ?? [];
 
     const validas = receitasList.filter(
@@ -238,15 +472,21 @@ export function CreateMeal({ refeicaoInicial, receitasDisponiveis, onSalvar, onC
       return;
     }
 
+    const custoTotalReal = custoTotal + custoOperacionalVal;
+    const precoSugerido = custoTotalReal * (1 + margemLucroVal / 100);
+    const margemLucroReal = precoSugerido - custoTotalReal;
+
     setCalculos({
       custoTotal,
+      precoSugerido,
+      margemLucroReal,
       dadosNutricionaisTotais: totais,
     });
-  }, [watchedReceitas, embalagensSelecionadas, receitasDisponiveis, getValues, obterPorcoesEquivalentes]);
+  }, [watchedReceitas, watchedMargem, watchedCustoOperacional, embalagensSelecionadas, receitasDisponiveis, getValues, obterPorcoesEquivalentes]);
 
   useEffect(() => {
     executarCalculos();
-  }, [watchedReceitas, embalagensSelecionadas, executarCalculos]);
+  }, [watchedReceitas, watchedMargem, watchedCustoOperacional, embalagensSelecionadas, executarCalculos]);
 
   const onSubmit = async (data: any) => {
     if (!calculos) return;
@@ -283,9 +523,19 @@ export function CreateMeal({ refeicaoInicial, receitasDisponiveis, onSalvar, onC
         descricao: data.descricao,
         receitas: receitasMapeadas,
         custoTotal: calculos.custoTotal,
+        custoOperacional: data.custoOperacional || 0,
+        margemLucro: data.margemLucro || 0,
+        precoSugerido: calculos.precoSugerido,
         valorEmbalagem,
         embalagens: embalagensSelecionadas,
         dadosNutricionaisTotais: calculos.dadosNutricionaisTotais,
+        dataValidade: data.dataValidade || undefined,
+        validadeDias: data.validadeDias || undefined,
+        contemGluten,
+        contemLactose,
+        alergicos,
+        podeConter,
+        outrosAlergenicos,
         createdAt: refeicaoInicial?.createdAt ?? new Date().toISOString(),
       });
       reset();
@@ -411,6 +661,90 @@ export function CreateMeal({ refeicaoInicial, receitasDisponiveis, onSalvar, onC
                       rows={3}
                       className={`${inputCls()} resize-none`}
                     />
+                  </div>
+
+                  {/* Campo de Vencimento / Validade Dinâmico */}
+                  <div className="border-t border-gray-100 pt-4 mt-2">
+                    <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">
+                      Definir Vencimento/Validade da Marmita
+                    </label>
+                    <div className="bg-gray-50/50 p-3.5 rounded-xl border border-gray-100/80 mb-3 flex flex-col gap-3">
+                      {/* Alternador de tipo de vencimento */}
+                      <div className="flex bg-gray-100/80 p-0.5 rounded-lg border border-gray-200/50">
+                        <button
+                          type="button"
+                          onClick={() => setTipoVencimento("dias")}
+                          className={`flex-1 py-1.5 text-[11px] font-bold rounded-md border-0 cursor-pointer transition-all ${
+                            tipoVencimento === "dias"
+                              ? "bg-white text-[#04585a] shadow-sm"
+                              : "bg-transparent text-gray-500 hover:text-gray-900"
+                          }`}
+                        >
+                          Validade em Dias
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setTipoVencimento("data")}
+                          className={`flex-1 py-1.5 text-[11px] font-bold rounded-md border-0 cursor-pointer transition-all ${
+                            tipoVencimento === "data"
+                              ? "bg-white text-[#04585a] shadow-sm"
+                              : "bg-transparent text-gray-500 hover:text-gray-900"
+                          }`}
+                        >
+                          Data Específica
+                        </button>
+                      </div>
+
+                      {/* Inputs conforme o tipo selecionado */}
+                      {tipoVencimento === "dias" ? (
+                        <div className="flex flex-col gap-1">
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="number"
+                              min={1}
+                              step={1}
+                              {...register("validadeDias", { valueAsNumber: true })}
+                              className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white focus:outline-none focus:border-[#04585a]"
+                            />
+                            <span className="text-xs font-bold text-gray-400">dias</span>
+                          </div>
+                          <span className="text-[10px] font-bold text-emerald-600 mt-1">
+                            🗓️ Vence em: {dataVencimentoCalculada}
+                          </span>
+                        </div>
+                      ) : (
+                        <div className="flex flex-col gap-1">
+                          <input
+                            type="date"
+                            {...register("dataValidade")}
+                            className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white focus:outline-none focus:border-[#04585a]"
+                          />
+                          <span className="text-[10px] font-bold text-indigo-600 mt-1">
+                            ⏱️ Equivalente a: {watchedValidadeDias || 1} dias de validade
+                          </span>
+                        </div>
+                      )}
+                    </div>
+
+                    {(() => {
+                      const validadeMinima = obterValidadeMinimaIngredientes();
+                      const showValidadeWarning = validadeMinima && watchedValidade && new Date(watchedValidade + "T12:00:00") > new Date(validadeMinima.data + "T12:00:00");
+                      if (showValidadeWarning) {
+                        return (
+                          <div className="bg-amber-50 border border-amber-200 text-amber-800 rounded-xl p-4 flex items-start gap-2.5 mt-3 animate-in fade-in duration-200">
+                            <AlertCircle size={16} className="text-amber-600 shrink-0 mt-0.5" />
+                            <div className="text-xs leading-relaxed">
+                              <span className="font-bold">Atenção: Validade Limite Excedida!</span>
+                              <p className="mt-0.5">
+                                A data de validade informada para a refeição ({new Date(watchedValidade + "T12:00:00").toLocaleDateString('pt-BR')}) é maior do que a validade do ingrediente <strong className="font-semibold">"{validadeMinima.ingrediente}"</strong> no estoque, que vence em <strong className="font-semibold">{new Date(validadeMinima.data + "T12:00:00").toLocaleDateString('pt-BR')}</strong>. 
+                                Recomenda-se ajustar a validade da marmita para no máximo esta data.
+                              </p>
+                            </div>
+                          </div>
+                        );
+                      }
+                      return null;
+                    })()}
                   </div>
                 </div>
               </section>
@@ -584,11 +918,88 @@ export function CreateMeal({ refeicaoInicial, receitasDisponiveis, onSalvar, onC
                 </div>
               </section>
 
-              {/* Seção 3 — Composição da Refeição (Receitas) */}
+              {/* Seção 3 — Precificação */}
               <section className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
                 <div className="flex items-center justify-between px-5 py-4 border-b border-gray-50">
                   <div className="flex items-center gap-3">
                     <span className="w-6 h-6 rounded-full bg-[#04585a] text-white text-xs font-bold flex items-center justify-center shrink-0">3</span>
+                    <h2 className="text-sm font-semibold text-gray-800">Precificação</h2>
+                  </div>
+                </div>
+                <div className="p-5 flex flex-col gap-4">
+                  {/* Banner de sugestão de despesa operacional rateada */}
+                  {sugestaoCustoOperacional !== null && (
+                    <div className="bg-[#04585a]/5 border border-[#04585a]/15 rounded-xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 animate-fadeIn">
+                      <div className="flex items-start gap-2.5">
+                        <Info size={16} className="text-[#04585a] shrink-0 mt-0.5" />
+                        <div className="text-xs text-gray-600 leading-relaxed">
+                          <span className="font-semibold text-gray-800">Custo Operacional Estimado (Rateio):</span>
+                          <p>
+                            Com base nas suas despesas e produção de <strong className="capitalize">{sugestaoCustoOperacional.mes}</strong>, o custo operacional médio por marmita é de <strong>R$ {sugestaoCustoOperacional.valor.toFixed(2)}</strong>.
+                          </p>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setValue("custoOperacional", parseFloat(sugestaoCustoOperacional.valor.toFixed(2)));
+                          executarCalculos();
+                        }}
+                        className="text-xs bg-[#04585a] hover:bg-[#034446] text-white font-bold px-3 py-1.5 rounded-lg border-0 transition shrink-0 cursor-pointer focus:outline-none"
+                      >
+                        Usar este valor
+                      </button>
+                    </div>
+                  )}
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">
+                        Custo Operacional p/ Marmita (R$) <span className="text-gray-300 font-normal normal-case">(Ex: Luz, gás, salários...)</span>
+                      </label>
+                      <div className="relative">
+                        <DollarSign size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                        <input
+                          type="number"
+                          min={0}
+                          step="0.01"
+                          {...register("custoOperacional", { valueAsNumber: true })}
+                          placeholder="Ex: 5.50"
+                          className={`${inputCls(!!errors.custoOperacional)} pl-8`}
+                        />
+                      </div>
+                      {errors.custoOperacional && <p className="text-red-500 text-xs mt-1">{errors.custoOperacional.message}</p>}
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">
+                        Margem de Lucro (%) <span className="text-red-400">*</span>
+                      </label>
+                      <div className="relative">
+                        <DollarSign size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                        <input
+                          type="number"
+                          min={0}
+                          step="0.1"
+                          {...register("margemLucro", { valueAsNumber: true })}
+                          placeholder="Ex: 100"
+                          className={`${inputCls(!!errors.margemLucro)} pl-8`}
+                        />
+                      </div>
+                      {errors.margemLucro && <p className="text-red-500 text-xs mt-1">{errors.margemLucro.message}</p>}
+                    </div>
+                  </div>
+                  <p className="text-xs text-gray-500 italic">
+                    O preço sugerido será calculado como: (Custo de Insumos + Custo Operacional) + Margem de Lucro (%).
+                  </p>
+                </div>
+              </section>
+
+              {/* Seção 4 — Composição da Refeição (Receitas) */}
+              <section className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+                <div className="flex items-center justify-between px-5 py-4 border-b border-gray-50">
+                  <div className="flex items-center gap-3">
+                    <span className="w-6 h-6 rounded-full bg-[#04585a] text-white text-xs font-bold flex items-center justify-center shrink-0">4</span>
                     <h2 className="text-sm font-semibold text-gray-800">
                       Receitas Integrantes
                       <span className="ml-2 text-xs font-normal text-gray-400">({fields.length})</span>
@@ -732,6 +1143,107 @@ export function CreateMeal({ refeicaoInicial, receitasDisponiveis, onSalvar, onC
                   </button>
                 </div>
               </section>
+
+              {/* Seção 5 — Informações de Alergênicos */}
+              <section className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+                <div className="flex items-center justify-between px-5 py-4 border-b border-gray-50">
+                  <div className="flex items-center gap-3">
+                    <span className="w-6 h-6 rounded-full bg-[#04585a] text-white text-xs font-bold flex items-center justify-center shrink-0">5</span>
+                    <h2 className="text-sm font-semibold text-gray-800">Informações de Alergênicos</h2>
+                  </div>
+                </div>
+
+                <div className="p-5 flex flex-col gap-5">
+                  {/* Gluten e Lactose */}
+                  <div>
+                    <span className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2.5">Restrições Básicas</span>
+                    <div className="flex flex-wrap gap-5 bg-gray-50/50 p-4 rounded-xl border border-gray-100">
+                      <label className="flex items-center gap-2.5 text-sm font-semibold text-gray-700 cursor-pointer select-none">
+                        <input
+                          type="checkbox"
+                          checked={contemGluten}
+                          onChange={(e) => setContemGluten(e.target.checked)}
+                          className="w-4 h-4 text-[#04585a] focus:ring-[#04585a] border-gray-300 rounded cursor-pointer"
+                        />
+                        Contém Glúten
+                      </label>
+                      <label className="flex items-center gap-2.5 text-sm font-semibold text-gray-700 cursor-pointer select-none">
+                        <input
+                          type="checkbox"
+                          checked={contemLactose}
+                          onChange={(e) => setContemLactose(e.target.checked)}
+                          className="w-4 h-4 text-[#04585a] focus:ring-[#04585a] border-gray-300 rounded cursor-pointer"
+                        />
+                        Contém Lactose
+                      </label>
+                    </div>
+                  </div>
+
+                  {/* Alérgicos: Contém */}
+                  <div>
+                    <span className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2.5">Alérgicos: Contém</span>
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 bg-gray-50/30 p-4 rounded-xl border border-gray-100">
+                      {[
+                        { id: 'leite', label: 'Leite' },
+                        { id: 'ovo', label: 'Ovo' },
+                        { id: 'trigo', label: 'Trigo' },
+                        { id: 'soja', label: 'Soja' },
+                        { id: 'peixe', label: 'Peixe' },
+                        { id: 'amendoim', label: 'Amendoim' },
+                        { id: 'castanhas', label: 'Castanhas' },
+                      ].map((item) => (
+                        <label key={item.id} className="flex items-center gap-2 text-xs font-semibold text-gray-600 cursor-pointer select-none">
+                          <input
+                            type="checkbox"
+                            checked={alergicos[item.id] || false}
+                            onChange={(e) => setAlergicos({ ...alergicos, [item.id]: e.target.checked })}
+                            className="w-4 h-4 text-[#04585a] focus:ring-[#04585a] border-gray-300 rounded cursor-pointer"
+                          />
+                          {item.label}
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Alérgicos: Pode Conter */}
+                  <div>
+                    <span className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2.5">Alérgicos: Pode Conter (Cruzada)</span>
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 bg-gray-50/30 p-4 rounded-xl border border-gray-100">
+                      {[
+                        { id: 'leite', label: 'Leite' },
+                        { id: 'ovo', label: 'Ovo' },
+                        { id: 'trigo', label: 'Trigo' },
+                        { id: 'soja', label: 'Soja' },
+                        { id: 'peixe', label: 'Peixe' },
+                        { id: 'amendoim', label: 'Amendoim' },
+                        { id: 'castanhas', label: 'Castanhas' },
+                      ].map((item) => (
+                        <label key={item.id} className="flex items-center gap-2 text-xs font-semibold text-gray-600 cursor-pointer select-none">
+                          <input
+                            type="checkbox"
+                            checked={podeConter[item.id] || false}
+                            onChange={(e) => setPodeConter({ ...podeConter, [item.id]: e.target.checked })}
+                            className="w-4 h-4 text-[#04585a] focus:ring-[#04585a] border-gray-300 rounded cursor-pointer"
+                          />
+                          {item.label}
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Outros Alérgenos */}
+                  <div>
+                    <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5">Outros Alérgicos (ex: Crustáceos, Cevada...)</label>
+                    <input
+                      type="text"
+                      placeholder="Ex: Contém derivados de cevada..."
+                      value={outrosAlergenicos}
+                      onChange={(e) => setOutrosAlergenicos(e.target.value)}
+                      className={inputCls()}
+                    />
+                  </div>
+                </div>
+              </section>
             </div>
 
             {/* ── Coluna lateral — resumo sticky ───────────────────────── */}
@@ -747,11 +1259,38 @@ export function CreateMeal({ refeicaoInicial, receitasDisponiveis, onSalvar, onC
                 {calculos ? (
                   <div className="p-5 flex flex-col gap-4">
                     <div className="bg-blue-50/30 p-3 rounded-xl border border-blue-100/50">
-                      <p className="text-[10px] text-blue-400 uppercase font-bold tracking-wider mb-1">Custo Total da Refeição</p>
-                      <p className="text-2xl font-black text-blue-600">R$ {calculos.custoTotal.toFixed(2)}</p>
+                      <p className="text-[10px] text-blue-400 uppercase font-bold tracking-wider mb-1">Preço Sugerido</p>
+                      <p className="text-2xl font-black text-blue-600">R$ {calculos.precoSugerido.toFixed(2)}</p>
                     </div>
 
                     <div className="space-y-3">
+                      <div className="flex items-center justify-between py-2 border-b border-gray-50 text-xs">
+                        <span className="text-gray-500 font-medium">Custo de Insumos</span>
+                        <span className="font-bold text-gray-700">R$ {calculos.custoTotal.toFixed(2)}</span>
+                      </div>
+
+                      <div className="flex items-center justify-between py-2 border-b border-gray-50 text-xs">
+                        <span className="text-gray-500 font-medium">Custo Operacional</span>
+                        <span className="font-bold text-gray-700">R$ {(watchedCustoOperacional || 0).toFixed(2)}</span>
+                      </div>
+
+                      <div className="flex items-center justify-between py-2 border-b border-gray-50 text-xs bg-gray-50 p-1.5 rounded">
+                        <span className="text-gray-700 font-bold">Custo Total Real</span>
+                        <span className="font-extrabold text-gray-900">R$ {(calculos.custoTotal + (watchedCustoOperacional || 0)).toFixed(2)}</span>
+                      </div>
+
+                      <div className="flex items-center justify-between py-2 border-b border-gray-50 text-xs">
+                        <span className="text-gray-500 font-medium">Lucro Estimado</span>
+                        <span className="font-bold text-emerald-600">R$ {calculos.margemLucroReal.toFixed(2)}</span>
+                      </div>
+
+                      <div className="flex items-center justify-between py-2 border-b border-gray-50 text-xs">
+                        <span className="text-gray-500 font-medium">CMV (% Insumos/Venda)</span>
+                        <span className="font-bold text-orange-500">
+                          {calculos.precoSugerido > 0 ? ((calculos.custoTotal / calculos.precoSugerido) * 100).toFixed(1) : "0.0"}%
+                        </span>
+                      </div>
+
                       <div className="flex items-center justify-between py-2 border-b border-gray-50 text-xs">
                         <span className="text-gray-500 font-medium">Receitas integradas</span>
                         <span className="font-bold text-gray-700">{fields.length}</span>
@@ -769,7 +1308,7 @@ export function CreateMeal({ refeicaoInicial, receitasDisponiveis, onSalvar, onC
                       </div>
 
                       <div className="flex items-center justify-between py-2 border-b border-gray-50 text-xs">
-                        <span className="text-gray-500 font-medium">Custo da Embalagem</span>
+                        <span className="text-gray-500 font-medium">Embalagens</span>
                         <span className="font-bold text-[#04585a]">
                           R$ {embalagensSelecionadas
                             .filter(e => e.checked)

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
-import { Printer, ArrowLeft, ShieldAlert, Info, Building, ShieldCheck } from 'lucide-react';
-import { obterReceita } from '../services/receitas';
+import { Printer, ArrowLeft, ShieldAlert, Info, Building, ShieldCheck, X, AlertCircle } from 'lucide-react';
+import { obterReceita, listarReceitas } from '../services/receitas';
 import { listarAlimentos } from '../services/alimentos';
 import { calcularNutrientesTotais, calcularDadosNutricionaisPorPorcao } from '../utils/calculations';
 import { Receita, Ingrediente } from '../types';
@@ -74,12 +74,40 @@ export function Etiqueta({ onVoltar, usuario }: EtiquetaProps): JSX.Element {
 
   // Custom inputs for label configuration
   const [lote, setLote] = useState(() => 'LOT-' + Math.floor(Math.random() * 100000));
-  const [dataFabricacao, setDataFabricacao] = useState(() => new Date().toISOString().split('T')[0]);
-  const [dataValidade, setDataValidade] = useState(() => {
-    const d = new Date();
-    d.setDate(d.getDate() + 30); // 30 dias de validade default
-    return d.toISOString().split('T')[0];
-  });
+  const [dataFabricacao, setDataFabricacao] = useState('');
+  const [dataValidade, setDataValidade] = useState('');
+  const [tipoVencimento, setTipoVencimento] = useState<'dias' | 'data'>('dias');
+  const [validadeDias, setValidadeDias] = useState<number | ''>('');
+  const [modalAvisoAberto, setModalAvisoAberto] = useState(false);
+  const [pendenciasImpressao, setPendenciasImpressao] = useState<string[]>([]);
+
+  // Sync days to specific date
+  useEffect(() => {
+    if (tipoVencimento === 'dias' && validadeDias !== '' && validadeDias > 0 && dataFabricacao !== '') {
+      try {
+        const start = new Date(dataFabricacao + 'T12:00:00');
+        start.setDate(start.getDate() + Number(validadeDias));
+        setDataValidade(start.toISOString().split('T')[0]);
+      } catch (e) {
+        console.error(e);
+      }
+    }
+  }, [validadeDias, dataFabricacao, tipoVencimento]);
+
+  // Sync specific date to days
+  useEffect(() => {
+    if (tipoVencimento === 'data' && dataValidade !== '' && dataFabricacao !== '') {
+      try {
+        const start = new Date(dataFabricacao + 'T12:00:00');
+        const end = new Date(dataValidade + 'T12:00:00');
+        const diffTime = end.getTime() - start.getTime();
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        setValidadeDias(diffDays >= 1 ? diffDays : 1);
+      } catch (e) {
+        console.error(e);
+      }
+    }
+  }, [dataValidade, dataFabricacao, tipoVencimento]);
   
   // Allergen states
   const [contemGluten, setContemGluten] = useState(false);
@@ -92,6 +120,12 @@ export function Etiqueta({ onVoltar, usuario }: EtiquetaProps): JSX.Element {
     const hash = window.location.hash;
     const params = new URLSearchParams(hash.split('?')[1]);
     return params.get('id');
+  };
+
+  const parseTipoFromHash = (): string | null => {
+    const hash = window.location.hash;
+    const params = new URLSearchParams(hash.split('?')[1]);
+    return params.get('tipo');
   };
 
   const aplicarPreset = (preset: string) => {
@@ -147,8 +181,9 @@ export function Etiqueta({ onVoltar, usuario }: EtiquetaProps): JSX.Element {
 
   useEffect(() => {
     const id = parseIdFromHash();
+    const tipo = parseTipoFromHash();
     if (!id) {
-      setError('ID da receita não especificado no endereço.');
+      setError('ID não especificado no endereço.');
       setLoading(false);
       return;
     }
@@ -157,10 +192,6 @@ export function Etiqueta({ onVoltar, usuario }: EtiquetaProps): JSX.Element {
       setLoading(true);
       setError(null);
       try {
-        // Try getting recipe details
-        const rData = await obterReceita(id);
-        
-        // Fetch foods list to map nutritional information
         const foods = await listarAlimentos();
         const parsedIngredientes: Ingrediente[] = foods.map((item: any) => ({
           id: item.id,
@@ -185,49 +216,130 @@ export function Etiqueta({ onVoltar, usuario }: EtiquetaProps): JSX.Element {
           createdAt: new Date(),
         }));
 
-        // Calculate values just like App.tsx does
-        const ingredientesComNutrientes = rData.ingredientes.map((ing: any) => {
-          const base = parsedIngredientes.find(i => String(i.id) === String(ing.alimento));
-          return {
-            quantidade: parseFloat(ing.quantidade),
-            dadosNutricionais: base?.dadosNutricionais || {
-              calorias: 0, proteinas: 0, carboidratos: 0, gorduras: 0,
-              acucares_totais: 0, acucares_adicionados: 0, gorduras_saturadas: 0,
-              gorduras_trans: 0, fibras: 0, sodio: 0, vitaminas: 0, minerais: 0
+        if (tipo === 'refeicao') {
+          const rawRefeicoes = localStorage.getItem('refeicoes');
+          const refeicoes = rawRefeicoes ? JSON.parse(rawRefeicoes) as any[] : [];
+          const refeicaoObj = refeicoes.find(r => String(r.id) === String(id));
+          
+          if (!refeicaoObj) {
+            setError('Refeição não encontrada no banco de dados local.');
+            setLoading(false);
+            return;
+          }
+
+          const allRecipes = await listarReceitas();
+          const ingredientMap: Record<string, { tacoId: number; nome: string; quantidade: number; preco: number; unidade?: any }> = {};
+          
+          refeicaoObj.receitas.forEach((recRef: any) => {
+            const recipeInfo = allRecipes.find((r: any) => String(r.id) === String(recRef.receitaId));
+            if (recipeInfo) {
+              const recipePortions = Number(recipeInfo.porcoes) || 1;
+              const usedPortions = Number(recRef.porcoesUtilizadas) || 0;
+              const factor = usedPortions / recipePortions;
+
+              recipeInfo.ingredientes.forEach((ing: any) => {
+                const ingBase = parsedIngredientes.find(i => String(i.id) === String(ing.alimento));
+                const key = ing.nome.toLowerCase().trim();
+                const qtyProporcional = parseFloat(ing.quantidade) * factor;
+
+                if (ingredientMap[key]) {
+                  ingredientMap[key].quantidade += qtyProporcional;
+                } else {
+                  ingredientMap[key] = {
+                    tacoId: Number(ing.alimento) || 0,
+                    nome: ing.nome || 'Ingrediente',
+                    quantidade: qtyProporcional,
+                    preco: parseFloat(ing.preco_personalizado) || 0,
+                    unidade: ingBase?.unidade || 'g'
+                  };
+                }
+              });
             }
+          });
+
+          const simulatedReceita: Receita = {
+            id: refeicaoObj.id,
+            nome: refeicaoObj.nome,
+            descricao: refeicaoObj.descricao,
+            porcoes: 1,
+            margemLucro: refeicaoObj.margemLucro || 0,
+            ingredientes: Object.values(ingredientMap),
+            custoTotal: refeicaoObj.custoTotal,
+            custoPorPorcao: refeicaoObj.custoTotal,
+            precoSugerido: refeicaoObj.precoSugerido || 0,
+            dadosNutricionaisTotais: refeicaoObj.dadosNutricionaisTotais,
+            dadosNutricionaisPorPorcao: refeicaoObj.dadosNutricionaisTotais,
+            createdAt: new Date(refeicaoObj.createdAt)
           };
-        });
 
-        const nutriTotais = calcularNutrientesTotais(ingredientesComNutrientes);
-        const nutriPorPorcao = calcularDadosNutricionaisPorPorcao(nutriTotais, rData.porcoes);
+          const totalWeightCalculated = simulatedReceita.ingredientes.reduce((acc, curr) => acc + curr.quantidade, 0);
+          setPesoPorcaoCustom(Math.round(totalWeightCalculated) || 350);
+          setReceita(simulatedReceita);
+          if (refeicaoObj.contemGluten !== undefined) {
+            setContemGluten(refeicaoObj.contemGluten);
+          }
+          if (refeicaoObj.contemLactose !== undefined) {
+            setContemLactose(refeicaoObj.contemLactose);
+          }
+          if (refeicaoObj.alergicos) {
+            setAlergicos(prev => ({ ...prev, ...refeicaoObj.alergicos }));
+          }
+          if (refeicaoObj.podeConter) {
+            setPodeConter(prev => ({ ...prev, ...refeicaoObj.podeConter }));
+          }
+          if (refeicaoObj.outrosAlergenicos) {
+            setOutrosAlergenicos(refeicaoObj.outrosAlergenicos);
+          }
+        } else {
+          const rData = await obterReceita(id);
+          
+          const ingredientesComNutrientes = rData.ingredientes.map((ing: any) => {
+            const base = parsedIngredientes.find(i => String(i.id) === String(ing.alimento));
+            return {
+              quantidade: parseFloat(ing.quantidade),
+              dadosNutricionais: base?.dadosNutricionais || {
+                calorias: 0, proteinas: 0, carboidratos: 0, gorduras: 0,
+                acucares_totais: 0, acucares_adicionados: 0, gorduras_saturadas: 0,
+                gorduras_trans: 0, fibras: 0, sodio: 0, vitaminas: 0, minerais: 0
+              }
+            };
+          });
 
-        const receitaMapeada: Receita = {
-          id: String(rData.id),
-          nome: rData.nome,
-          descricao: rData.descricao,
-          porcoes: rData.porcoes,
-          margemLucro: parseFloat(rData.margem_lucro) || 0,
-          ingredientes: rData.ingredientes.map((ing: any) => ({
-            tacoId: ing.alimento,
-            nome: ing.nome || 'Ingrediente',
-            quantidade: parseFloat(ing.quantidade) || 0,
-            preco: parseFloat(ing.preco_personalizado) || 0
-          })),
-          custoTotal: 0,
-          custoPorPorcao: 0,
-          precoSugerido: 0,
-          dadosNutricionaisTotais: nutriTotais,
-          dadosNutricionaisPorPorcao: nutriPorPorcao,
-          createdAt: new Date(rData.criado_em)
-        };
+          const nutriTotais = calcularNutrientesTotais(ingredientesComNutrientes as any);
+          const nutriPorPorcao = calcularDadosNutricionaisPorPorcao(nutriTotais, rData.porcoes);
 
-        const totalWeightCalculated = receitaMapeada.ingredientes.reduce((acc, curr) => acc + curr.quantidade, 0);
-        const defaultPortionWeightCalculated = Math.round(totalWeightCalculated / (receitaMapeada.porcoes || 1));
-        setPesoPorcaoCustom(defaultPortionWeightCalculated);
-        setReceita(receitaMapeada);
+          const receitaMapeada: Receita = {
+            id: String(rData.id),
+            nome: rData.nome,
+            descricao: rData.descricao,
+            porcoes: rData.porcoes,
+            margemLucro: parseFloat(rData.margem_lucro) || 0,
+            ingredientes: rData.ingredientes.map((ing: any) => {
+              const base = parsedIngredientes.find(i => String(i.id) === String(ing.alimento));
+              return {
+                tacoId: Number(ing.alimento) || 0,
+                nome: ing.nome || 'Ingrediente',
+                quantidade: parseFloat(ing.quantidade) || 0,
+                preco: parseFloat(ing.preco_personalizado) || 0,
+                unidade: base?.unidade || 'g'
+              };
+            }),
+            custoTotal: 0,
+            custoPorPorcao: 0,
+            precoSugerido: 0,
+            dadosNutricionaisTotais: nutriTotais,
+            dadosNutricionaisPorPorcao: nutriPorPorcao,
+            createdAt: new Date(rData.criado_em)
+          };
+
+          const totalWeightCalculated = receitaMapeada.ingredientes.reduce((acc, curr) => acc + curr.quantidade, 0);
+          const defaultPortionWeightCalculated = Math.round(totalWeightCalculated / (receitaMapeada.porcoes || 1));
+          setPesoPorcaoCustom(defaultPortionWeightCalculated);
+          setReceita(receitaMapeada);
+        }
       } catch (err: any) {
-        console.error('Erro ao buscar dados da receita:', err);
-        setError('Não foi possível carregar a receita. Verifique se a receita existe.');
+        console.error('Erro ao buscar dados:', err);
+        setError('Não foi possível carregar as informações. Verifique se o item cadastrado está correto.');
       } finally {
         setLoading(false);
       }
@@ -237,7 +349,23 @@ export function Etiqueta({ onVoltar, usuario }: EtiquetaProps): JSX.Element {
   }, []);
 
   const handlePrint = () => {
-    window.print();
+    if (!isRotoApto) {
+      const pendencias = [];
+      if (!checkIngredientes) pendencias.push("Lista de ingredientes vazia");
+      if (!checkPesoLiquido) pendencias.push("Peso líquido não informado");
+      if (!checkValidade) pendencias.push("Data de validade não informada");
+      if (!checkLote) pendencias.push("Lote não informado");
+      if (!checkConservacao) pendencias.push("Instruções de conservação não informadas");
+      if (!checkTabelaCompleta) pendencias.push("Tabela nutricional incompleta");
+      if (!checkAcucaresTotais) pendencias.push("Açúcares totais não informados");
+      if (!checkAcucaresAdicionados) pendencias.push("Açúcares adicionados não informados");
+      if (!checkGorduraTrans) pendencias.push("Gordura trans não informada");
+
+      setPendenciasImpressao(pendencias);
+      setModalAvisoAberto(true);
+    } else {
+      window.print();
+    }
   };
 
   if (loading) {
@@ -268,7 +396,7 @@ export function Etiqueta({ onVoltar, usuario }: EtiquetaProps): JSX.Element {
             className="flex items-center justify-center gap-2 w-full py-3 bg-[#04585a] text-white rounded-xl font-bold hover:brightness-95 transition cursor-pointer border-0"
           >
             <ArrowLeft size={16} />
-            Voltar para Receitas
+            {parseTipoFromHash() === 'refeicao' ? 'Voltar para Refeições' : 'Voltar para Receitas'}
           </button>
         </div>
       </div>
@@ -945,25 +1073,79 @@ export function Etiqueta({ onVoltar, usuario }: EtiquetaProps): JSX.Element {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Fabricação</label>
-                  <input
-                    type="date"
-                    value={dataFabricacao}
-                    onChange={(e) => setDataFabricacao(e.target.value)}
-                    className="w-full px-3 py-2 text-sm rounded-lg border border-gray-200 focus:outline-none focus:ring-1 focus:ring-teal-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Validade</label>
+              {/* Fabricação */}
+              <div className="mb-4">
+                <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Fabricação</label>
+                <input
+                  type="date"
+                  value={dataFabricacao}
+                  onChange={(e) => setDataFabricacao(e.target.value)}
+                  className="w-full px-3 py-2 text-sm rounded-lg border border-gray-200 focus:outline-none focus:ring-1 focus:ring-teal-500"
+                />
+              </div>
+
+              {/* Alternador de tipo de validade */}
+              <div className="flex bg-slate-100 p-0.5 rounded-lg border border-gray-200/50 mb-3">
+                <button
+                  type="button"
+                  onClick={() => setTipoVencimento('dias')}
+                  className={`flex-1 py-1.5 text-[11px] font-bold rounded-md border-0 cursor-pointer transition-all ${
+                    tipoVencimento === 'dias'
+                      ? 'bg-white text-[#04585a] shadow-sm'
+                      : 'bg-transparent text-gray-500 hover:text-gray-900'
+                  }`}
+                >
+                  Validade em Dias
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setTipoVencimento('data')}
+                  className={`flex-1 py-1.5 text-[11px] font-bold rounded-md border-0 cursor-pointer transition-all ${
+                    tipoVencimento === 'data'
+                      ? 'bg-white text-[#04585a] shadow-sm'
+                      : 'bg-transparent text-gray-500 hover:text-gray-900'
+                  }`}
+                >
+                  Data no Calendário
+                </button>
+              </div>
+
+              {/* Validade */}
+              <div className="mb-2">
+                <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Validade</label>
+                {tipoVencimento === 'dias' ? (
+                  <div className="flex items-center gap-1.5 relative">
+                    <input
+                      type="number"
+                      min={1}
+                      placeholder="Ex: 30"
+                      value={validadeDias}
+                      onChange={(e) => setValidadeDias(e.target.value === '' ? '' : Number(e.target.value))}
+                      className="w-full px-3 py-2 text-sm rounded-lg border border-gray-200 focus:outline-none focus:ring-1 focus:ring-teal-500 pr-10"
+                    />
+                    <span className="absolute right-3 text-xs font-bold text-gray-400">dias</span>
+                  </div>
+                ) : (
                   <input
                     type="date"
                     value={dataValidade}
                     onChange={(e) => setDataValidade(e.target.value)}
                     className="w-full px-3 py-2 text-sm rounded-lg border border-gray-200 focus:outline-none focus:ring-1 focus:ring-teal-500"
                   />
-                </div>
+                )}
+              </div>
+              
+              <div className="mb-3">
+                {tipoVencimento === 'dias' && dataValidade && (
+                  <span className="text-[10px] font-bold text-emerald-600 block">
+                    🗓️ Vence em: {dataValidade.split('-').reverse().join('/')}
+                  </span>
+                )}
+                {tipoVencimento === 'data' && validadeDias && (
+                  <span className="text-[10px] font-bold text-indigo-600 block">
+                    ⏱️ Equivalente a: {validadeDias} dias de validade
+                  </span>
+                )}
               </div>
 
               <div>
@@ -1322,6 +1504,66 @@ export function Etiqueta({ onVoltar, usuario }: EtiquetaProps): JSX.Element {
         </div>
 
       </div>
+
+      {modalAvisoAberto && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-gray-900/60 backdrop-blur-sm p-4 animate-in fade-in duration-200 print:hidden">
+          <div className="bg-white rounded-[2rem] p-8 max-w-md w-full shadow-2xl animate-in zoom-in-95 duration-300 relative overflow-hidden text-left">
+            {/* Decorative Background Element */}
+            <div className="absolute -top-12 -right-12 w-32 h-32 bg-amber-50 rounded-full opacity-50" />
+            
+            <button 
+              onClick={() => setModalAvisoAberto(false)}
+              className="absolute top-6 right-6 text-gray-400 hover:text-gray-600 transition-colors border-0 bg-transparent cursor-pointer"
+            >
+              <X size={20} />
+            </button>
+
+            <div className="relative z-10">
+              <div className="flex items-center justify-center w-16 h-16 rounded-2xl bg-amber-50 text-amber-600 mb-6">
+                <ShieldAlert size={32} />
+              </div>
+              
+              <h3 className="text-2xl font-black text-gray-800 mb-3 tracking-tight">
+                Pendências de Rotulagem
+              </h3>
+              
+              <p className="text-gray-500 text-sm leading-relaxed mb-4">
+                Este rótulo possui inconformidades de acordo com as diretrizes regulatórias da ANVISA:
+              </p>
+
+              <ul className="space-y-2 mb-6 max-h-48 overflow-y-auto pr-1">
+                {pendenciasImpressao.map((p, idx) => (
+                  <li key={idx} className="flex items-start gap-2.5 text-xs font-semibold text-amber-700 bg-amber-50/50 p-2.5 rounded-xl border border-amber-100/50">
+                    <AlertCircle size={14} className="shrink-0 mt-0.5" />
+                    <span>{p}</span>
+                  </li>
+                ))}
+              </ul>
+
+              <div className="flex flex-col gap-2.5">
+                <button
+                  onClick={() => setModalAvisoAberto(false)}
+                  className="w-full py-3.5 bg-[#04585a] hover:bg-[#034446] text-white text-sm font-black transition-all shadow-lg border-0 rounded-2xl cursor-pointer"
+                >
+                  Ajustar Rótulo (Voltar)
+                </button>
+                
+                <button
+                  onClick={() => {
+                    setModalAvisoAberto(false);
+                    setTimeout(() => {
+                      window.print();
+                    }, 300);
+                  }}
+                  className="w-full py-3 rounded-xl text-gray-400 hover:text-gray-600 hover:bg-gray-50 text-xs font-bold transition-all border-0 bg-transparent cursor-pointer"
+                >
+                  Ignorar avisos e imprimir mesmo assim
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       <style>{`
         @media print {
