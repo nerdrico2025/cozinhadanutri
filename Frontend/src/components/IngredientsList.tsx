@@ -40,6 +40,35 @@ export function ListaIngredientes({ ingredientes, onEditar, onRemover }: ListaIn
   const [expandido, setExpandido] = useState<string | null>(null);
   const [itemParaRemover, setItemParaRemover] = useState<Ingrediente | null>(null);
 
+  const [itensEstoque, setItensEstoque] = useState<any[]>(() => {
+    try {
+      const salvas = localStorage.getItem('estoque_itens');
+      return salvas ? JSON.parse(salvas) : [];
+    } catch {
+      return [];
+    }
+  });
+
+  // Sync state if user opens page or database updates
+  const recarregarEstoque = () => {
+    try {
+      const salvas = localStorage.getItem('estoque_itens');
+      setItensEstoque(salvas ? JSON.parse(salvas) : []);
+    } catch {}
+  };
+
+  const itemEstoqueParaRemover = itemParaRemover
+    ? itensEstoque.find((item: any) => 
+        (itemParaRemover.tacoId && item.tacoId === itemParaRemover.tacoId) ||
+        (item.nome.toLowerCase() === itemParaRemover.nome.toLowerCase())
+      )
+    : null;
+
+  const iniciarRemocao = (ingrediente: Ingrediente) => {
+    recarregarEstoque();
+    setItemParaRemover(ingrediente);
+  };
+
   const filtrados = query.trim()
     ? ingredientes.filter((i) => i.nome.toLowerCase().includes(query.toLowerCase()))
     : ingredientes;
@@ -50,6 +79,12 @@ export function ListaIngredientes({ ingredientes, onEditar, onRemover }: ListaIn
 
   const confirmarRemocao = (senha?: string) => {
     if (itemParaRemover) {
+      if (itemEstoqueParaRemover) {
+        const updatedEstoque = itensEstoque.filter((item: any) => item.id !== itemEstoqueParaRemover.id);
+        localStorage.setItem('estoque_itens', JSON.stringify(updatedEstoque));
+        setItensEstoque(updatedEstoque);
+      }
+
       onRemover(itemParaRemover.id, senha);
       setItemParaRemover(null);
     }
@@ -167,9 +202,58 @@ export function ListaIngredientes({ ingredientes, onEditar, onRemover }: ListaIn
                   <div className="flex items-center justify-between sm:justify-end w-full sm:w-auto gap-4 pt-3 sm:pt-0 border-t sm:border-0 border-gray-50">
                     <div className="flex flex-col items-end">
                       <span className="text-[10px] text-gray-400 uppercase font-semibold">Preço</span>
-                      <span className="text-sm font-black text-emerald-600">
-                        R$ {ingrediente.preco.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                      </span>
+                      {(() => {
+                        const itensEstoqueRaw = localStorage.getItem('estoque_itens');
+                        let itensEstoque = [];
+                        try {
+                          itensEstoque = itensEstoqueRaw ? JSON.parse(itensEstoqueRaw) : [];
+                        } catch {
+                          itensEstoque = [];
+                        }
+                        
+                        const itemEstoque = itensEstoque.find((item: any) => 
+                          (ingrediente.tacoId && item.tacoId === ingrediente.tacoId) ||
+                          (item.nome.toLowerCase() === ingrediente.nome.toLowerCase())
+                        );
+
+                        let labelUnidade = ingrediente.unidade;
+                        if (labelUnidade === 'unidade' || labelUnidade === 'un') labelUnidade = 'und';
+                        else if (labelUnidade === 'l') labelUnidade = 'L';
+
+                        if (itemEstoque && itemEstoque.lotes && itemEstoque.lotes.length > 0) {
+                          const lotesValidos = itemEstoque.lotes.filter((l: any) => l.quantidadeOriginal > 0);
+                          if (lotesValidos.length > 0) {
+                            const totalPago = lotesValidos.reduce((acc: number, l: any) => {
+                              const bUn = ingrediente.unidade;
+                              const fator = (bUn === 'kg' || bUn === 'l' || bUn === 'unidade' || bUn === 'un')
+                                ? l.quantidadeOriginal
+                                : (l.quantidadeOriginal / 100);
+                              return acc + (fator * l.custoUnitario);
+                            }, 0);
+
+                            return (
+                              <>
+                                <span className="text-sm font-black text-emerald-600">
+                                  R$ {ingrediente.preco.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 4 })}
+                                </span>
+                                <span className="text-[11px] text-gray-500 font-semibold mt-0.5">
+                                  Total em estoque: R$ {totalPago.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                </span>
+                              </>
+                            );
+                          }
+                        }
+                        return (
+                          <>
+                            <span className="text-sm font-black text-emerald-600">
+                              R$ {ingrediente.preco.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                            </span>
+                            <span className="text-[11px] text-gray-400 font-medium mt-0.5">
+                              Sem lote em estoque
+                            </span>
+                          </>
+                        );
+                      })()}
                     </div>
 
                     <div className="flex items-center gap-1">
@@ -185,7 +269,7 @@ export function ListaIngredientes({ ingredientes, onEditar, onRemover }: ListaIn
                       <button
                         onClick={(e) => { 
                           e.stopPropagation(); 
-                          setItemParaRemover(ingrediente);
+                          iniciarRemocao(ingrediente);
                         }}
                         className="p-2 rounded-xl text-gray-400 hover:text-red-500 hover:bg-red-50 transition-all border-0 bg-transparent cursor-pointer"
                         title="Excluir"
@@ -239,6 +323,72 @@ export function ListaIngredientes({ ingredientes, onEditar, onRemover }: ListaIn
                         </p>
                       </div>
                     )}
+
+                    {(() => {
+                      const itensEstoqueRaw = localStorage.getItem('estoque_itens');
+                      let itensEstoque = [];
+                      try {
+                        itensEstoque = itensEstoqueRaw ? JSON.parse(itensEstoqueRaw) : [];
+                      } catch {
+                        itensEstoque = [];
+                      }
+                      
+                      const itemEstoque = itensEstoque.find((item: any) => 
+                        (ingrediente.tacoId && item.tacoId === ingrediente.tacoId) ||
+                        (item.nome.toLowerCase() === ingrediente.nome.toLowerCase())
+                      );
+
+                      if (!itemEstoque || !itemEstoque.lotes || itemEstoque.lotes.length === 0) return null;
+
+                      return (
+                        <div className="mt-5 pt-4 border-t border-gray-100">
+                          <div className="flex items-center gap-2 mb-3">
+                            <Package size={14} className="text-teal-600" />
+                            <h4 className="text-xs font-bold text-gray-500 uppercase tracking-widest">Lotes em Estoque & Custos</h4>
+                            <div className="flex-1 h-px bg-gray-100"></div>
+                          </div>
+                          <div className="grid gap-2 max-w-2xl">
+                            {itemEstoque.lotes.map((l: any, index: number) => {
+                              const bUn = ingrediente.unidade;
+                              const fator = (bUn === 'kg' || bUn === 'l' || bUn === 'unidade' || bUn === 'un')
+                                ? l.quantidadeOriginal
+                                : (l.quantidadeOriginal / 100);
+                              const totalLote = fator * l.custoUnitario;
+                              const precoLoteUnit = l.custoUnitario;
+                              let labelUnidade = ingrediente.unidade;
+                              if (labelUnidade === 'unidade' || labelUnidade === 'un') labelUnidade = 'und';
+                              else if (labelUnidade === 'l') labelUnidade = 'L';
+
+                              return (
+                                <div key={l.id || index} className="flex flex-col sm:flex-row sm:items-center justify-between p-3 bg-white rounded-xl border border-gray-100 text-xs gap-2 shadow-sm">
+                                  <div className="flex items-center gap-3">
+                                    <span className="font-bold text-gray-700">Lote #{index + 1}</span>
+                                    <span className="text-gray-400">|</span>
+                                    <span className="text-gray-600 font-medium">Qtd: {l.quantidadeAtual} / {l.quantidadeOriginal} {labelUnidade}</span>
+                                    {l.fornecedor && (
+                                      <>
+                                        <span className="text-gray-400">|</span>
+                                        <span className="text-gray-500 italic">Fornecedor: {l.fornecedor}</span>
+                                      </>
+                                    )}
+                                  </div>
+                                  <div className="flex items-center gap-4 text-right">
+                                    <div>
+                                      <span className="text-gray-400 block text-[9px] uppercase font-bold">Custo Total do Lote</span>
+                                      <span className="font-semibold text-gray-800">R$ {totalLote.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                                    </div>
+                                    <div className="border-l border-gray-100 pl-4">
+                                      <span className="text-teal-600 block text-[9px] uppercase font-bold">Custo Unitário</span>
+                                      <span className="font-bold text-teal-600">R$ {precoLoteUnit.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 4 })} / {labelUnidade}</span>
+                                    </div>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      );
+                    })()}
                   </div>
                 </div>
               </div>
@@ -252,9 +402,12 @@ export function ListaIngredientes({ ingredientes, onEditar, onRemover }: ListaIn
         onClose={() => setItemParaRemover(null)}
         onConfirm={confirmarRemocao}
         title="Remover Ingrediente"
-        message={`Você está prestes a excluir "${itemParaRemover?.nome}". Esta ação não pode ser desfeita e pode afetar receitas existentes.`}
-        confirmText="Sim, remover"
-        cancelText="Manter ingrediente"
+        message={!itemEstoqueParaRemover || !itemEstoqueParaRemover.lotes || itemEstoqueParaRemover.lotes.length === 0
+          ? `Você está prestes a excluir "${itemParaRemover?.nome}". Esta ação não pode ser desfeita e pode afetar receitas existentes.`
+          : `Atenção: O ingrediente "${itemParaRemover?.nome}" possui ${itemEstoqueParaRemover.lotes.length} lote(s) ativo(s) no estoque. Ao excluí-lo, todos os lotes associados também serão removidos do estoque. Esta ação não pode ser desfeita e afetará receitas existentes.`
+        }
+        confirmText="Sim, excluir tudo"
+        cancelText="Cancelar"
         requirePassword={false}
       />
     </div>

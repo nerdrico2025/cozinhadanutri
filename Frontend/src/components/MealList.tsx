@@ -420,15 +420,32 @@ export function MealList({ refeicoes, receitasDisponiveis, onEditar, onRemover, 
                             </div>
                           </div>
 
-                          <div className="bg-[#04585a] p-4 rounded-xl flex items-center justify-between text-white shadow-sm">
-                            <div>
-                              <p className="text-[10px] font-bold text-teal-100 uppercase tracking-widest mb-0.5">Preço Final Sugerido</p>
-                              <p className="text-[9px] text-teal-50/70 font-medium">CMV de {precoSugeridoVal > 0 ? ((refeicao.custoTotal / precoSugeridoVal) * 100).toFixed(1) : "0.0"}%</p>
-                            </div>
-                            <div className="text-right">
-                              <p className="text-2xl font-black">R$ {precoSugeridoVal.toFixed(2)}</p>
-                            </div>
-                          </div>
+                          {(() => {
+                            const cmvCustoTotal = refeicao.custoTotal + (refeicao.custoOperacional || 0);
+                            const cmvPercent = precoSugeridoVal > 0 ? (cmvCustoTotal / precoSugeridoVal) * 100 : 0;
+                            let statusCMV = "CMV Aceitável";
+                            let statusIcon = "";
+                            if (cmvPercent < 28) {
+                              statusCMV = "CMV Ótimo";
+                              statusIcon = "✅ ";
+                            } else if (cmvPercent > 35) {
+                              statusCMV = "CMV Alto / Alerta";
+                              statusIcon = "⚠️ ";
+                            }
+                            return (
+                              <div className="bg-[#04585a] p-4 rounded-xl flex items-center justify-between text-white shadow-sm">
+                                <div>
+                                  <p className="text-[10px] font-bold text-teal-100 uppercase tracking-widest mb-0.5">Preço Final Sugerido</p>
+                                  <p className="text-[9px] text-teal-50/70 font-medium">
+                                    {statusIcon}{statusCMV} de {cmvPercent.toFixed(1)}%
+                                  </p>
+                                </div>
+                                <div className="text-right">
+                                  <p className="text-2xl font-black">R$ {precoSugeridoVal.toFixed(2)}</p>
+                                </div>
+                              </div>
+                            );
+                          })()}
                         </div>
                       </div>
 

@@ -88,7 +88,7 @@ export function CadastroIngrediente({ ingredienteInicial, onSalvar, onCancelar, 
   const [estoqueQuantidade, setEstoqueQuantidade] = useState<number | ''>('');
   const [estoqueMinimo, setEstoqueMinimo] = useState<number | ''>(0);
   const [estoqueFornecedor, setEstoqueFornecedor] = useState<string>('');
-  const [estoqueCustoUnitario, setEstoqueCustoUnitario] = useState<number | ''>('');
+  const [estoqueValorTotal, setEstoqueValorTotal] = useState<number | ''>('');
 
   const [tipoVencimento, setTipoVencimento] = useState<"dias" | "data">("dias");
   const [validadeDias, setValidadeDias] = useState<number | ''>(30);
@@ -138,11 +138,78 @@ export function CadastroIngrediente({ ingredienteInicial, onSalvar, onCancelar, 
       : { unidade: 'g', calorias: 0, proteinas: 0, carboidratos: 0, gorduras: 0, acucares_totais: 0, acucares_adicionados: 0, gorduras_saturadas: 0, gorduras_trans: 0, fibras: 0, sodio: 0, vitaminas: 0, minerais: 0 },
   });
 
+  const labelPreco = useMemo(() => {
+    const un = watch('unidade');
+    if (un === 'g') return "Preço por 100g (R$)";
+    if (un === 'ml') return "Preço por 100ml (R$)";
+    if (un === 'kg') return "Preço por kg (R$)";
+    if (un === 'l') return "Preço por Litro (R$)";
+    return "Preço por Unidade (R$)";
+  }, [watch('unidade')]);
+
+  const precoAtual = watch('preco');
+  const unidadeAtual = watch('unidade');
+
+  // Sincroniza o valor total quando o preço unitário ou a quantidade mudam
+  useEffect(() => {
+    if (incluirNoEstoque && typeof precoAtual === 'number' && typeof estoqueQuantidade === 'number' && estoqueQuantidade > 0) {
+      const total = (unidadeAtual === 'g' || unidadeAtual === 'ml')
+        ? (precoAtual * estoqueQuantidade) / 100
+        : precoAtual * estoqueQuantidade;
+      setEstoqueValorTotal(Number(total.toFixed(2)));
+    } else if (!incluirNoEstoque || !estoqueQuantidade || !precoAtual) {
+      setEstoqueValorTotal('');
+    }
+  }, [precoAtual, estoqueQuantidade, unidadeAtual, incluirNoEstoque]);
+
+  const handleQuantidadeChange = (valStr: string) => {
+    if (valStr === '') {
+      setEstoqueQuantidade('');
+      return;
+    }
+    const qtd = Number(valStr);
+    setEstoqueQuantidade(qtd);
+    const unitPrice = Number(watch('preco')) || 0;
+    if (unitPrice > 0) {
+      const total = (unidadeAtual === 'g' || unidadeAtual === 'ml')
+        ? (unitPrice * qtd) / 100
+        : unitPrice * qtd;
+      setEstoqueValorTotal(Number(total.toFixed(2)));
+    }
+  };
+
+  const handleValorTotalChange = (valStr: string) => {
+    if (valStr === '') {
+      setEstoqueValorTotal('');
+      return;
+    }
+    const val = Number(valStr);
+    setEstoqueValorTotal(val);
+    const qtd = Number(estoqueQuantidade);
+    if (qtd > 0) {
+      const unitPrice = (unidadeAtual === 'g' || unidadeAtual === 'ml')
+        ? (val / qtd) * 100
+        : val / qtd;
+      setValue('preco', Number(unitPrice.toFixed(4)), { shouldValidate: true });
+    }
+  };
+
+  const precoFeedbackCalculado = useMemo(() => {
+    const qtd = Number(estoqueQuantidade);
+    const precoUnit = Number(precoAtual) || 0;
+    if (!incluirNoEstoque || !qtd || qtd <= 0 || precoUnit <= 0) return null;
+
+    const total = (unidadeAtual === 'g' || unidadeAtual === 'ml') ? (precoUnit * qtd) / 100 : precoUnit * qtd;
+    const unitLabel = unidadeAtual === 'unidade' ? 'und' : unidadeAtual === 'l' ? 'L' : unidadeAtual;
+    
+    return `Total da compra: R$ ${total.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} (R$ ${precoUnit.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} por ${unidadeAtual === 'g' || unidadeAtual === 'ml' ? '100' + unidadeAtual : unitLabel})`;
+  }, [incluirNoEstoque, estoqueQuantidade, precoAtual, unidadeAtual]);
+
   useEffect(() => {
     if (ingredienteInicial) {
       reset({
         nome: ingredienteInicial.nome,
-        unidade: ingredienteInicial.unidade as 'g' | 'kg' | 'ml' | 'l' | 'unidade',
+        unidade: (ingredienteInicial.unidade === 'un' ? 'unidade' : ingredienteInicial.unidade) as 'g' | 'kg' | 'ml' | 'l' | 'unidade',
         preco: ingredienteInicial.preco,
         calorias: Number((ingredienteInicial.dadosNutricionais.calorias || 0).toFixed(1)),
         proteinas: Number((ingredienteInicial.dadosNutricionais.proteinas || 0).toFixed(1)),
@@ -186,6 +253,7 @@ export function CadastroIngrediente({ ingredienteInicial, onSalvar, onCancelar, 
       setValidadeDias(30);
       setDataVencimentoEspecifica('');
       setEstoqueFornecedor('');
+      setEstoqueValorTotal('');
     }
   }, [ingredienteInicial, reset]);
 
@@ -193,13 +261,6 @@ export function CadastroIngrediente({ ingredienteInicial, onSalvar, onCancelar, 
     (tacoNumeroSelecionado && i.tacoId === tacoNumeroSelecionado) ||
     (i.nome.toLowerCase() === watch('nome')?.trim().toLowerCase())
   ) || null;
-
-  const precoAtual = watch('preco');
-  useEffect(() => {
-    if (precoAtual !== undefined && precoAtual !== null && precoAtual !== '') {
-      setEstoqueCustoUnitario(Number(precoAtual));
-    }
-  }, [precoAtual]);
 
   useEffect(() => {
     if (itemEstoqueVinculado && !ingredienteInicial) {
@@ -267,7 +328,8 @@ export function CadastroIngrediente({ ingredienteInicial, onSalvar, onCancelar, 
         const qtd = Number(estoqueQuantidade);
         const min = Number(estoqueMinimo) || 0;
         let novaListaEstoque = [...itensEstoque];
-        const custoUnit = estoqueCustoUnitario !== '' ? Number(estoqueCustoUnitario) : data.preco;
+        const totalCusto = estoqueValorTotal !== '' ? Number(estoqueValorTotal) : data.preco;
+        const custoUnit = data.preco;
 
         const loteNovo = {
           id: crypto.randomUUID(),
@@ -501,7 +563,7 @@ export function CadastroIngrediente({ ingredienteInicial, onSalvar, onCancelar, 
                       </label>
                       <input 
                         type="number" min={0.01} step="any" required
-                        value={estoqueQuantidade} onChange={e => setEstoqueQuantidade(e.target.value === '' ? '' : Number(e.target.value))}
+                        value={estoqueQuantidade} onChange={e => handleQuantidadeChange(e.target.value)}
                         placeholder="Ex: 5" className={inputCls(false)}
                       />
                     </div>
@@ -509,7 +571,7 @@ export function CadastroIngrediente({ ingredienteInicial, onSalvar, onCancelar, 
 
                   <div>
                     <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">
-                      Preço (R$) <span className="text-red-400">*</span>
+                      {labelPreco} <span className="text-red-400">*</span>
                     </label>
                     <div className="relative">
                       <DollarSign size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
@@ -525,6 +587,12 @@ export function CadastroIngrediente({ ingredienteInicial, onSalvar, onCancelar, 
                     {itemEstoqueVinculado && (
                       <p className="text-xs text-brand mt-1 flex items-center gap-1">
                         <Archive size={12} /> Custo médio no estoque: R$ {itemEstoqueVinculado.custoMedio.toFixed(2)}
+                      </p>
+                    )}
+                    {precoFeedbackCalculado && (
+                      <p className="text-xs text-teal-700 mt-1.5 flex items-center gap-1.5 font-bold bg-teal-50 border border-teal-100 px-2.5 py-1.5 rounded-lg shadow-sm">
+                        <span>💡</span>
+                        <span>{precoFeedbackCalculado}</span>
                       </p>
                     )}
                     {errors.preco && <p className="text-red-500 text-xs mt-1">{errors.preco.message as string}</p>}
@@ -547,12 +615,15 @@ export function CadastroIngrediente({ ingredienteInicial, onSalvar, onCancelar, 
                       {/* Primeira Linha */}
                       <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
                         <div>
-                          <label className="block text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-1">Custo do Lote (R$)</label>
-                          <input 
-                            type="number" min={0.01} step="0.01" required
-                            value={estoqueCustoUnitario} onChange={e => setEstoqueCustoUnitario(e.target.value === '' ? '' : Number(e.target.value))}
-                            placeholder="Ex: 5.50" className={inputCls(false)}
-                          />
+                          <label className="block text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-1">Valor Total Pago (R$)</label>
+                          <div className="relative">
+                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs font-semibold">R$</span>
+                            <input 
+                              type="number" min={0} step="0.01"
+                              value={estoqueValorTotal} onChange={e => handleValorTotalChange(e.target.value)}
+                              placeholder="Ex: 25.60" className={`${inputCls(false)} pl-8`}
+                            />
+                          </div>
                         </div>
                         <div>
                           <label className="block text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-1">Fornecedor (Opcional)</label>

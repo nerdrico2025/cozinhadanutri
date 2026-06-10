@@ -6,11 +6,12 @@ interface ConfirmModalProps {
   onClose: () => void;
   onConfirm: (password?: string) => void;
   title: string;
-  message: string;
+  message?: string;
   confirmText?: string;
   cancelText?: string;
   variant?: 'danger' | 'warning' | 'info';
   requirePassword?: boolean;
+  children?: React.ReactNode;
 }
 
 export function ConfirmModal({
@@ -22,7 +23,8 @@ export function ConfirmModal({
   confirmText = 'Confirmar',
   cancelText = 'Cancelar',
   variant = 'danger',
-  requirePassword = false
+  requirePassword = false,
+  children
 }: ConfirmModalProps) {
   const [password, setPassword] = useState('');
 
@@ -81,9 +83,17 @@ export function ConfirmModal({
             {title}
           </h3>
           
-          <p className="text-gray-500 text-sm leading-relaxed mb-6">
-            {message}
-          </p>
+          {message && (
+            <p className="text-gray-500 text-sm leading-relaxed mb-6">
+              {message}
+            </p>
+          )}
+
+          {children && (
+            <div className="mb-6 space-y-4">
+              {children}
+            </div>
+          )}
 
           {requirePassword && (
             <div className="mb-8">

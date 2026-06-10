@@ -1284,12 +1284,33 @@ export function CreateMeal({ refeicaoInicial, receitasDisponiveis, onSalvar, onC
                         <span className="font-bold text-emerald-600">R$ {calculos.margemLucroReal.toFixed(2)}</span>
                       </div>
 
-                      <div className="flex items-center justify-between py-2 border-b border-gray-50 text-xs">
-                        <span className="text-gray-500 font-medium">CMV (% Insumos/Venda)</span>
-                        <span className="font-bold text-orange-500">
-                          {calculos.precoSugerido > 0 ? ((calculos.custoTotal / calculos.precoSugerido) * 100).toFixed(1) : "0.0"}%
-                        </span>
-                      </div>
+                      {(() => {
+                        const cmvCustoTotal = calculos.custoTotal + (watchedCustoOperacional || 0);
+                        const cmvPercent = calculos.precoSugerido > 0 ? (cmvCustoTotal / calculos.precoSugerido) * 100 : 0;
+                        let corCMV = "text-orange-500";
+                        let statusCMV = "Aceitável";
+                        if (cmvPercent < 28) {
+                          corCMV = "text-emerald-600";
+                          statusCMV = "Ótimo";
+                        } else if (cmvPercent > 35) {
+                          corCMV = "text-red-500 font-extrabold";
+                          statusCMV = "Alto / Alerta";
+                        }
+                        return (
+                          <div className="flex flex-col gap-1 py-2 border-b border-gray-50 text-xs">
+                            <div className="flex items-center justify-between">
+                              <span className="text-gray-500 font-medium">CMV (Custo Total / Venda)</span>
+                              <span className={`font-bold ${corCMV}`}>
+                                {cmvPercent.toFixed(1)}%
+                              </span>
+                            </div>
+                            <span className={`text-[10px] self-end font-semibold ${corCMV}`}>
+                              {statusCMV === "Ótimo" ? "✅ " : statusCMV === "Alto / Alerta" ? "⚠️ " : ""}
+                              CMV {statusCMV}
+                            </span>
+                          </div>
+                        );
+                      })()}
 
                       <div className="flex items-center justify-between py-2 border-b border-gray-50 text-xs">
                         <span className="text-gray-500 font-medium">Receitas integradas</span>

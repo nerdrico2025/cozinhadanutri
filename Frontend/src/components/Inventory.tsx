@@ -8,6 +8,7 @@ import {
   Search, Filter, ArrowUpDown, ChevronDown, ChevronUp, Pencil
 } from "lucide-react";
 import { Unidade } from "../types";
+import { ConfirmModal } from "./ConfirmModal";
 
 const CATEGORIAS_ESTOQUE = [
   "Embalagem",
@@ -60,6 +61,7 @@ interface InventoryProps {
   onIrParaIngredientes?: () => void;
   ingredientes?: any[];
   onAtualizarPrecoIngrediente?: (id: string, novoPreco: number) => Promise<void>;
+  onRemoverIngrediente?: (id: string) => Promise<void>;
 }
 
 const inputCls = (hasError?: boolean) =>
@@ -71,7 +73,7 @@ const inputCls = (hasError?: boolean) =>
 
 const labelCls = "block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1";
 
-export function Inventory({ onVoltar, onIrParaIngredientes, ingredientes, onAtualizarPrecoIngrediente }: InventoryProps) {
+export function Inventory({ onVoltar, onIrParaIngredientes, ingredientes, onAtualizarPrecoIngrediente, onRemoverIngrediente }: InventoryProps) {
   const [itens, setItens] = useState<ItemEstoque[]>(() => {
     try {
       const salvas = localStorage.getItem('estoque_itens');
@@ -97,6 +99,14 @@ export function Inventory({ onVoltar, onIrParaIngredientes, ingredientes, onAtua
   const [itemEmEdicao, setItemEmEdicao] = useState<ItemEstoque | null>(null);
   const [loteEmEdicao, setLoteEmEdicao] = useState<Lote | null>(null);
   const [tipoMovimentacao, setTipoMovimentacao] = useState<'entrada' | 'saida'>('entrada');
+  
+  const [modalExclusao, setModalExclusao] = useState<{
+    tipo: 'lote' | 'item';
+    itemId: string;
+    loteId?: string;
+    titulo: string;
+    mensagem: string;
+  } | null>(null);
   
   const isIngrediente = itemEmEdicao?.categoria === "Ingrediente" || !!itemEmEdicao?.tacoId;
   
@@ -177,37 +187,17 @@ export function Inventory({ onVoltar, onIrParaIngredientes, ingredientes, onAtua
   };
 
   const handleRemoverLote = (itemId: string, loteId: string) => {
-    if (confirm("Remover este lote? O saldo e custo médio do insumo serão recalculados.")) {
-      setItens(prev => prev.map(item => {
-        if (item.id !== itemId) return item;
-        const novosLotes = (item.lotes || []).filter(l => l.id !== loteId);
-        
-        if (novosLotes.length === 0) {
-          if (onAtualizarPrecoIngrediente) {
-            const ing = ingredientes?.find(i => (item.tacoId && i.tacoId === item.tacoId) || (i.nome.toLowerCase() === item.nome.toLowerCase()));
-            if (ing) onAtualizarPrecoIngrediente(ing.id, 0);
-          }
-          return {
-            ...item,
-            lotes: [],
-            quantidadeAtual: 0,
-            custoMedio: 0
-          };
-        } else {
-          const { qtdTotal, custoMedio } = recalcularTotais(novosLotes, item.custoMedio);
-          if (onAtualizarPrecoIngrediente) {
-            const ing = ingredientes?.find(i => (item.tacoId && i.tacoId === item.tacoId) || (i.nome.toLowerCase() === item.nome.toLowerCase()));
-            if (ing) onAtualizarPrecoIngrediente(ing.id, custoMedio);
-          }
-          return {
-            ...item,
-            lotes: novosLotes,
-            quantidadeAtual: qtdTotal,
-            custoMedio: custoMedio
-          };
-        }
-      }));
-    }
+    const item = itens.find(i => i.id === itemId);
+    const lote = item?.lotes?.find(l => l.id === loteId);
+    if (!item || !lote) return;
+    
+    setModalExclusao({
+      tipo: 'lote',
+      itemId,
+      loteId,
+      titulo: "Excluir Lote",
+      mensagem: `Você está prestes a excluir o lote do fornecedor "${lote.fornecedor || 'N/A'}" (Qtd: ${lote.quantidadeAtual} ${item.unidade}, Vencimento: ${new Date(lote.dataValidade).toLocaleDateString('pt-BR', { timeZone: 'UTC' })}). O saldo e custo médio serão recalculados.`
+    });
   };
 
   const onAddItem = (data: ItemForm) => {
@@ -331,9 +321,70 @@ export function Inventory({ onVoltar, onIrParaIngredientes, ingredientes, onAtua
   };
 
   const handleRemover = (id: string) => {
-    if (confirm("Remover este item do estoque? O histórico será perdido.")) {
-      setItens(itens.filter(i => i.id !== id));
+    const item = itens.find(i => i.id === id);
+    if (!item) return;
+    
+    setModalExclusao({
+      tipo: 'item',
+      itemId: id,
+      titulo: "Excluir Item do Estoque",
+      mensagem: `Você está prestes a excluir o item "${item.nome}" do estoque. Todo o histórico de lotes e movimentações deste insumo será permanentemente perdido.`
+    });
+  };
+
+  const confirmarExclusaoModal = () => {
+    if (!modalExclusao) return;
+    
+    const { tipo, itemId, loteId } = modalExclusao;
+    
+    if (tipo === 'lote' && loteId) {
+      setItens(prev => {
+        const mapped = prev.map(item => {
+          if (item.id !== itemId) return item;
+          const novosLotes = (item.lotes || []).filter(l => l.id !== loteId);
+          
+          if (novosLotes.length === 0) {
+            const ing = ingredientes?.find(i => (item.tacoId && i.tacoId === item.tacoId) || (i.nome.trim().toLowerCase() === item.nome.trim().toLowerCase()));
+            if (ing) {
+              if (onRemoverIngrediente) {
+                onRemoverIngrediente(ing.id);
+              } else if (onAtualizarPrecoIngrediente) {
+                onAtualizarPrecoIngrediente(ing.id, 0);
+              }
+            }
+            return null; // Será removido no filter(Boolean)
+          } else {
+            const { qtdTotal, custoMedio } = recalcularTotais(novosLotes, item.custoMedio);
+            if (onAtualizarPrecoIngrediente) {
+              const ing = ingredientes?.find(i => (item.tacoId && i.tacoId === item.tacoId) || (i.nome.trim().toLowerCase() === item.nome.trim().toLowerCase()));
+              if (ing) onAtualizarPrecoIngrediente(ing.id, custoMedio);
+            }
+            return {
+              ...item,
+              lotes: novosLotes,
+              quantidadeAtual: qtdTotal,
+              custoMedio: custoMedio
+            };
+          }
+        });
+        return mapped.filter(Boolean) as ItemEstoque[];
+      });
+    } else if (tipo === 'item') {
+      const item = itens.find(i => i.id === itemId);
+      if (item) {
+        const ing = ingredientes?.find(i => (item.tacoId && i.tacoId === item.tacoId) || (i.nome.trim().toLowerCase() === item.nome.trim().toLowerCase()));
+        if (ing) {
+          if (onRemoverIngrediente) {
+            onRemoverIngrediente(ing.id);
+          } else if (onAtualizarPrecoIngrediente) {
+            onAtualizarPrecoIngrediente(ing.id, 0);
+          }
+        }
+      }
+      setItens(itens.filter(i => i.id !== itemId));
     }
+    
+    setModalExclusao(null);
   };
 
   const abrirModal = (item: ItemEstoque, tipo: 'entrada' | 'saida') => {
@@ -898,7 +949,13 @@ export function Inventory({ onVoltar, onIrParaIngredientes, ingredientes, onAtua
                                   >
                                     <TrendingUp size={16} /> Entrada
                                   </button>
-
+                                  <button
+                                    onClick={(e) => { e.stopPropagation(); handleRemover(item.id); }}
+                                    className="h-9 w-9 flex items-center justify-center rounded-lg bg-red-50 text-red-500 hover:bg-red-100 hover:text-red-600 transition-colors border-0 cursor-pointer"
+                                    title="Excluir Item do Estoque"
+                                  >
+                                    <Trash2 size={16} />
+                                  </button>
                                 </div>
                               </td>
                               
@@ -986,6 +1043,18 @@ export function Inventory({ onVoltar, onIrParaIngredientes, ingredientes, onAtua
                   </table>
                 </div>
               )}
+              {/* Modal de Exclusão customizado */}
+              <ConfirmModal
+                isOpen={!!modalExclusao}
+                onClose={() => setModalExclusao(null)}
+                onConfirm={confirmarExclusaoModal}
+                title={modalExclusao?.titulo || ""}
+                message={modalExclusao?.mensagem || ""}
+                confirmText="Sim, excluir"
+                cancelText="Cancelar"
+                variant="danger"
+                requirePassword={false}
+              />
             </div>
           </section>
       </main>

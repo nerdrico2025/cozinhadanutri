@@ -609,6 +609,7 @@ function App() {
             onIrParaIngredientes={() => setTelaAtiva('cadastro-ingrediente')}
             ingredientes={ingredientes}
             onAtualizarPrecoIngrediente={handleAtualizarPrecoIngrediente}
+            onRemoverIngrediente={handleRemoverIngrediente}
           />
         );
       case 'estatisticas':
