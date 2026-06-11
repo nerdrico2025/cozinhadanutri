@@ -219,6 +219,8 @@ export function ListaIngredientes({ ingredientes, onEditar, onRemover }: ListaIn
                         let labelUnidade: string = ingrediente.unidade;
                         if (labelUnidade === 'unidade' || labelUnidade === 'un') labelUnidade = 'und';
                         else if (labelUnidade === 'l') labelUnidade = 'L';
+                        else if (labelUnidade === 'g') labelUnidade = '100g';
+                        else if (labelUnidade === 'ml') labelUnidade = '100ml';
 
                         if (itemEstoque && itemEstoque.lotes && itemEstoque.lotes.length > 0) {
                           const lotesValidos = itemEstoque.lotes.filter((l: any) => l.quantidadeOriginal > 0);
@@ -234,7 +236,7 @@ export function ListaIngredientes({ ingredientes, onEditar, onRemover }: ListaIn
                             return (
                               <>
                                 <span className="text-sm font-black text-emerald-600">
-                                  R$ {ingrediente.preco.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 4 })}
+                                  R$ {ingrediente.preco.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 4 })} <span className="text-[10px] font-bold text-gray-400">/ {labelUnidade}</span>
                                 </span>
                                 <span className="text-[11px] text-gray-500 font-semibold mt-0.5">
                                   Total em estoque: R$ {totalPago.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
@@ -246,7 +248,7 @@ export function ListaIngredientes({ ingredientes, onEditar, onRemover }: ListaIn
                         return (
                           <>
                             <span className="text-sm font-black text-emerald-600">
-                              R$ {ingrediente.preco.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                              R$ {ingrediente.preco.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} <span className="text-[10px] font-bold text-gray-400">/ {labelUnidade}</span>
                             </span>
                             <span className="text-[11px] text-gray-400 font-medium mt-0.5">
                               Sem lote em estoque
@@ -358,6 +360,8 @@ export function ListaIngredientes({ ingredientes, onEditar, onRemover }: ListaIn
                               let labelUnidade: string = ingrediente.unidade;
                               if (labelUnidade === 'unidade' || labelUnidade === 'un') labelUnidade = 'und';
                               else if (labelUnidade === 'l') labelUnidade = 'L';
+                              else if (labelUnidade === 'g') labelUnidade = '100g';
+                              else if (labelUnidade === 'ml') labelUnidade = '100ml';
 
                               return (
                                 <div key={l.id || index} className="flex flex-col sm:flex-row sm:items-center justify-between p-3 bg-white rounded-xl border border-gray-100 text-xs gap-2 shadow-sm">
