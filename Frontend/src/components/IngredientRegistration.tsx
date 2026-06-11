@@ -265,7 +265,7 @@ export function CadastroIngrediente({ ingredienteInicial, onSalvar, onCancelar, 
   useEffect(() => {
     if (itemEstoqueVinculado && !ingredienteInicial) {
       setValue('preco', Number((itemEstoqueVinculado.custoMedio || 0).toFixed(2)), { shouldValidate: true });
-      setValue('unidade', itemEstoqueVinculado.unidade as Unidade);
+      setValue('unidade', (itemEstoqueVinculado.unidade === 'un' ? 'unidade' : itemEstoqueVinculado.unidade) as 'g' | 'kg' | 'ml' | 'l' | 'unidade');
     }
   }, [itemEstoqueVinculado, setValue, ingredienteInicial]);
 
@@ -646,7 +646,7 @@ export function CadastroIngrediente({ ingredienteInicial, onSalvar, onCancelar, 
                       {/* Segunda Linha */}
                       <div className="bg-gray-50/50 p-4 rounded-xl border border-gray-100 flex flex-col gap-3">
                         <label className="block text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-0">Validade do Lote</label>
-                        <div className="flex bg-gray-200/60 p-0.5 rounded-lg w-full md:w-1/2 mb-1">
+                        <div className="flex bg-gray-200/60 p-0.5 rounded-lg w-full mb-1">
                           <button
                             type="button"
                             onClick={() => setTipoVencimento("dias")}
@@ -667,7 +667,7 @@ export function CadastroIngrediente({ ingredienteInicial, onSalvar, onCancelar, 
                           </button>
                         </div>
                         {tipoVencimento === "dias" ? (
-                          <div className="flex flex-col gap-1 w-full md:w-1/2">
+                          <div className="flex flex-col gap-1 w-full">
                             <div className="flex items-center gap-2">
                               <input
                                 type="number" min={1} step={1}
@@ -680,7 +680,7 @@ export function CadastroIngrediente({ ingredienteInicial, onSalvar, onCancelar, 
                             <span className="text-[10px] font-bold text-emerald-600 mt-1">🗓️ Vence em: {dataVencimentoCalculada}</span>
                           </div>
                         ) : (
-                          <div className="flex flex-col gap-1 w-full md:w-1/2">
+                          <div className="flex flex-col gap-1 w-full">
                             <input
                               type="date"
                               value={dataVencimentoEspecifica}

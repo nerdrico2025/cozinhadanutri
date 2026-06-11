@@ -216,7 +216,7 @@ export function ListaIngredientes({ ingredientes, onEditar, onRemover }: ListaIn
                           (item.nome.toLowerCase() === ingrediente.nome.toLowerCase())
                         );
 
-                        let labelUnidade = ingrediente.unidade;
+                        let labelUnidade: string = ingrediente.unidade;
                         if (labelUnidade === 'unidade' || labelUnidade === 'un') labelUnidade = 'und';
                         else if (labelUnidade === 'l') labelUnidade = 'L';
 
@@ -355,7 +355,7 @@ export function ListaIngredientes({ ingredientes, onEditar, onRemover }: ListaIn
                                 : (l.quantidadeOriginal / 100);
                               const totalLote = fator * l.custoUnitario;
                               const precoLoteUnit = l.custoUnitario;
-                              let labelUnidade = ingrediente.unidade;
+                              let labelUnidade: string = ingrediente.unidade;
                               if (labelUnidade === 'unidade' || labelUnidade === 'un') labelUnidade = 'und';
                               else if (labelUnidade === 'l') labelUnidade = 'L';
 

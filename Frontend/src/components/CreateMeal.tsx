@@ -736,7 +736,7 @@ export function CreateMeal({ refeicaoInicial, receitasDisponiveis, onSalvar, onC
                             <div className="text-xs leading-relaxed">
                               <span className="font-bold">Atenção: Validade Limite Excedida!</span>
                               <p className="mt-0.5">
-                                A data de validade informada para a refeição ({new Date(watchedValidade + "T12:00:00").toLocaleDateString('pt-BR')}) é maior do que a validade do ingrediente <strong className="font-semibold">"{validadeMinima.ingrediente}"</strong> no estoque, que vence em <strong className="font-semibold">{new Date(validadeMinima.data + "T12:00:00").toLocaleDateString('pt-BR')}</strong>. 
+                                A data de validade informada para a refeição ({new Date(watchedValidade + "T12:00:00").toLocaleDateString('pt-BR')}) é maior do que a validade do ingrediente <strong className="font-semibold">"{validadeMinima.ingrediente}"</strong> no estoque, que vence in <strong className="font-semibold">{new Date(validadeMinima.data + "T12:00:00").toLocaleDateString('pt-BR')}</strong>. 
                                 Recomenda-se ajustar a validade da marmita para no máximo esta data.
                               </p>
                             </div>
@@ -749,11 +749,250 @@ export function CreateMeal({ refeicaoInicial, receitasDisponiveis, onSalvar, onC
                 </div>
               </section>
 
-              {/* Seção 2 — Embalagem e Insumos da Marmita */}
+              {/* Seção 2 — Composição da Refeição (Receitas) */}
               <section className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
                 <div className="flex items-center justify-between px-5 py-4 border-b border-gray-50">
                   <div className="flex items-center gap-3">
                     <span className="w-6 h-6 rounded-full bg-[#04585a] text-white text-xs font-bold flex items-center justify-center shrink-0">2</span>
+                    <h2 className="text-sm font-semibold text-gray-800">
+                      Receitas Integrantes
+                      <span className="ml-2 text-xs font-normal text-gray-400">({fields.length})</span>
+                    </h2>
+                  </div>
+                </div>
+
+                {errors.receitas?.root?.message && (
+                  <p className="text-red-500 text-xs px-5 pt-3">{errors.receitas.root.message}</p>
+                )}
+
+                <div className="divide-y divide-gray-50">
+                  {fields.map((field, index) => {
+                    const errosRec = errors.receitas?.[index];
+                    const selectedId = watchedReceitas[index]?.receitaId;
+                    const receitaSelecionada = receitasDisponiveis.find((r) => r.id === selectedId);
+
+                    return (
+                      <div key={field.id} className="p-5 flex flex-col gap-4">
+                        {/* Linha topo: número + remover */}
+                        <div className="flex items-center justify-between">
+                          <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-gray-400">
+                            <UtensilsCrossed size={12} />
+                            Receita {index + 1}
+                          </span>
+                          {fields.length > 1 && (
+                            <button
+                              type="button"
+                              onClick={() => remove(index)}
+                              className="flex items-center gap-1 text-xs text-red-400 hover:text-red-600 hover:bg-red-50 px-2 py-1 rounded-lg transition-colors border-0 bg-transparent cursor-pointer focus:outline-none"
+                            >
+                              <Trash2 size={12} />
+                              Remover
+                            </button>
+                          )}
+                        </div>
+
+                        {/* Seleção de Receita e Quantidade Dinâmica */}
+                        <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-end">
+                          <div className="md:col-span-6">
+                            <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">
+                              Selecionar Receita Cadastrada <span className="text-red-400">*</span>
+                            </label>
+                            <select
+                              {...register(`receitas.${index}.receitaId`)}
+                              className={inputCls(!!errosRec?.receitaId)}
+                            >
+                              <option value="">Selecione uma receita...</option>
+                              {receitasDisponiveis.map((r) => (
+                                <option key={r.id} value={r.id}>
+                                  {r.nome}
+                                </option>
+                              ))}
+                            </select>
+                            {errosRec?.receitaId && (
+                              <p className="text-red-500 text-xs mt-1">{errosRec.receitaId.message}</p>
+                            )}
+                          </div>
+
+                          <div className="md:col-span-3">
+                            <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">
+                              Quantidade Utilizada <span className="text-red-400">*</span>
+                            </label>
+                            <input
+                              type="number"
+                              min={0.01}
+                              step="any"
+                              {...register(`receitas.${index}.quantidadeUtilizada`, { valueAsNumber: true })}
+                              placeholder="1"
+                              className={inputCls(!!errosRec?.quantidadeUtilizada)}
+                            />
+                            {errosRec?.quantidadeUtilizada && (
+                              <p className="text-red-500 text-xs mt-1">{errosRec.quantidadeUtilizada.message}</p>
+                            )}
+                          </div>
+
+                          <div className="md:col-span-3">
+                            <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">
+                              Unidade de Medida
+                            </label>
+                            <select
+                              {...register(`receitas.${index}.unidadeMedida`)}
+                              className={inputCls(!!errosRec?.unidadeMedida)}
+                            >
+                              <option value="porcoes">porção(ões)</option>
+                              <option value="g">g</option>
+                              <option value="kg">kg</option>
+                              <option value="ml">ml</option>
+                              <option value="l">l</option>
+                              <option value="unidade">unid</option>
+                            </select>
+                            {errosRec?.unidadeMedida && (
+                              <p className="text-red-500 text-xs mt-1">{errosRec.unidadeMedida.message}</p>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Prévia financeira rápida da linha */}
+                        {receitaSelecionada && (
+                          <div className="flex flex-col sm:flex-row sm:items-center justify-between text-xs bg-gray-50/70 p-3 rounded-lg border border-gray-100 gap-1.5">
+                            <span className="text-gray-500">
+                              Custo base da receita: <strong className="text-gray-700">R$ {receitaSelecionada.custoPorPorcao.toFixed(2)} / porção</strong>
+                            </span>
+                            <span className="text-gray-500">
+                              Equivalente a: <strong className="text-[#04585a]">
+                                {obterPorcoesEquivalentes(
+                                  receitaSelecionada, 
+                                  watchedReceitas[index]?.quantidadeUtilizada || 0, 
+                                  watchedReceitas[index]?.unidadeMedida || "porcoes"
+                                ).toFixed(2)} porção(ões)
+                              </strong>
+                            </span>
+                            <span className="text-gray-500">
+                              Custo proporcional: <strong className="text-emerald-700">
+                                R$ {(
+                                  receitaSelecionada.custoPorPorcao * 
+                                  obterPorcoesEquivalentes(
+                                    receitaSelecionada, 
+                                    watchedReceitas[index]?.quantidadeUtilizada || 0, 
+                                    watchedReceitas[index]?.unidadeMedida || "porcoes"
+                                  )
+                                ).toFixed(2)}
+                              </strong>
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+
+              </section>
+
+              {/* Seção 3 — Informações de Alergênicos */}
+              <section className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+                <div className="flex items-center justify-between px-5 py-4 border-b border-gray-50">
+                  <div className="flex items-center gap-3">
+                    <span className="w-6 h-6 rounded-full bg-[#04585a] text-white text-xs font-bold flex items-center justify-center shrink-0">3</span>
+                    <h2 className="text-sm font-semibold text-gray-800">Informações de Alergênicos</h2>
+                  </div>
+                </div>
+
+                <div className="p-5 flex flex-col gap-5">
+                  {/* Gluten e Lactose */}
+                  <div>
+                    <span className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2.5">Restrições Básicas</span>
+                    <div className="flex flex-wrap gap-5 bg-gray-50/50 p-4 rounded-xl border border-gray-100">
+                      <label className="flex items-center gap-2.5 text-sm font-semibold text-gray-700 cursor-pointer select-none">
+                        <input
+                          type="checkbox"
+                          checked={contemGluten}
+                          onChange={(e) => setContemGluten(e.target.checked)}
+                          className="w-4 h-4 text-[#04585a] focus:ring-[#04585a] border-gray-300 rounded cursor-pointer"
+                        />
+                        Contém Glúten
+                      </label>
+                      <label className="flex items-center gap-2.5 text-sm font-semibold text-gray-700 cursor-pointer select-none">
+                        <input
+                          type="checkbox"
+                          checked={contemLactose}
+                          onChange={(e) => setContemLactose(e.target.checked)}
+                          className="w-4 h-4 text-[#04585a] focus:ring-[#04585a] border-gray-300 rounded cursor-pointer"
+                        />
+                        Contém Lactose
+                      </label>
+                    </div>
+                  </div>
+
+                  {/* Alérgicos: Contém */}
+                  <div>
+                    <span className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2.5">Alérgicos: Contém</span>
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 bg-gray-50/30 p-4 rounded-xl border border-gray-100">
+                      {[
+                        { id: 'leite', label: 'Leite' },
+                        { id: 'ovo', label: 'Ovo' },
+                        { id: 'trigo', label: 'Trigo' },
+                        { id: 'soja', label: 'Soja' },
+                        { id: 'peixe', label: 'Peixe' },
+                        { id: 'amendoim', label: 'Amendoim' },
+                        { id: 'castanhas', label: 'Castanhas' },
+                      ].map((item) => (
+                        <label key={item.id} className="flex items-center gap-2 text-xs font-semibold text-gray-600 cursor-pointer select-none">
+                          <input
+                            type="checkbox"
+                            checked={alergicos[item.id] || false}
+                            onChange={(e) => setAlergicos({ ...alergicos, [item.id]: e.target.checked })}
+                            className="w-4 h-4 text-[#04585a] focus:ring-[#04585a] border-gray-300 rounded cursor-pointer"
+                          />
+                          {item.label}
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Alérgicos: Pode Conter */}
+                  <div>
+                    <span className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2.5">Alérgicos: Pode Conter (Cruzada)</span>
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 bg-gray-50/30 p-4 rounded-xl border border-gray-100">
+                      {[
+                        { id: 'leite', label: 'Leite' },
+                        { id: 'ovo', label: 'Ovo' },
+                        { id: 'trigo', label: 'Trigo' },
+                        { id: 'soja', label: 'Soja' },
+                        { id: 'peixe', label: 'Peixe' },
+                        { id: 'amendoim', label: 'Amendoim' },
+                        { id: 'castanhas', label: 'Castanhas' },
+                      ].map((item) => (
+                        <label key={item.id} className="flex items-center gap-2 text-xs font-semibold text-gray-600 cursor-pointer select-none">
+                          <input
+                            type="checkbox"
+                            checked={podeConter[item.id] || false}
+                            onChange={(e) => setPodeConter({ ...podeConter, [item.id]: e.target.checked })}
+                            className="w-4 h-4 text-[#04585a] focus:ring-[#04585a] border-gray-300 rounded cursor-pointer"
+                          />
+                          {item.label}
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Outros Alérgenos */}
+                  <div>
+                    <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5">Outros Alérgicos (ex: Crustáceos, Cevada...)</label>
+                    <input
+                      type="text"
+                      placeholder="Ex: Contém derivados de cevada..."
+                      value={outrosAlergenicos}
+                      onChange={(e) => setOutrosAlergenicos(e.target.value)}
+                      className={inputCls()}
+                    />
+                  </div>
+                </div>
+              </section>
+
+              {/* Seção 4 — Embalagem e Insumos da Marmita */}
+              <section className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+                <div className="flex items-center justify-between px-5 py-4 border-b border-gray-50">
+                  <div className="flex items-center gap-3">
+                    <span className="w-6 h-6 rounded-full bg-[#04585a] text-white text-xs font-bold flex items-center justify-center shrink-0">4</span>
                     <h2 className="text-sm font-semibold text-gray-800">Embalagem e Insumos da Marmita</h2>
                   </div>
                   
@@ -918,11 +1157,11 @@ export function CreateMeal({ refeicaoInicial, receitasDisponiveis, onSalvar, onC
                 </div>
               </section>
 
-              {/* Seção 3 — Precificação */}
+              {/* Seção 5 — Precificação */}
               <section className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
                 <div className="flex items-center justify-between px-5 py-4 border-b border-gray-50">
                   <div className="flex items-center gap-3">
-                    <span className="w-6 h-6 rounded-full bg-[#04585a] text-white text-xs font-bold flex items-center justify-center shrink-0">3</span>
+                    <span className="w-6 h-6 rounded-full bg-[#04585a] text-white text-xs font-bold flex items-center justify-center shrink-0">5</span>
                     <h2 className="text-sm font-semibold text-gray-800">Precificação</h2>
                   </div>
                 </div>
@@ -952,10 +1191,10 @@ export function CreateMeal({ refeicaoInicial, receitasDisponiveis, onSalvar, onC
                     </div>
                   )}
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-md">
                     <div>
-                      <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">
-                        Custo Operacional p/ Marmita (R$) <span className="text-gray-300 font-normal normal-case">(Ex: Luz, gás, salários...)</span>
+                      <label className="flex items-end min-h-[32px] text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">
+                        Custo Operacional p/ Marmita (R$)
                       </label>
                       <div className="relative">
                         <DollarSign size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
@@ -968,23 +1207,24 @@ export function CreateMeal({ refeicaoInicial, receitasDisponiveis, onSalvar, onC
                           className={`${inputCls(!!errors.custoOperacional)} pl-8`}
                         />
                       </div>
+                      <span className="text-[10px] text-gray-400 block mt-1">Ex: Luz, gás, salários...</span>
                       {errors.custoOperacional && <p className="text-red-500 text-xs mt-1">{errors.custoOperacional.message}</p>}
                     </div>
 
                     <div>
-                      <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">
-                        Margem de Lucro (%) <span className="text-red-400">*</span>
+                      <label className="flex items-end min-h-[32px] text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">
+                        <span>Margem de Lucro (%) <span className="text-red-400">*</span></span>
                       </label>
                       <div className="relative">
-                        <DollarSign size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
                         <input
                           type="number"
                           min={0}
                           step="0.1"
                           {...register("margemLucro", { valueAsNumber: true })}
                           placeholder="Ex: 100"
-                          className={`${inputCls(!!errors.margemLucro)} pl-8`}
+                          className={`${inputCls(!!errors.margemLucro)} pr-8`}
                         />
+                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm font-semibold">%</span>
                       </div>
                       {errors.margemLucro && <p className="text-red-500 text-xs mt-1">{errors.margemLucro.message}</p>}
                     </div>
@@ -995,255 +1235,15 @@ export function CreateMeal({ refeicaoInicial, receitasDisponiveis, onSalvar, onC
                 </div>
               </section>
 
-              {/* Seção 4 — Composição da Refeição (Receitas) */}
-              <section className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-                <div className="flex items-center justify-between px-5 py-4 border-b border-gray-50">
-                  <div className="flex items-center gap-3">
-                    <span className="w-6 h-6 rounded-full bg-[#04585a] text-white text-xs font-bold flex items-center justify-center shrink-0">4</span>
-                    <h2 className="text-sm font-semibold text-gray-800">
-                      Receitas Integrantes
-                      <span className="ml-2 text-xs font-normal text-gray-400">({fields.length})</span>
-                    </h2>
-                  </div>
-                </div>
-
-                {errors.receitas?.root?.message && (
-                  <p className="text-red-500 text-xs px-5 pt-3">{errors.receitas.root.message}</p>
-                )}
-
-                <div className="divide-y divide-gray-50">
-                  {fields.map((field, index) => {
-                    const errosRec = errors.receitas?.[index];
-                    const selectedId = watchedReceitas[index]?.receitaId;
-                    const receitaSelecionada = receitasDisponiveis.find((r) => r.id === selectedId);
-
-                    return (
-                      <div key={field.id} className="p-5 flex flex-col gap-4">
-                        {/* Linha topo: número + remover */}
-                        <div className="flex items-center justify-between">
-                          <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-gray-400">
-                            <UtensilsCrossed size={12} />
-                            Receita {index + 1}
-                          </span>
-                          {fields.length > 1 && (
-                            <button
-                              type="button"
-                              onClick={() => remove(index)}
-                              className="flex items-center gap-1 text-xs text-red-400 hover:text-red-600 hover:bg-red-50 px-2 py-1 rounded-lg transition-colors border-0 bg-transparent cursor-pointer focus:outline-none"
-                            >
-                              <Trash2 size={12} />
-                              Remover
-                            </button>
-                          )}
-                        </div>
-
-                        {/* Seleção de Receita e Quantidade Dinâmica */}
-                        <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-end">
-                          <div className="md:col-span-6">
-                            <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">
-                              Selecionar Receita Cadastrada <span className="text-red-400">*</span>
-                            </label>
-                            <select
-                              {...register(`receitas.${index}.receitaId`)}
-                              className={inputCls(!!errosRec?.receitaId)}
-                            >
-                              <option value="">Selecione uma receita...</option>
-                              {receitasDisponiveis.map((r) => (
-                                <option key={r.id} value={r.id}>
-                                  {r.nome}
-                                </option>
-                              ))}
-                            </select>
-                            {errosRec?.receitaId && (
-                              <p className="text-red-500 text-xs mt-1">{errosRec.receitaId.message}</p>
-                            )}
-                          </div>
-
-                          <div className="md:col-span-3">
-                            <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">
-                              Quantidade Utilizada <span className="text-red-400">*</span>
-                            </label>
-                            <input
-                              type="number"
-                              min={0.01}
-                              step="any"
-                              {...register(`receitas.${index}.quantidadeUtilizada`, { valueAsNumber: true })}
-                              placeholder="1"
-                              className={inputCls(!!errosRec?.quantidadeUtilizada)}
-                            />
-                            {errosRec?.quantidadeUtilizada && (
-                              <p className="text-red-500 text-xs mt-1">{errosRec.quantidadeUtilizada.message}</p>
-                            )}
-                          </div>
-
-                          <div className="md:col-span-3">
-                            <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">
-                              Unidade de Medida
-                            </label>
-                            <select
-                              {...register(`receitas.${index}.unidadeMedida`)}
-                              className={inputCls(!!errosRec?.unidadeMedida)}
-                            >
-                              <option value="porcoes">porção(ões)</option>
-                              <option value="g">g</option>
-                              <option value="kg">kg</option>
-                              <option value="ml">ml</option>
-                              <option value="l">l</option>
-                              <option value="unidade">unid</option>
-                            </select>
-                            {errosRec?.unidadeMedida && (
-                              <p className="text-red-500 text-xs mt-1">{errosRec.unidadeMedida.message}</p>
-                            )}
-                          </div>
-                        </div>
-
-                        {/* Prévia financeira rápida da linha */}
-                        {receitaSelecionada && (
-                          <div className="flex flex-col sm:flex-row sm:items-center justify-between text-xs bg-gray-50/70 p-3 rounded-lg border border-gray-100 gap-1.5">
-                            <span className="text-gray-500">
-                              Custo base da receita: <strong className="text-gray-700">R$ {receitaSelecionada.custoPorPorcao.toFixed(2)} / porção</strong>
-                            </span>
-                            <span className="text-gray-500">
-                              Equivalente a: <strong className="text-[#04585a]">
-                                {obterPorcoesEquivalentes(
-                                  receitaSelecionada, 
-                                  watchedReceitas[index]?.quantidadeUtilizada || 0, 
-                                  watchedReceitas[index]?.unidadeMedida || "porcoes"
-                                ).toFixed(2)} porção(ões)
-                              </strong>
-                            </span>
-                            <span className="text-gray-500">
-                              Custo proporcional: <strong className="text-emerald-700">
-                                R$ {(
-                                  receitaSelecionada.custoPorPorcao * 
-                                  obterPorcoesEquivalentes(
-                                    receitaSelecionada, 
-                                    watchedReceitas[index]?.quantidadeUtilizada || 0, 
-                                    watchedReceitas[index]?.unidadeMedida || "porcoes"
-                                  )
-                                ).toFixed(2)}
-                              </strong>
-                            </span>
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-
-                {/* Adicionar mais — rodapé da seção */}
-                <div className="px-5 py-3 border-t border-dashed border-gray-100">
-                  <button
-                    type="button"
-                    onClick={() => append({ receitaId: "", quantidadeUtilizada: 1, unidadeMedida: "porcoes" })}
-                    className="w-full flex items-center justify-center gap-2 text-sm text-white bg-emerald-600 hover:bg-emerald-700 py-2.5 rounded-xl border-0 transition-colors cursor-pointer focus:outline-none font-bold shadow-sm"
-                  >
-                    <Plus size={14} />
-                    Adicionar Receita
-                  </button>
-                </div>
-              </section>
-
-              {/* Seção 5 — Informações de Alergênicos */}
-              <section className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-                <div className="flex items-center justify-between px-5 py-4 border-b border-gray-50">
-                  <div className="flex items-center gap-3">
-                    <span className="w-6 h-6 rounded-full bg-[#04585a] text-white text-xs font-bold flex items-center justify-center shrink-0">5</span>
-                    <h2 className="text-sm font-semibold text-gray-800">Informações de Alergênicos</h2>
-                  </div>
-                </div>
-
-                <div className="p-5 flex flex-col gap-5">
-                  {/* Gluten e Lactose */}
-                  <div>
-                    <span className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2.5">Restrições Básicas</span>
-                    <div className="flex flex-wrap gap-5 bg-gray-50/50 p-4 rounded-xl border border-gray-100">
-                      <label className="flex items-center gap-2.5 text-sm font-semibold text-gray-700 cursor-pointer select-none">
-                        <input
-                          type="checkbox"
-                          checked={contemGluten}
-                          onChange={(e) => setContemGluten(e.target.checked)}
-                          className="w-4 h-4 text-[#04585a] focus:ring-[#04585a] border-gray-300 rounded cursor-pointer"
-                        />
-                        Contém Glúten
-                      </label>
-                      <label className="flex items-center gap-2.5 text-sm font-semibold text-gray-700 cursor-pointer select-none">
-                        <input
-                          type="checkbox"
-                          checked={contemLactose}
-                          onChange={(e) => setContemLactose(e.target.checked)}
-                          className="w-4 h-4 text-[#04585a] focus:ring-[#04585a] border-gray-300 rounded cursor-pointer"
-                        />
-                        Contém Lactose
-                      </label>
-                    </div>
-                  </div>
-
-                  {/* Alérgicos: Contém */}
-                  <div>
-                    <span className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2.5">Alérgicos: Contém</span>
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 bg-gray-50/30 p-4 rounded-xl border border-gray-100">
-                      {[
-                        { id: 'leite', label: 'Leite' },
-                        { id: 'ovo', label: 'Ovo' },
-                        { id: 'trigo', label: 'Trigo' },
-                        { id: 'soja', label: 'Soja' },
-                        { id: 'peixe', label: 'Peixe' },
-                        { id: 'amendoim', label: 'Amendoim' },
-                        { id: 'castanhas', label: 'Castanhas' },
-                      ].map((item) => (
-                        <label key={item.id} className="flex items-center gap-2 text-xs font-semibold text-gray-600 cursor-pointer select-none">
-                          <input
-                            type="checkbox"
-                            checked={alergicos[item.id] || false}
-                            onChange={(e) => setAlergicos({ ...alergicos, [item.id]: e.target.checked })}
-                            className="w-4 h-4 text-[#04585a] focus:ring-[#04585a] border-gray-300 rounded cursor-pointer"
-                          />
-                          {item.label}
-                        </label>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Alérgicos: Pode Conter */}
-                  <div>
-                    <span className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2.5">Alérgicos: Pode Conter (Cruzada)</span>
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 bg-gray-50/30 p-4 rounded-xl border border-gray-100">
-                      {[
-                        { id: 'leite', label: 'Leite' },
-                        { id: 'ovo', label: 'Ovo' },
-                        { id: 'trigo', label: 'Trigo' },
-                        { id: 'soja', label: 'Soja' },
-                        { id: 'peixe', label: 'Peixe' },
-                        { id: 'amendoim', label: 'Amendoim' },
-                        { id: 'castanhas', label: 'Castanhas' },
-                      ].map((item) => (
-                        <label key={item.id} className="flex items-center gap-2 text-xs font-semibold text-gray-600 cursor-pointer select-none">
-                          <input
-                            type="checkbox"
-                            checked={podeConter[item.id] || false}
-                            onChange={(e) => setPodeConter({ ...podeConter, [item.id]: e.target.checked })}
-                            className="w-4 h-4 text-[#04585a] focus:ring-[#04585a] border-gray-300 rounded cursor-pointer"
-                          />
-                          {item.label}
-                        </label>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Outros Alérgenos */}
-                  <div>
-                    <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5">Outros Alérgicos (ex: Crustáceos, Cevada...)</label>
-                    <input
-                      type="text"
-                      placeholder="Ex: Contém derivados de cevada..."
-                      value={outrosAlergenicos}
-                      onChange={(e) => setOutrosAlergenicos(e.target.value)}
-                      className={inputCls()}
-                    />
-                  </div>
-                </div>
-              </section>
+              {/* Botão Adicionar Receita no final da página */}
+              <button
+                type="button"
+                onClick={() => append({ receitaId: "", quantidadeUtilizada: 1, unidadeMedida: "porcoes" })}
+                className="w-full flex items-center justify-center gap-2 text-sm text-white bg-emerald-600 hover:bg-emerald-700 py-3.5 rounded-xl border-0 transition-colors cursor-pointer focus:outline-none font-bold shadow-sm mt-2"
+              >
+                <Plus size={14} />
+                Adicionar Receita
+              </button>
             </div>
 
             {/* ── Coluna lateral — resumo sticky ───────────────────────── */}
