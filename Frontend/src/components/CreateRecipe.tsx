@@ -6,7 +6,7 @@ import {
   Plus, Trash2, ChefHat, Loader2, Search, ArrowLeft,
   UtensilsCrossed, DollarSign, Flame,
   Beef, Wheat, Droplets, Info, Activity,
-  PlusCircle, AlertCircle
+  PlusCircle, AlertCircle, PackagePlus
 } from "lucide-react";
 
 import { Receita, IngredienteReceita, DadosNutricionais, Ingrediente, Unidade } from "../types";
@@ -23,25 +23,66 @@ const receitaSchema = z.object({
   ingredientes: z
     .array(
       z.object({
-        tacoId: z.number().min(1, "Selecione um ingrediente"),
-        nome: z.string().min(1),
-        quantidade: z.any().refine((val) => {
-          if (!val) return false;
-          const num = parseFloat(String(val).replace(',', '.'));
-          return !isNaN(num) && num > 0;
-        }, "Quantidade inválida"),
-        preco: z.any().refine((val) => {
-          if (val === undefined || val === null || val === '') return true;
-          const num = parseFloat(String(val).replace(',', '.'));
-          return !isNaN(num) && num >= 0;
-        }, "Informe o preço").optional(),
+        tacoId: z.number(),
+        nome: z.string(),
+        quantidade: z.any(),
+        preco: z.any().optional(),
         unidade: z.string().optional(),
         baseUnidade: z.string().optional(),
         cadastrado: z.boolean().optional(),
         precoBase: z.number().optional(),
       })
+      .superRefine((data, ctx) => {
+        const isEmpty = data.tacoId === 0 && data.nome === "";
+        if (isEmpty) return;
+
+        if (!data.tacoId || data.tacoId < 1) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: "Selecione um ingrediente",
+            path: ["tacoId"],
+          });
+        }
+        if (!data.nome || data.nome.trim() === "") {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: "Nome é obrigatório",
+            path: ["nome"],
+          });
+        }
+        
+        const rawQtd = data.quantidade;
+        let qtdValida = false;
+        if (rawQtd !== undefined && rawQtd !== null && rawQtd !== "") {
+          const num = parseFloat(String(rawQtd).replace(',', '.'));
+          if (!isNaN(num) && num > 0) {
+            qtdValida = true;
+          }
+        }
+        if (!qtdValida) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: "Quantidade inválida",
+            path: ["quantidade"],
+          });
+        }
+
+        const rawPreco = data.preco;
+        if (rawPreco !== undefined && rawPreco !== null && rawPreco !== "") {
+          const num = parseFloat(String(rawPreco).replace(',', '.'));
+          if (isNaN(num) || num < 0) {
+            ctx.addIssue({
+              code: z.ZodIssueCode.custom,
+              message: "Informe o preço",
+              path: ["preco"],
+            });
+          }
+        }
+      })
     )
-    .min(1, "Adicione pelo menos um ingrediente"),
+    .refine((items) => {
+      return items.some((i) => !(i.tacoId === 0 && i.nome === ""));
+    }, "Adicione pelo menos um ingrediente"),
 });
 
 type ReceitaForm = z.infer<typeof receitaSchema>;
@@ -306,14 +347,16 @@ export function CriarReceita({ receitaInicial, onSalvar, onCancelar, onSolicitar
         descricao: currentData.descricao,
         porcoes: currentData.porcoes,
         margemLucro: 0,
-        ingredientes: (currentData.ingredientes || []).map((ing) => ({
-          tacoId: ing.tacoId,
-          nome: ing.nome,
-          quantidade: parseFloat(String(ing.quantidade).replace(',', '.')),
-          preco: parseFloat(String(ing.preco).replace(',', '.')),
-          unidade: ing.unidade as Unidade,
-          baseUnidade: ing.baseUnidade as Unidade || ing.unidade as Unidade
-        })),
+        ingredientes: (currentData.ingredientes || [])
+          .filter((ing) => !(ing && ing.tacoId === 0 && ing.nome === ""))
+          .map((ing) => ({
+            tacoId: ing.tacoId,
+            nome: ing.nome,
+            quantidade: parseFloat(String(ing.quantidade).replace(',', '.')),
+            preco: parseFloat(String(ing.preco).replace(',', '.')),
+            unidade: ing.unidade as Unidade,
+            baseUnidade: ing.baseUnidade as Unidade || ing.unidade as Unidade
+          })),
         custoTotal: calculos?.custoTotal || 0,
         custoPorPorcao: calculos?.custoPorPorcao || 0,
         precoSugerido: calculos?.precoSugerido || 0,
@@ -338,7 +381,11 @@ export function CriarReceita({ receitaInicial, onSalvar, onCancelar, onSolicitar
     if (!calculos) return;
     setSalvando(true);
     try {
-      const ingredientesComNumeros = (data.ingredientes as any[]).map(i => {
+      const ingredientesFiltrados = (data.ingredientes as any[]).filter(
+        i => !(i && i.tacoId === 0 && i.nome === "")
+      );
+
+      const ingredientesComNumeros = ingredientesFiltrados.map(i => {
         const rawQtd = parseFloat(String(i.quantidade).replace(',', '.'));
         const qtd = isNaN(rawQtd) ? 0 : rawQtd;
         const rawPreco = parseFloat(String(i.preco).replace(',', '.'));
@@ -659,7 +706,7 @@ export function CriarReceita({ receitaInicial, onSalvar, onCancelar, onSolicitar
                           </div>
                           <div>
                             <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">
-                              {watchedIngredientes[index]?.cadastrado ? 'Custo (R$)' : `Preço / ${['g', 'ml'].includes(watchedIngredientes[index]?.baseUnidade || watchedIngredientes[index]?.unidade || 'g') ? '100' : ''}${watchedIngredientes[index]?.baseUnidade === 'unidade' || watchedIngredientes[index]?.unidade === 'unidade' ? 'UN' : (watchedIngredientes[index]?.baseUnidade || watchedIngredientes[index]?.unidade || 'g')} (R$)`}
+                              {watchedIngredientes[index]?.cadastrado ? 'Custo (R$)' : `Preço / ${['g', 'ml'].includes(watchedIngredientes[index]?.baseUnidade || watchedIngredientes[index]?.unidade || 'g') ? '100' : ''}${['unidade', 'un'].includes(watchedIngredientes[index]?.baseUnidade || watchedIngredientes[index]?.unidade || '') ? 'UN' : (watchedIngredientes[index]?.baseUnidade || watchedIngredientes[index]?.unidade || 'g')} (R$)`}
                             </label>
                             <div className="relative">
                               <DollarSign size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
@@ -669,8 +716,10 @@ export function CriarReceita({ receitaInicial, onSalvar, onCancelar, onSolicitar
                                     const ing = watchedIngredientes[index];
                                     const rawQtd = parseFloat(String(ing?.quantidade || 0).replace(',', '.'));
                                     const qtd = isNaN(rawQtd) ? 0 : rawQtd;
-                                    const bUnidade = ing?.baseUnidade || ing?.unidade || 'g';
-                                    const rUnidade = ing?.unidade || 'g';
+                                    let bUnidade = ing?.baseUnidade || ing?.unidade || 'g';
+                                    if (bUnidade === 'un') bUnidade = 'unidade';
+                                    let rUnidade = ing?.unidade || 'g';
+                                    if (rUnidade === 'un') rUnidade = 'unidade';
                                     let qtdConvertida = qtd;
                                     if (bUnidade === 'l' && rUnidade === 'ml') qtdConvertida = qtd / 1000;
                                     else if (bUnidade === 'ml' && rUnidade === 'l') qtdConvertida = qtd * 1000;
@@ -771,7 +820,9 @@ export function CriarReceita({ receitaInicial, onSalvar, onCancelar, onSolicitar
                     <div className="grid grid-cols-2 gap-3 mb-2">
                       <div className="bg-gray-50 p-3 rounded-xl border border-gray-100">
                         <p className="text-[10px] text-gray-400 uppercase font-bold tracking-wider mb-1">Ingredientes</p>
-                        <p className="text-lg font-black text-gray-700">{watchedIngredientes.length}</p>
+                        <p className="text-lg font-black text-gray-700">
+                          {(watchedIngredientes || []).filter((i) => !(i && i.tacoId === 0 && i.nome === "")).length}
+                        </p>
                       </div>
                       <div className="bg-blue-50/30 p-3 rounded-xl border border-blue-100/50">
                         <p className="text-[10px] text-blue-400 uppercase font-bold tracking-wider mb-1">Custo Total</p>
@@ -820,11 +871,17 @@ export function CriarReceita({ receitaInicial, onSalvar, onCancelar, onSolicitar
 
                     <div className="grid grid-cols-1 gap-2">
                       {[
+                        { label: "Carboidratos", value: calculos.dadosNutricionaisPorPorcao.carboidratos, unit: "g", Icon: Wheat, color: "text-amber-500", bg: "bg-amber-50" },
+                        { label: "Açúcares Totais", value: calculos.dadosNutricionaisPorPorcao.acucares_totais || 0, unit: "g", Icon: Wheat, color: "text-amber-600", bg: "bg-amber-50" },
+                        { label: "Açúc. Adicionados", value: calculos.dadosNutricionaisPorPorcao.acucares_adicionados || 0, unit: "g", Icon: Wheat, color: "text-amber-700", bg: "bg-amber-50" },
                         { label: "Proteínas", value: calculos.dadosNutricionaisPorPorcao.proteinas, unit: "g", Icon: Beef, color: "text-rose-500", bg: "bg-rose-50" },
-                        { label: "Carbos", value: calculos.dadosNutricionaisPorPorcao.carboidratos, unit: "g", Icon: Wheat, color: "text-amber-500", bg: "bg-amber-50" },
-                        { label: "Gorduras", value: calculos.dadosNutricionaisPorPorcao.gorduras, unit: "g", Icon: Droplets, color: "text-sky-500", bg: "bg-sky-50" },
-                        { label: "Fibras", value: calculos.dadosNutricionaisPorPorcao.fibras, unit: "g", Icon: Wheat, color: "text-emerald-500", bg: "bg-emerald-50" },
-                        { label: "Sódio", value: calculos.dadosNutricionaisPorPorcao.sodio, unit: "mg", Icon: Activity, color: "text-gray-500", bg: "bg-gray-100" },
+                        { label: "Gorduras Totais", value: calculos.dadosNutricionaisPorPorcao.gorduras, unit: "g", Icon: Droplets, color: "text-sky-500", bg: "bg-sky-50" },
+                        { label: "Gord. Saturadas", value: calculos.dadosNutricionaisPorPorcao.gorduras_saturadas || 0, unit: "g", Icon: Droplets, color: "text-sky-600", bg: "bg-sky-50" },
+                        { label: "Gorduras Trans", value: calculos.dadosNutricionaisPorPorcao.gorduras_trans || 0, unit: "g", Icon: Droplets, color: "text-sky-700", bg: "bg-sky-50" },
+                        { label: "Fibras Alimentares", value: calculos.dadosNutricionaisPorPorcao.fibras, unit: "g", Icon: Wheat, color: "text-emerald-500", bg: "bg-emerald-50" },
+                        { label: "Sódio", value: calculos.dadosNutricionaisPorPorcao.sodio, unit: "mg", Icon: PackagePlus, color: "text-gray-500", bg: "bg-gray-100" },
+                        { label: "Vitaminas", value: calculos.dadosNutricionaisPorPorcao.vitaminas || 0, unit: "g", Icon: PackagePlus, color: "text-purple-500", bg: "bg-purple-50" },
+                        { label: "Minerais", value: calculos.dadosNutricionaisPorPorcao.minerais || 0, unit: "g", Icon: PackagePlus, color: "text-indigo-500", bg: "bg-indigo-50" },
                       ].map(({ label, value, unit, Icon, color, bg }) => (
                         <div key={label} className="flex items-center justify-between px-3 py-2 rounded-lg hover:bg-gray-50 transition-colors">
                           <div className="flex items-center gap-2">

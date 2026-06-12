@@ -189,7 +189,13 @@ export function ListaIngredientes({ ingredientes, onEditar, onRemover }: ListaIn
                           <Icon size={12} className={`${color} opacity-70`} />
                           <span className="text-[11px] text-gray-500">
                             <span className="font-medium text-gray-700">
-                              {ingrediente.dadosNutricionais[key as keyof typeof ingrediente.dadosNutricionais]}
+                              {(() => {
+                                const val = ingrediente.dadosNutricionais[key as keyof typeof ingrediente.dadosNutricionais];
+                                if ((key as string) === 'calorias' || (key as string) === 'sodio') {
+                                  return Math.round(val);
+                                }
+                                return typeof val === 'number' ? val.toFixed(1) : val;
+                              })()}
                             </span>
                             {suffix}
                           </span>
@@ -309,7 +315,13 @@ export function ListaIngredientes({ ingredientes, onEditar, onRemover }: ListaIn
                           </div>
                           <div className="flex items-baseline gap-1 mt-1">
                             <span className="text-sm font-bold text-gray-800">
-                              {ingrediente.dadosNutricionais[key as keyof typeof ingrediente.dadosNutricionais] ?? 0}
+                              {(() => {
+                                const val = ingrediente.dadosNutricionais[key as keyof typeof ingrediente.dadosNutricionais] ?? 0;
+                                if ((key as string) === 'calorias' || (key as string) === 'sodio') {
+                                  return Math.round(val);
+                                }
+                                return typeof val === 'number' ? val.toFixed(1) : val;
+                              })()}
                             </span>
                             <span className="text-[10px] font-medium text-gray-400">{unit}</span>
                           </div>

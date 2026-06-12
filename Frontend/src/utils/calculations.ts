@@ -14,8 +14,10 @@ export function calcularCustosReceita(
   // preco é por 100g (ou 100ml) quando a baseUnidade é g ou ml.
   // preco é por 1kg, 1l ou 1 unidade quando a baseUnidade é kg, l ou unidade.
   const custoTotal = ingredientes.reduce((acc, i) => {
-    const bUnidade = i.baseUnidade || i.unidade || 'g';
-    const rUnidade = i.unidade || 'g';
+    let bUnidade = i.baseUnidade || i.unidade || 'g';
+    if (bUnidade === 'un') bUnidade = 'unidade';
+    let rUnidade = i.unidade || 'g';
+    if (rUnidade === 'un') rUnidade = 'unidade';
     
     let qtdConvertida = i.quantidade;
     if (bUnidade === 'l' && rUnidade === 'ml') {
@@ -60,7 +62,8 @@ export function calcularNutrientesTotais(
   };
 
   return ingredientes.reduce((acc, ing) => {
-    const rUnidade = ing.unidade || 'g';
+    let rUnidade = ing.unidade || 'g';
+    if (rUnidade === 'un') rUnidade = 'unidade';
     
     let qtdParaCalculo = ing.quantidade;
     if (rUnidade === 'kg' || rUnidade === 'l') {

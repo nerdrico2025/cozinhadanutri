@@ -45,16 +45,75 @@ export function RotuloNutricional({ receita, onFechar, onImprimir }: RotuloNutri
   }
 
   // Use backend data if available, fallback to local recipe data (adjusted to absolute since backend gives total)
+  const porcoes = receita.porcoes && receita.porcoes > 0 ? receita.porcoes : 1;
   const n = rotuloData ? {
-    calorias: rotuloData.tabela_nutricional.energia_kcal / receita.porcoes,
-    carboidratos: rotuloData.tabela_nutricional.carboidratos / receita.porcoes,
-    proteinas: rotuloData.tabela_nutricional.proteinas / receita.porcoes,
-    gorduras: rotuloData.tabela_nutricional.gorduras_totais / receita.porcoes,
-    saturadas: rotuloData.tabela_nutricional.gorduras_saturadas / receita.porcoes,
+    calorias: rotuloData.tabela_nutricional.energia_kcal / porcoes,
+    carboidratos: rotuloData.tabela_nutricional.carboidratos / porcoes,
+    proteinas: rotuloData.tabela_nutricional.proteinas / porcoes,
+    gorduras: rotuloData.tabela_nutricional.gorduras_totais / porcoes,
+    saturadas: rotuloData.tabela_nutricional.gorduras_saturadas / porcoes,
     trans: 0,
-    fibras: rotuloData.tabela_nutricional.fibra_alimentar / receita.porcoes,
-    sodio: rotuloData.tabela_nutricional.sodio / receita.porcoes
-  } : receita.dadosNutricionaisPorPorcao;
+    fibras: rotuloData.tabela_nutricional.fibra_alimentar / porcoes,
+    sodio: rotuloData.tabela_nutricional.sodio / porcoes,
+    acucares_adicionados: (rotuloData.tabela_nutricional.acucares_adicionados || 0) / porcoes
+  } : {
+    calorias: receita.dadosNutricionaisPorPorcao.calorias,
+    carboidratos: receita.dadosNutricionaisPorPorcao.carboidratos,
+    proteinas: receita.dadosNutricionaisPorPorcao.proteinas,
+    gorduras: receita.dadosNutricionaisPorPorcao.gorduras,
+    saturadas: receita.dadosNutricionaisPorPorcao.gorduras_saturadas,
+    trans: receita.dadosNutricionaisPorPorcao.gorduras_trans || 0,
+    fibras: receita.dadosNutricionaisPorPorcao.fibras,
+    sodio: receita.dadosNutricionaisPorPorcao.sodio,
+    acucares_adicionados: receita.dadosNutricionaisPorPorcao.acucares_adicionados || 0
+  };
+
+  const totalWeight = receita.ingredientes 
+    ? receita.ingredientes.reduce((acc, curr) => {
+        const unit = curr.unidade || 'g';
+        const weight = curr.quantidade * (unit === 'kg' || unit === 'l' ? 1000 : 1);
+        return acc + weight;
+      }, 0)
+    : 0;
+  const portionWeight = totalWeight > 0 ? Math.round(totalWeight / (receita.porcoes || 1)) : 100;
+
+  const isLiquidHeuristic = 
+    /suco|suqu|bebida|sopa|caldo|refri|cha|chá|leite|liquido|líquido|agua|água/i.test(receita.nome || '') ||
+    /suco|suqu|bebida|sopa|caldo|refri|cha|chá|leite|liquido|líquido|agua|água/i.test(receita.descricao || '') ||
+    (receita.ingredientes && receita.ingredientes.some(ing => ing.unidade === 'ml' || ing.unidade === 'l'));
+  const tipoAlimento = isLiquidHeuristic ? 'liquido' : 'solido';
+
+  const n100 = {
+    saturadas: (n.saturadas / portionWeight) * 100,
+    sodio: (n.sodio / portionWeight) * 100,
+    acucares_adicionados: (n.acucares_adicionados / portionWeight) * 100
+  };
+
+  const isHighSaturates = tipoAlimento === 'solido' ? n100.saturadas >= 6.0 : n100.saturadas >= 3.0;
+  const isHighSodium = tipoAlimento === 'solido' ? n100.sodio >= 600.0 : n100.sodio >= 300.0;
+  const isHighSugars = tipoAlimento === 'solido' ? n100.acucares_adicionados >= 15.0 : n100.acucares_adicionados >= 7.5;
+  const hasLupa = isHighSaturates || isHighSodium || isHighSugars;
+
+  const renderLupaFrontal = () => {
+    if (!hasLupa) return null;
+    
+    const segments: string[] = [];
+    if (isHighSaturates) segments.push('gordurasaturada');
+    if (isHighSugars) segments.push('acucaradicionado');
+    if (isHighSodium) segments.push('sodio');
+    
+    const svgName = `lupa-${segments.join('-')}.svg`;
+    
+    return (
+      <div className="mb-4 w-full flex justify-center no-print">
+        <img 
+          src={`/${svgName}`} 
+          alt="Lupa ANVISA" 
+          className="max-h-[50px] object-contain" 
+        />
+      </div>
+    );
+  };
 
   // Sort ingredients list by quantity descending (as per ANVISA standards)
   const sortedIngredients = receita.ingredientes 
@@ -102,9 +161,12 @@ export function RotuloNutricional({ receita, onFechar, onImprimir }: RotuloNutri
               <p className="text-[17px] font-bold mb-1">INFORMACAO NUTRICIONAL</p>
               <div className="text-[13px]">
                 <p className="font-semibold">{receita.nome}</p>
-                <p>Porcao: 1 unidade ({Math.round(n.calorias * 4.18)} g)*</p>
+                <p>Porcao: 1 unidade ({portionWeight} g)*</p>
               </div>
             </div>
+
+            {/* Lupa Frontal */}
+            {renderLupaFrontal()}
 
             {/* Tabela */}
             <table className="w-full border-collapse">
@@ -132,20 +194,20 @@ export function RotuloNutricional({ receita, onFechar, onImprimir }: RotuloNutri
                   <td className="border border-gray-400 px-2 py-2 text-[13px] text-center font-semibold">{calcVD(n.gorduras, VD_REFERENCIA.gorduras)}%</td>
                 </tr>
                 <tr>
-                  <td className="border border-gray-400 px-2 py-2 text-[13px] text-left"><strong>Gorduras saturadas</strong>&nbsp;{(n.gorduras * 0.3).toFixed(1)}g***</td>
-                  <td className="border border-gray-400 px-2 py-2 text-[13px] text-center font-semibold">{Math.round((n.gorduras * 0.3) / 22 * 100)}%</td>
+                  <td className="border border-gray-400 px-2 py-2 text-[13px] text-left"><strong>Gorduras saturadas</strong>&nbsp;{n.saturadas.toFixed(1)}g</td>
+                  <td className="border border-gray-400 px-2 py-2 text-[13px] text-center font-semibold">{calcVD(n.saturadas, 22)}%</td>
                 </tr>
                 <tr>
-                  <td className="border border-gray-400 px-2 py-2 text-[13px] text-left"><strong>Gorduras trans</strong>&nbsp;0g</td>
+                  <td className="border border-gray-400 px-2 py-2 text-[13px] text-left"><strong>Gorduras trans</strong>&nbsp;{n.trans.toFixed(1)}g</td>
                   <td className="border border-gray-400 px-2 py-2 text-[13px] text-center font-semibold">**</td>
                 </tr>
                 <tr>
-                  <td className="border border-gray-400 px-2 py-2 text-[13px] text-left"><strong>Fibra alimentar</strong>&nbsp;{(n.carboidratos * 0.1).toFixed(1)}g***</td>
-                  <td className="border border-gray-400 px-2 py-2 text-[13px] text-center font-semibold">{Math.round((n.carboidratos * 0.1) / 25 * 100)}%</td>
+                  <td className="border border-gray-400 px-2 py-2 text-[13px] text-left"><strong>Fibra alimentar</strong>&nbsp;{n.fibras.toFixed(1)}g</td>
+                  <td className="border border-gray-400 px-2 py-2 text-[13px] text-center font-semibold">{calcVD(n.fibras, 25)}%</td>
                 </tr>
                 <tr>
-                  <td className="border border-gray-400 px-2 py-2 text-[13px] text-left"><strong>Sodio</strong>&nbsp;0mg***</td>
-                  <td className="border border-gray-400 px-2 py-2 text-[13px] text-center font-semibold">0%</td>
+                  <td className="border border-gray-400 px-2 py-2 text-[13px] text-left"><strong>Sodio</strong>&nbsp;{Math.round(n.sodio)}mg</td>
+                  <td className="border border-gray-400 px-2 py-2 text-[13px] text-center font-semibold">{calcVD(n.sodio, 2000)}%</td>
                 </tr>
               </tbody>
             </table>

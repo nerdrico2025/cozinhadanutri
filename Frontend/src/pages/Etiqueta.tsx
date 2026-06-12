@@ -18,6 +18,7 @@ export function Etiqueta({ onVoltar, usuario }: EtiquetaProps): JSX.Element {
   
   // Recipe data
   const [receita, setReceita] = useState<Receita | null>(null);
+  const [tipoAlimento, setTipoAlimento] = useState<'solido' | 'liquido'>('solido');
   
   // Sizing and Layout configurations
   const [tipoImpressora, setTipoImpressora] = useState<'a4' | 'termica'>('a4');
@@ -272,9 +273,18 @@ export function Etiqueta({ onVoltar, usuario }: EtiquetaProps): JSX.Element {
             createdAt: new Date(refeicaoObj.createdAt)
           };
 
-          const totalWeightCalculated = simulatedReceita.ingredientes.reduce((acc, curr) => acc + curr.quantidade, 0);
+          const totalWeightCalculated = simulatedReceita.ingredientes.reduce((acc, curr) => {
+            const unit = curr.unidade || 'g';
+            const weight = curr.quantidade * (unit === 'kg' || unit === 'l' ? 1000 : 1);
+            return acc + weight;
+          }, 0);
           setPesoPorcaoCustom(Math.round(totalWeightCalculated) || 350);
           setReceita(simulatedReceita);
+          const isLiquid = 
+            /suco|suqu|bebida|sopa|caldo|refri|cha|chá|leite|liquido|líquido|agua|água/i.test(simulatedReceita.nome || '') ||
+            /suco|suqu|bebida|sopa|caldo|refri|cha|chá|leite|liquido|líquido|agua|água/i.test(simulatedReceita.descricao || '') ||
+            (simulatedReceita.ingredientes && simulatedReceita.ingredientes.some(ing => ing.unidade === 'ml' || ing.unidade === 'l'));
+          if (isLiquid) setTipoAlimento('liquido');
           if (refeicaoObj.contemGluten !== undefined) {
             setContemGluten(refeicaoObj.contemGluten);
           }
@@ -301,7 +311,8 @@ export function Etiqueta({ onVoltar, usuario }: EtiquetaProps): JSX.Element {
                 calorias: 0, proteinas: 0, carboidratos: 0, gorduras: 0,
                 acucares_totais: 0, acucares_adicionados: 0, gorduras_saturadas: 0,
                 gorduras_trans: 0, fibras: 0, sodio: 0, vitaminas: 0, minerais: 0
-              }
+              },
+              unidade: base?.unidade || 'g'
             };
           });
 
@@ -332,10 +343,19 @@ export function Etiqueta({ onVoltar, usuario }: EtiquetaProps): JSX.Element {
             createdAt: new Date(rData.criado_em)
           };
 
-          const totalWeightCalculated = receitaMapeada.ingredientes.reduce((acc, curr) => acc + curr.quantidade, 0);
+          const totalWeightCalculated = receitaMapeada.ingredientes.reduce((acc, curr) => {
+            const unit = curr.unidade || 'g';
+            const weight = curr.quantidade * (unit === 'kg' || unit === 'l' ? 1000 : 1);
+            return acc + weight;
+          }, 0);
           const defaultPortionWeightCalculated = Math.round(totalWeightCalculated / (receitaMapeada.porcoes || 1));
           setPesoPorcaoCustom(defaultPortionWeightCalculated);
           setReceita(receitaMapeada);
+          const isLiquid = 
+            /suco|suqu|bebida|sopa|caldo|refri|cha|chá|leite|liquido|líquido|agua|água/i.test(receitaMapeada.nome || '') ||
+            /suco|suqu|bebida|sopa|caldo|refri|cha|chá|leite|liquido|líquido|agua|água/i.test(receitaMapeada.descricao || '') ||
+            (receitaMapeada.ingredientes && receitaMapeada.ingredientes.some(ing => ing.unidade === 'ml' || ing.unidade === 'l'));
+          if (isLiquid) setTipoAlimento('liquido');
         }
       } catch (err: any) {
         console.error('Erro ao buscar dados:', err);
@@ -415,8 +435,12 @@ export function Etiqueta({ onVoltar, usuario }: EtiquetaProps): JSX.Element {
   const ingredientesTexto = formatarIngredientes();
 
   // Calculate default weight per portion (total recipe weight / portions)
-  const totalWeight = receita.ingredientes.reduce((acc, curr) => acc + curr.quantidade, 0);
-  const defaultPortionWeight = Math.round(totalWeight / receita.porcoes);
+  const totalWeight = receita.ingredientes.reduce((acc, curr) => {
+    const unit = curr.unidade || 'g';
+    const weight = curr.quantidade * (unit === 'kg' || unit === 'l' ? 1000 : 1);
+    return acc + weight;
+  }, 0);
+  const defaultPortionWeight = Math.round(totalWeight / (receita.porcoes || 1));
   const currentPortionWeight = pesoPorcaoCustom !== '' && pesoPorcaoCustom > 0 ? pesoPorcaoCustom : defaultPortionWeight;
 
   // Scale nutritional values if custom portion weight is set
@@ -478,10 +502,10 @@ export function Etiqueta({ onVoltar, usuario }: EtiquetaProps): JSX.Element {
     );
   };
 
-  // Generate warning labels for new ANVISA regulations (limits per 100g of solid food: 6g fat, 600mg sodium, 15g sugars)
-  const isHighSaturates = n100.saturadas >= 6.0;
-  const isHighSodium = n100.sodio >= 600.0;
-  const isHighSugars = n100.acucares_adicionados >= 15.0;
+  // Generate warning labels for new ANVISA regulations (limits per 100g of solid food: 6g fat, 600mg sodium, 15g sugars, or liquid limits)
+  const isHighSaturates = tipoAlimento === 'solido' ? n100.saturadas >= 6.0 : n100.saturadas >= 3.0;
+  const isHighSodium = tipoAlimento === 'solido' ? n100.sodio >= 600.0 : n100.sodio >= 300.0;
+  const isHighSugars = tipoAlimento === 'solido' ? n100.acucares_adicionados >= 15.0 : n100.acucares_adicionados >= 7.5;
   const hasLupa = isHighSaturates || isHighSodium || isHighSugars;
 
   const isHorizontalLayout = larguraMm > alturaMm;
@@ -559,20 +583,21 @@ export function Etiqueta({ onVoltar, usuario }: EtiquetaProps): JSX.Element {
 
   const renderLupaFrontal = () => {
     if (!hasLupa) return null;
+
+    const segments: string[] = [];
+    if (isHighSaturates) segments.push('gordurasaturada');
+    if (isHighSugars) segments.push('acucaradicionado');
+    if (isHighSodium) segments.push('sodio');
+
+    const svgName = `lupa-${segments.join('-')}.svg`;
+
     return (
-      <div className="border border-black p-1 bg-white mb-2 flex items-center gap-1.5 font-sans text-black select-none w-full box-border">
-        <div className="flex items-center gap-1 border-r border-black pr-1.5 shrink-0">
-          <svg viewBox="0 0 24 24" className="w-4 h-4 text-black stroke-[3.5] fill-none shrink-0" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round">
-            <circle cx="11" cy="9" r="5" />
-            <line x1="18" y1="16" x2="14.5" y2="12.5" />
-          </svg>
-          <span className="font-black leading-none tracking-tighter" style={{ fontSize: fs(2.0) }}>ALTO EM</span>
-        </div>
-        <div className="flex flex-col gap-0.5 font-extrabold uppercase leading-none justify-center" style={{ fontSize: fs(1.8) }}>
-          {isHighSugars && <span>Açúcar Adicionado</span>}
-          {isHighSaturates && <span>Gordura Saturada</span>}
-          {isHighSodium && <span>Sódio</span>}
-        </div>
+      <div className="mb-2 w-full flex justify-center bg-white p-1 box-border">
+        <img 
+          src={`/${svgName}`} 
+          alt="Lupa ANVISA" 
+          className="max-h-[50px] object-contain print:max-h-[50px]" 
+        />
       </div>
     );
   };
@@ -1070,6 +1095,35 @@ export function Etiqueta({ onVoltar, usuario }: EtiquetaProps): JSX.Element {
                     onChange={(e) => setPesoPorcaoCustom(e.target.value === '' ? '' : Number(e.target.value))}
                     className="w-full px-3 py-2 text-sm rounded-lg border border-gray-200 focus:outline-none focus:ring-1 focus:ring-teal-500"
                   />
+                </div>
+              </div>
+
+              {/* Tipo de Alimento Selection */}
+              <div>
+                <label className="block text-xs font-semibold text-gray-500 uppercase mb-1.5">Tipo de Alimento (ANVISA)</label>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setTipoAlimento('solido')}
+                    className={`py-2 text-xs font-bold rounded-lg border transition-all cursor-pointer ${
+                      tipoAlimento === 'solido'
+                        ? 'bg-teal-50 border-teal-500 text-[#04585a] shadow-sm'
+                        : 'bg-white border-gray-200 text-gray-600 hover:bg-slate-50'
+                    }`}
+                  >
+                    🥩 Sólido / Semissólido
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setTipoAlimento('liquido')}
+                    className={`py-2 text-xs font-bold rounded-lg border transition-all cursor-pointer ${
+                      tipoAlimento === 'liquido'
+                        ? 'bg-teal-50 border-teal-500 text-[#04585a] shadow-sm'
+                        : 'bg-white border-gray-200 text-gray-600 hover:bg-slate-50'
+                    }`}
+                  >
+                    🥛 Líquido
+                  </button>
                 </div>
               </div>
 
