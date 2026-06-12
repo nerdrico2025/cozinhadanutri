@@ -337,52 +337,7 @@ export function CreateMeal({
     }
   }, [watchedValidade, tipoVencimento, setValue]);
 
-  const obterValidadeMinimaIngredientes = useCallback((): { data: string; ingrediente: string } | null => {
-    try {
-      const raw = localStorage.getItem('estoque_itens');
-      if (!raw) return null;
-      const estoque = JSON.parse(raw) as any[];
 
-      const currentValues = getValues();
-      const receitasList = currentValues.receitas ?? [];
-
-      let minValidadeDate: Date | null = null;
-      let minValidadeIngrediente = "";
-      let minValidadeStr = "";
-
-      receitasList.forEach((item) => {
-        if (!item || !item.receitaId) return;
-        const recipe = receitasDisponiveis.find((r) => r.id === item.receitaId);
-        if (!recipe) return;
-
-        recipe.ingredientes.forEach((ing) => {
-          const estoqueItem = estoque.find((e) => 
-            e.nome.trim().toLowerCase() === ing.nome.trim().toLowerCase()
-          );
-
-          if (estoqueItem && estoqueItem.lotes && estoqueItem.lotes.length > 0) {
-            estoqueItem.lotes.forEach((lote: any) => {
-              if (lote.dataValidade && lote.quantidadeAtual > 0) {
-                const loteDate = new Date(lote.dataValidade + "T12:00:00");
-                if (!minValidadeDate || loteDate < minValidadeDate) {
-                  minValidadeDate = loteDate;
-                  minValidadeStr = lote.dataValidade;
-                  minValidadeIngrediente = ing.nome;
-                }
-              }
-            });
-          }
-        });
-      });
-
-      if (minValidadeDate && minValidadeStr) {
-        return { data: minValidadeStr, ingrediente: minValidadeIngrediente };
-      }
-    } catch (e) {
-      console.error("Erro ao obter validade mínima dos ingredientes:", e);
-    }
-    return null;
-  }, [watchedReceitas, receitasDisponiveis, getValues]);
 
   const obterPesoTotalReceita = useCallback((receita: Receita) => {
     let totalGrams = 0;
@@ -791,25 +746,6 @@ export function CreateMeal({
                       )}
                     </div>
 
-                    {(() => {
-                      const validadeMinima = obterValidadeMinimaIngredientes();
-                      const showValidadeWarning = validadeMinima && watchedValidade && new Date(watchedValidade + "T12:00:00") > new Date(validadeMinima.data + "T12:00:00");
-                      if (showValidadeWarning) {
-                        return (
-                          <div className="bg-amber-50 border border-amber-200 text-amber-800 rounded-xl p-4 flex items-start gap-2.5 mt-3 animate-in fade-in duration-200">
-                            <AlertCircle size={16} className="text-amber-600 shrink-0 mt-0.5" />
-                            <div className="text-xs leading-relaxed">
-                              <span className="font-bold">Atenção: Validade Limite Excedida!</span>
-                              <p className="mt-0.5">
-                                A data de validade informada para a refeição ({new Date(watchedValidade + "T12:00:00").toLocaleDateString('pt-BR')}) é maior do que a validade do ingrediente <strong className="font-semibold">"{validadeMinima.ingrediente}"</strong> no estoque, que vence in <strong className="font-semibold">{new Date(validadeMinima.data + "T12:00:00").toLocaleDateString('pt-BR')}</strong>. 
-                                Recomenda-se ajustar a validade da marmita para no máximo esta data.
-                              </p>
-                            </div>
-                          </div>
-                        );
-                      }
-                      return null;
-                    })()}
                   </div>
                 </div>
               </section>
@@ -1027,7 +963,7 @@ export function CreateMeal({
 
                   {/* Alérgicos: Pode Conter */}
                   <div>
-                    <span className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2.5">Alérgicos: Pode Conter (Cruzada)</span>
+                    <span className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2.5">Alérgicos: Pode Conter</span>
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 bg-gray-50/30 p-4 rounded-xl border border-gray-100">
                       {[
                         { id: 'leite', label: 'Leite' },
@@ -1070,7 +1006,7 @@ export function CreateMeal({
                 <div className="flex items-center justify-between px-5 py-4 border-b border-gray-50">
                   <div className="flex items-center gap-3">
                     <span className="w-6 h-6 rounded-full bg-[#04585a] text-white text-xs font-bold flex items-center justify-center shrink-0">4</span>
-                    <h2 className="text-sm font-semibold text-gray-800">Embalagem e Insumos da Marmita</h2>
+                    <h2 className="text-sm font-semibold text-gray-800">Custos Fixos e Variáveis</h2>
                   </div>
                   
                   {onIrParaEstoque && (
@@ -1434,31 +1370,37 @@ export function CreateMeal({
                         <span className="text-xs font-bold text-gray-600">Energia</span>
                       </div>
                       <span className="text-sm font-black text-orange-600">
-                        {calculos.dadosNutricionaisTotais.calorias.toFixed(0)} kcal
+                        {Math.round(calculos.dadosNutricionaisTotais.calorias ?? 0)} kcal
                       </span>
                     </div>
 
-                    <div className="grid grid-cols-1 gap-2">
-                      {[
-                        { label: "Proteínas", value: calculos.dadosNutricionaisTotais.proteinas, unit: "g", Icon: Beef, color: "text-rose-500", bg: "bg-rose-50" },
-                        { label: "Carboidratos", value: calculos.dadosNutricionaisTotais.carboidratos, unit: "g", Icon: Wheat, color: "text-amber-500", bg: "bg-amber-50" },
-                        { label: "Gorduras", value: calculos.dadosNutricionaisTotais.gorduras, unit: "g", Icon: Droplets, color: "text-sky-500", bg: "bg-sky-50" },
-                        { label: "Fibras", value: calculos.dadosNutricionaisTotais.fibras, unit: "g", Icon: Wheat, color: "text-emerald-500", bg: "bg-emerald-50" },
-                        { label: "Sódio", value: calculos.dadosNutricionaisTotais.sodio, unit: "mg", Icon: Activity, color: "text-gray-500", bg: "bg-gray-100" },
-                      ].map(({ label, value, unit, Icon, color, bg }) => (
-                        <div key={label} className="flex items-center justify-between px-3 py-2 rounded-lg hover:bg-gray-50 transition-colors">
-                          <div className="flex items-center gap-2">
-                            <div className={`p-1 rounded-md ${bg}`}>
-                              <Icon size={12} className={color} />
+                    <div className="grid grid-cols-1 gap-1">
+                      {(
+                          [
+                            { label: "Proteínas",            display: `${(calculos.dadosNutricionaisTotais.proteinas ?? 0).toFixed(1)} g`,            Icon: Beef,     color: "text-rose-500",    bg: "bg-rose-50" },
+                            { label: "Carboidratos Totais",  display: `${(calculos.dadosNutricionaisTotais.carboidratos ?? 0).toFixed(1)} g`,          Icon: Wheat,    color: "text-amber-500",   bg: "bg-amber-50" },
+                            { label: "Açúcares Totais",      display: `${(calculos.dadosNutricionaisTotais.acucares_totais ?? 0).toFixed(1)} g`,      Icon: Wheat,    color: "text-yellow-500",  bg: "bg-yellow-50" },
+                            { label: "Açúcares Adicionados", display: `${(calculos.dadosNutricionaisTotais.acucares_adicionados ?? 0).toFixed(1)} g`, Icon: Wheat,    color: "text-orange-400",  bg: "bg-orange-50" },
+                            { label: "Gorduras Totais",      display: `${(calculos.dadosNutricionaisTotais.gorduras ?? 0).toFixed(1)} g`,             Icon: Droplets, color: "text-sky-500",     bg: "bg-sky-50" },
+                            { label: "Gorduras Saturadas",   display: `${(calculos.dadosNutricionaisTotais.gorduras_saturadas ?? 0).toFixed(1)} g`,   Icon: Droplets, color: "text-blue-600",    bg: "bg-blue-50" },
+                            { label: "Gorduras Trans",        display: `${(calculos.dadosNutricionaisTotais.gorduras_trans ?? 0).toFixed(2)} g`,      Icon: Droplets, color: "text-red-500",     bg: "bg-red-50" },
+                            { label: "Fibras Alimentares",   display: `${(calculos.dadosNutricionaisTotais.fibras ?? 0).toFixed(1)} g`,              Icon: Wheat,    color: "text-emerald-500", bg: "bg-emerald-50" },
+                            { label: "Sódio",                display: `${Math.round(calculos.dadosNutricionaisTotais.sodio ?? 0)} mg`,               Icon: Activity, color: "text-gray-500",    bg: "bg-gray-100" },
+                          ] as { label: string; display: string; Icon: typeof Beef; color: string; bg: string }[]
+                        ).map(({ label, display, Icon, color, bg }) => (
+                          <div key={label} className="flex items-center justify-between px-2.5 py-1.5 rounded-lg hover:bg-gray-50 transition-colors">
+                            <div className="flex items-center gap-2">
+                              <div className={`p-1 rounded-md ${bg}`}>
+                                <Icon size={11} className={color} />
+                              </div>
+                              <span className="text-[11px] font-medium text-gray-500">{label}</span>
                             </div>
-                            <span className="text-[11px] font-medium text-gray-500">{label}</span>
+                            <span className="text-xs font-bold text-gray-700">{display}</span>
                           </div>
-                          <span className="text-xs font-bold text-gray-700">{value.toFixed(1)}{unit}</span>
-                        </div>
-                      ))}
+                        ))}
                     </div>
 
-                    <p className="text-[9px] text-gray-400 text-center italic mt-2">
+                    <p className="text-[9px] text-gray-400 text-center italic mt-1">
                       Valores baseados nas porções indicadas das receitas.
                     </p>
                   </div>

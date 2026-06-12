@@ -21,14 +21,11 @@ export function Etiqueta({ onVoltar, usuario }: EtiquetaProps): JSX.Element {
   const [tipoAlimento, setTipoAlimento] = useState<'solido' | 'liquido'>('solido');
   
   // Sizing and Layout configurations
-  const [tipoImpressora, setTipoImpressora] = useState<'a4' | 'termica'>('a4');
-  const [tamanhoPreset, setTamanhoPreset] = useState<'vertical' | 'horizontal' | 'quadrado' | 'personalizado'>('vertical');
-  const [larguraMm, setLarguraMm] = useState(100);
-  const [alturaMm, setAlturaMm] = useState(130);
+  const [orientacao, setOrientacao] = useState<'vertical' | 'horizontal'>('vertical');
+  const [larguraMm, setLarguraMm] = useState(80); // Fixo para bobina 80mm ou auto
+  const [comprimentoMm, setComprimentoMm] = useState(120); // Comprimento para a etiqueta deitada
   const [escalaFonte, setEscalaFonte] = useState(100);
-  const [alturaAutomatica, setAlturaAutomatica] = useState(true);
-  const [modoQuantidade, setModoQuantidade] = useState<'auto' | 'manual'>('auto');
-  const [quantidadeManual, setQuantidadeManual] = useState<number>(1);
+  const [quantidadeEtiquetas, setQuantidadeEtiquetas] = useState<number>(1);
   const [modeloTabela, setModeloTabela] = useState<'auto' | 'vertical' | 'horizontal' | 'linear'>('auto');
   const ocultarCabecalho = false;
   const ocultarIngredientes = false;
@@ -63,15 +60,7 @@ export function Etiqueta({ onVoltar, usuario }: EtiquetaProps): JSX.Element {
     castanhas: false,
   });
 
-  const obterQuantidadeSugerida = (): number => {
-    if (tipoImpressora === 'termica') return 1;
-    const cols = Math.max(1, Math.floor(200 / (larguraMm + 4)));
-    const estimadoAltura = alturaAutomatica ? (larguraMm > alturaMm ? 90 : 130) : alturaMm;
-    const rows = Math.max(1, Math.floor(285 / (estimadoAltura + 4)));
-    return cols * rows;
-  };
 
-  const quantidadeEtiquetas = modoQuantidade === 'auto' && tipoImpressora === 'a4' ? obterQuantidadeSugerida() : quantidadeManual;
 
   // Custom inputs for label configuration
   const [lote, setLote] = useState(() => 'LOT-' + Math.floor(Math.random() * 100000));
@@ -84,11 +73,13 @@ export function Etiqueta({ onVoltar, usuario }: EtiquetaProps): JSX.Element {
 
   // Sync days to specific date
   useEffect(() => {
-    if (tipoVencimento === 'dias' && validadeDias !== '' && validadeDias > 0 && dataFabricacao !== '') {
+    if (tipoVencimento === 'dias' && validadeDias !== '' && Number(validadeDias) > 0) {
       try {
-        const start = new Date(dataFabricacao + 'T12:00:00');
-        start.setDate(start.getDate() + Number(validadeDias));
-        setDataValidade(start.toISOString().split('T')[0]);
+        const base = dataFabricacao !== ''
+          ? new Date(dataFabricacao + 'T12:00:00')
+          : new Date(); // fallback: usa hoje como base
+        base.setDate(base.getDate() + Number(validadeDias));
+        setDataValidade(base.toISOString().split('T')[0]);
       } catch (e) {
         console.error(e);
       }
@@ -129,34 +120,15 @@ export function Etiqueta({ onVoltar, usuario }: EtiquetaProps): JSX.Element {
     return params.get('tipo');
   };
 
-  const aplicarPreset = (preset: string) => {
-    setTamanhoPreset(preset as any);
-    if (preset === 'vertical') {
-      setLarguraMm(100);
-      setAlturaMm(130);
-      setAlturaAutomatica(true);
-    } else if (preset === 'horizontal') {
-      setLarguraMm(150);
-      setAlturaMm(80);
-      setAlturaAutomatica(true);
-    } else if (preset === 'quadrado') {
+  const aplicarOrientacao = (novaOrientacao: 'vertical' | 'horizontal') => {
+    setOrientacao(novaOrientacao);
+    if (novaOrientacao === 'vertical') {
       setLarguraMm(80);
-      setAlturaMm(80);
-      setAlturaAutomatica(true);
-    } else if (preset === 'termica_60x40') {
-      setLarguraMm(60);
-      setAlturaMm(40);
-      setAlturaAutomatica(false);
-    } else if (preset === 'termica_60x70') {
-      setLarguraMm(60);
-      setAlturaMm(70);
-      setAlturaAutomatica(false);
-    } else if (preset === 'termica_60x100') {
-      setLarguraMm(60);
-      setAlturaMm(100);
-      setAlturaAutomatica(false);
-    } else if (preset === 'personalizado') {
-      setAlturaAutomatica(false);
+      setModeloTabela('auto');
+    } else {
+      setLarguraMm(80);
+      setComprimentoMm(120);
+      setModeloTabela('horizontal');
     }
   };
 
@@ -508,8 +480,10 @@ export function Etiqueta({ onVoltar, usuario }: EtiquetaProps): JSX.Element {
   const isHighSugars = tipoAlimento === 'solido' ? n100.acucares_adicionados >= 15.0 : n100.acucares_adicionados >= 7.5;
   const hasLupa = isHighSaturates || isHighSodium || isHighSugars;
 
-  const isHorizontalLayout = larguraMm > alturaMm;
-  const cols = Math.max(1, Math.floor(200 / (larguraMm + 4)));
+  const isHorizontalLayout = orientacao === 'horizontal';
+  const larguraEfetiva = orientacao === 'vertical' ? larguraMm : comprimentoMm;
+  const alturaEfetiva = orientacao === 'vertical' ? 'auto' : larguraMm;
+  const cols = 1;
   const fs = (baseCqw: number) => `calc(${baseCqw}cqw * ${escalaFonte / 100})`;
 
   const obterTextoAlergicos = () => {
@@ -592,19 +566,17 @@ export function Etiqueta({ onVoltar, usuario }: EtiquetaProps): JSX.Element {
     const svgName = `lupa-${segments.join('-')}.svg`;
 
     return (
-      <div className="mb-2 w-full flex justify-center bg-white p-1 box-border">
-        <img 
-          src={`/${svgName}`} 
-          alt="Lupa ANVISA" 
-          className="max-h-[50px] object-contain print:max-h-[50px]" 
-        />
-      </div>
+      <img 
+        src={`/${svgName}`} 
+        alt="Lupa ANVISA" 
+        className="max-h-[35px] object-contain print:max-h-[35px] bg-white rounded shadow-sm border border-gray-200" 
+      />
     );
   };
 
   const renderTabelaNutricional = (tamanhoFonteTitulo: string, tamanhoFonteTabela: string, tamanhoFonteNota: string) => {
     const modeloEfetivo = modeloTabela === 'auto'
-      ? (alturaMm < 80 || larguraMm < 80 ? 'linear' : (larguraMm > alturaMm ? 'horizontal' : 'vertical'))
+      ? (orientacao === 'vertical' ? 'linear' : 'horizontal')
       : modeloTabela;
 
     if (modeloEfetivo === 'linear') {
@@ -846,100 +818,53 @@ export function Etiqueta({ onVoltar, usuario }: EtiquetaProps): JSX.Element {
           {/* LEFT: Controls Panel - Hidden in printing */}
           <div className="lg:col-span-5 flex flex-col gap-6 print:hidden">
             
-            {/* Tipo de Impressão Configuration */}
+            {/* Bobina Configuration */}
             <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-200/50 flex flex-col gap-4">
               <div className="flex items-center gap-2 text-[#04585a] pb-3 border-b border-gray-100">
                 <Printer size={18} />
-                <h3 className="font-bold text-sm uppercase tracking-wider">Tipo de Impressora</h3>
+                <h3 className="font-bold text-sm uppercase tracking-wider">Impressora Térmica</h3>
               </div>
-              <div className="grid grid-cols-2 gap-2">
-                <button
-                  type="button"
-                  onClick={() => { setTipoImpressora('a4'); setModoQuantidade('auto'); }}
-                  className={`text-left p-3 text-xs font-bold rounded-lg border transition-all ${
-                    tipoImpressora === 'a4'
-                      ? 'bg-teal-50 border-teal-500 text-[#04585a]'
-                      : 'bg-white border-gray-200 text-gray-600 hover:bg-slate-50'
-                  }`}
-                >
-                  📄 Folha A4 (Jato de Tinta/Laser)
-                </button>
-                <button
-                  type="button"
-                  onClick={() => { 
-                    setTipoImpressora('termica'); 
-                    setModoQuantidade('manual'); 
-                    setQuantidadeManual(1);
-                    setTamanhoPreset('horizontal');
-                    setLarguraMm(60);
-                    setAlturaMm(40);
-                    setAlturaAutomatica(false);
-                  }}
-                  className={`text-left p-3 text-xs font-bold rounded-lg border transition-all ${
-                    tipoImpressora === 'termica'
-                      ? 'bg-teal-50 border-teal-500 text-[#04585a]'
-                      : 'bg-white border-gray-200 text-gray-600 hover:bg-slate-50'
-                  }`}
-                >
-                  🏷️ Impressora Térmica (Bobina)
-                </button>
-              </div>
-            </div>
-
-            {/* Label Presets & Sizing Configuration */}
-            <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-200/50 flex flex-col gap-4">
-              <div className="flex items-center gap-2 text-[#04585a] pb-3 border-b border-gray-100">
-                <Info size={18} />
-                <h3 className="font-bold text-sm uppercase tracking-wider">Tamanho e Layout</h3>
-              </div>
-
-              {/* Preset Selector */}
+              
               <div>
-                <label className="block text-xs font-semibold text-gray-500 uppercase mb-2">Preset de Tamanho</label>
+                <label className="block text-xs font-semibold text-gray-500 uppercase mb-2">Orientação da Impressão</label>
                 <div className="grid grid-cols-2 gap-2">
-                  {tipoImpressora === 'a4' ? (
-                    [
-                      { id: 'vertical', label: 'Vertical ANVISA (100x130mm)' },
-                      { id: 'horizontal', label: 'Horizontal ANVISA (150x80mm)' },
-                      { id: 'quadrado', label: 'Quadrado Compacto (80x80mm)' },
-                      { id: 'personalizado', label: 'Personalizado' },
-                    ].map((p) => (
-                      <button
-                        key={p.id}
-                        type="button"
-                        onClick={() => aplicarPreset(p.id)}
-                        className={`text-left p-2.5 text-xs font-bold rounded-lg border transition-all ${
-                          tamanhoPreset === p.id
-                            ? 'bg-teal-50 border-teal-500 text-[#04585a]'
-                            : 'bg-white border-gray-200 text-gray-600 hover:bg-slate-50'
-                        }`}
-                      >
-                        {p.label}
-                      </button>
-                    ))
-                  ) : (
-                    [
-                      { id: 'termica_60x40', label: 'Térmica Padrão (60x40mm)' },
-                      { id: 'termica_60x70', label: 'Térmica Média (60x70mm)' },
-                      { id: 'termica_60x100', label: 'Térmica Longa (60x100mm)' },
-                      { id: 'personalizado', label: 'Personalizado' },
-                    ].map((p) => (
-                      <button
-                        key={p.id}
-                        type="button"
-                        onClick={() => aplicarPreset(p.id)}
-                        className={`text-left p-2.5 text-xs font-bold rounded-lg border transition-all ${
-                          tamanhoPreset === p.id
-                            ? 'bg-teal-50 border-teal-500 text-[#04585a]'
-                            : 'bg-white border-gray-200 text-gray-600 hover:bg-slate-50'
-                        }`}
-                      >
-                        {p.label}
-                      </button>
-                    ))
-                  )}
+                  <button
+                    type="button"
+                    onClick={() => aplicarOrientacao('vertical')}
+                    className={`text-left p-3 text-xs font-bold rounded-lg border transition-all ${
+                      orientacao === 'vertical'
+                        ? 'bg-teal-50 border-teal-500 text-[#04585a]'
+                        : 'bg-white border-gray-200 text-gray-600 hover:bg-slate-50'
+                    }`}
+                  >
+                    📄 Vertical (Padrão)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => aplicarOrientacao('horizontal')}
+                    className={`text-left p-3 text-xs font-bold rounded-lg border transition-all ${
+                      orientacao === 'horizontal'
+                        ? 'bg-teal-50 border-teal-500 text-[#04585a]'
+                        : 'bg-white border-gray-200 text-gray-600 hover:bg-slate-50'
+                    }`}
+                  >
+                    🔄 Horizontal (Paisagem)
+                  </button>
                 </div>
               </div>
+
+              {orientacao === 'horizontal' && (
+                <div>
+                  <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Comprimento da Etiqueta (mm)</label>
+                  <input
+                    type="number"
+                    value={comprimentoMm}
+                    onChange={(e) => setComprimentoMm(Number(e.target.value))}
+                    className="w-full px-3 py-2 text-sm rounded-lg border border-gray-200 focus:outline-none focus:ring-1 focus:ring-teal-500"
+                  />
+                  <p className="text-[10px] text-gray-400 mt-1">A altura da etiqueta é mantida fixa em 80mm.</p>
+                </div>
+              )}
 
               {/* Modelo de Tabela Nutricional */}
               <div>
@@ -967,42 +892,7 @@ export function Etiqueta({ onVoltar, usuario }: EtiquetaProps): JSX.Element {
                 </div>
               </div>
 
-              {/* Custom Dimensions */}
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Largura (mm)</label>
-                  <input
-                    type="number"
-                    value={larguraMm}
-                    disabled={tamanhoPreset !== 'personalizado'}
-                    onChange={(e) => setLarguraMm(Number(e.target.value))}
-                    className="w-full px-3 py-2 text-sm rounded-lg border border-gray-200 focus:outline-none focus:ring-1 focus:ring-teal-500 disabled:bg-gray-50 disabled:text-gray-400"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Altura (mm)</label>
-                  <input
-                    type="number"
-                    value={alturaMm}
-                    disabled={tamanhoPreset !== 'personalizado' || alturaAutomatica}
-                    onChange={(e) => setAlturaMm(Number(e.target.value))}
-                    className="w-full px-3 py-2 text-sm rounded-lg border border-gray-200 focus:outline-none focus:ring-1 focus:ring-teal-500 disabled:bg-gray-50 disabled:text-gray-400"
-                  />
-                </div>
-              </div>
-
-              {/* Auto height & Scale */}
               <div className="flex flex-col gap-3 pt-2">
-                <label className="flex items-center gap-2 text-xs font-semibold text-gray-700 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={alturaAutomatica}
-                    onChange={(e) => setAlturaAutomatica(e.target.checked)}
-                    className="rounded text-teal-600 focus:ring-teal-500 w-4 h-4"
-                  />
-                  Altura Automática (Evita cortar texto)
-                </label>
-
                 <div>
                   <div className="flex justify-between text-xs font-semibold text-gray-500 uppercase mb-1">
                     <span>Escala da Fonte</span>
@@ -1020,52 +910,19 @@ export function Etiqueta({ onVoltar, usuario }: EtiquetaProps): JSX.Element {
               </div>
 
               <div className="pt-2 border-t border-gray-100 flex flex-col gap-2">
-                <label className="block text-xs font-semibold text-gray-500 uppercase">Quantidade de Etiquetas</label>
-                <div className="flex flex-col gap-2">
-                  {tipoImpressora === 'a4' && (
-                    <button
-                      type="button"
-                      onClick={() => setModoQuantidade('auto')}
-                      className={`w-full py-2.5 text-xs font-bold rounded-lg border transition-all cursor-pointer flex items-center justify-center gap-2 ${
-                        modoQuantidade === 'auto'
-                          ? 'bg-teal-50 border-teal-500 text-[#04585a] shadow-sm'
-                          : 'bg-white border-gray-200 text-gray-600 hover:bg-slate-50'
-                      }`}
-                    >
-                      ✨ Auto-preencher folha A4 ({obterQuantidadeSugerida()} {obterQuantidadeSugerida() === 1 ? 'etiqueta' : 'etiquetas'})
-                    </button>
-                  )}
-                  
-                  <div className="grid grid-cols-4 gap-2">
-                    {[1, 2, 4, 8].map((q) => (
-                      <button
-                        key={q}
-                        type="button"
-                        onClick={() => {
-                          setModoQuantidade('manual');
-                          setQuantidadeManual(q);
-                        }}
-                        className={`text-center py-2 text-xs font-bold rounded-lg border transition-all cursor-pointer ${
-                          modoQuantidade === 'manual' && quantidadeManual === q
-                            ? 'bg-teal-50 border-teal-500 text-[#04585a]'
-                            : 'bg-white border-gray-200 text-gray-600 hover:bg-slate-50'
-                        }`}
-                      >
-                        {q === 1 ? '1x (Avulso)' : `${q}x`}
-                      </button>
-                    ))}
-                  </div>
+                <label className="block text-xs font-semibold text-gray-500 uppercase">Quantidade a Imprimir</label>
+                <div className="flex items-center gap-2">
+                  <input 
+                    type="number" 
+                    min={1} 
+                    value={quantidadeEtiquetas} 
+                    onChange={(e) => setQuantidadeEtiquetas(Number(e.target.value))}
+                    className="w-full px-3 py-2 text-sm rounded-lg border border-gray-200 focus:outline-none focus:ring-1 focus:ring-teal-500" 
+                  />
                 </div>
-                
-                {tipoImpressora === 'a4' ? (
-                  <span className="text-[10px] font-medium text-gray-400 leading-tight mt-1">
-                    Grade de impressão: {Math.max(1, Math.floor(200 / (larguraMm + 4)))} {Math.max(1, Math.floor(200 / (larguraMm + 4))) === 1 ? 'coluna' : 'colunas'} x {Math.max(1, Math.floor(285 / ((alturaAutomatica ? (larguraMm > alturaMm ? 90 : 130) : alturaMm) + 4)))} {Math.max(1, Math.floor(285 / ((alturaAutomatica ? (larguraMm > alturaMm ? 90 : 130) : alturaMm) + 4))) === 1 ? 'linha' : 'linhas'} por folha.
-                  </span>
-                ) : (
-                  <span className="text-[10px] font-medium text-gray-400 leading-tight mt-1">
-                    Impressão térmica contínua: Cada etiqueta será impressa individualmente na bobina.
-                  </span>
-                )}
+                <span className="text-[10px] font-medium text-gray-400 leading-tight mt-1">
+                  Impressão contínua: As etiquetas serão impressas sequencialmente na bobina.
+                </span>
               </div>
             </div>
 
@@ -1394,19 +1251,13 @@ export function Etiqueta({ onVoltar, usuario }: EtiquetaProps): JSX.Element {
             <div className="bg-amber-50 rounded-2xl p-5 border border-amber-100 flex items-start gap-3">
               <Printer className="text-amber-600 mt-0.5 shrink-0" size={18} />
               <div className="text-xs text-amber-800 leading-relaxed">
-                <p className="font-bold mb-1">Ajustes de Impressão:</p>
-                {tipoImpressora === 'termica' ? (
-                  <>
-                    <p>1. Selecione a sua impressora térmica nas opções de destino.</p>
-                    <p className="mt-1">2. Configure o tamanho do papel nas propriedades da impressão de acordo com a etiqueta selecionada (ex: <strong>{larguraMm}x{alturaMm}mm</strong>).</p>
-                    <p className="mt-1">3. Defina as <strong>Margens como "Nenhuma"</strong> e ative <strong>"Gráficos de fundo"</strong> para o layout ajustar perfeitamente ao papel.</p>
-                  </>
-                ) : (
-                  <>
-                    <p>1. Na janela de impressão, marque a opção <strong>"Imprimir cores/gráficos de fundo"</strong> para garantir a exibição correta das tabelas e contrastes.</p>
-                    <p className="mt-1">2. Certifique-se de que a escala de impressão esteja em <strong>100% (ou "Ajustar à página")</strong> no papel A4.</p>
-                  </>
+                <p className="font-bold mb-1">Ajustes de Impressão (Bobina 80mm):</p>
+                <p>1. Selecione a sua impressora térmica nas opções de destino.</p>
+                {orientacao === 'horizontal' && (
+                  <p className="mt-1 font-bold text-amber-900">2. IMPORTANTE: Mude o Layout da impressora para "Paisagem" (Landscape) nas configurações da impressora!</p>
                 )}
+                <p className="mt-1">3. Defina as <strong>Margens como "Nenhuma"</strong> e ative <strong>"Gráficos de fundo"</strong>.</p>
+                <p className="mt-1">4. O tamanho do papel (bobina) é fixo em 80mm. A impressão continuará e cortará automaticamente ao final de cada unidade se a impressora suportar.</p>
               </div>
             </div>
 
@@ -1423,29 +1274,38 @@ export function Etiqueta({ onVoltar, usuario }: EtiquetaProps): JSX.Element {
                 className="print-grid grid gap-4 justify-center w-full justify-items-center"
                 style={{
                   gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))`,
-                  maxWidth: `${cols * (larguraMm + 4)}mm`,
+                  maxWidth: `${larguraEfetiva}mm`,
                 }}
               >
                 {Array.from({ length: quantidadeEtiquetas }).map((_, index) => (
-                  <div 
-                    key={index}
-                    className="border-2 border-black p-4 font-sans text-black relative bg-white flex flex-col justify-between print-item"
-                    style={{
+                  <div key={index} className="flex flex-col items-end gap-1.5" style={{
                       width: '100%',
-                      maxWidth: `${larguraMm}mm`,
-                      minHeight: alturaAutomatica ? 'auto' : `${alturaMm}mm`,
-                      height: alturaAutomatica ? 'auto' : `${alturaMm}mm`,
-                      boxSizing: 'border-box',
-                      overflow: 'hidden',
-                      containerType: 'inline-size'
-                    }}
-                  >
+                      maxWidth: `${larguraEfetiva}mm`,
+                  }}>
+                    {/* Imagem no canto superior direito, fora da etiqueta */}
+                    {hasLupa && (
+                      <div className="z-20">
+                        {renderLupaFrontal()}
+                      </div>
+                    )}
+                    
+                    <div 
+                      className="border-2 border-black p-4 font-sans text-black relative bg-white flex flex-col justify-between print-item"
+                      style={{
+                        width: '100%',
+                        minHeight: alturaEfetiva === 'auto' ? 'auto' : `${alturaEfetiva}mm`,
+                        height: alturaEfetiva === 'auto' ? 'auto' : `${alturaEfetiva}mm`,
+                        boxSizing: 'border-box',
+                        overflow: isHorizontalLayout ? 'visible' : 'hidden',
+                        containerType: 'inline-size'
+                      }}
+                    >
                     {isHorizontalLayout ? (
                       /* HORIZONTAL LAYOUT - TWO COLUMNS */
-                      <div className="grid grid-cols-12 gap-4 h-full items-start w-full">
+                      <div className="grid h-full items-start w-full" style={{ gridTemplateColumns: '58% 42%', gap: '3mm' }}>
                         
                         {/* Left Column (Product Info & Ingredients) */}
-                        <div className="col-span-7 flex flex-col justify-between h-full gap-2">
+                        <div className="flex flex-col justify-between h-full gap-1" style={{ minWidth: 0 }}>
                           <div>
                             {/* Brand Header */}
                             {renderIdentificacaoFabricante(fs(2.1))}
@@ -1490,9 +1350,8 @@ export function Etiqueta({ onVoltar, usuario }: EtiquetaProps): JSX.Element {
                         </div>
 
                         {/* Right Column (Nutritional Table) */}
-                        <div className="col-span-5 flex flex-col gap-1.5 h-full justify-between">
-                          {renderLupaFrontal()}
-                          {renderTabelaNutricional(fs(2.5), fs(2.0), fs(1.6))}
+                        <div className="flex flex-col h-full" style={{ minWidth: 0, overflow: 'visible' }}>
+                          {renderTabelaNutricional(fs(2.2), fs(1.8), fs(1.4))}
                         </div>
 
                       </div>
@@ -1510,9 +1369,6 @@ export function Etiqueta({ onVoltar, usuario }: EtiquetaProps): JSX.Element {
                               PESO LÍQUIDO: {totalWeight}g
                             </span>
                           </div>
-
-                          {/* Front-of-Package Nutrition Warning */}
-                          {renderLupaFrontal()}
 
                           {/* Nutritional Information Table */}
                           {renderTabelaNutricional(fs(2.9), fs(2.1), fs(1.7))}
@@ -1548,6 +1404,7 @@ export function Etiqueta({ onVoltar, usuario }: EtiquetaProps): JSX.Element {
                         )}
                       </div>
                     )}
+                    </div>
                   </div>
                 ))}
               </div>
@@ -1623,7 +1480,7 @@ export function Etiqueta({ onVoltar, usuario }: EtiquetaProps): JSX.Element {
         @media print {
           @page {
             margin: 0;
-            ${tipoImpressora === 'termica' ? `size: ${larguraMm}mm ${alturaMm}mm;` : ''}
+            size: ${orientacao === 'vertical' ? `${larguraMm}mm auto` : `${comprimentoMm}mm ${larguraMm}mm`};
           }
           body {
             background-color: white !important;
@@ -1655,35 +1512,24 @@ export function Etiqueta({ onVoltar, usuario }: EtiquetaProps): JSX.Element {
             gap: 0 !important;
           }
           .print-grid {
-            ${tipoImpressora === 'a4' ? `
-            display: grid !important;
-            grid-template-columns: repeat(${cols}, minmax(0, 1fr)) !important;
-            gap: 4mm !important;
-            justify-content: center !important;
-            padding: 10mm 0 !important;
-            max-width: 100% !important;
-            ` : `
             display: flex !important;
             flex-direction: column !important;
             gap: 0 !important;
             padding: 0 !important;
-            width: ${larguraMm}mm !important;
+            width: ${larguraEfetiva}mm !important;
             align-items: center !important;
-            `}
           }
           .print-item {
             width: 100% !important;
-            max-width: ${larguraMm}mm !important;
+            max-width: ${larguraEfetiva}mm !important;
             container-type: inline-size !important;
             page-break-inside: avoid !important;
             break-inside: avoid !important;
-            ${tipoImpressora === 'termica' ? `
-            height: ${alturaMm}mm !important;
+            height: ${alturaEfetiva === 'auto' ? 'auto' : `${alturaEfetiva}mm`} !important;
             margin: 0 !important;
             padding: 2mm !important;
             page-break-after: always !important;
             border: 1px solid black !important;
-            ` : ''}
           }
         }
       `}</style>
