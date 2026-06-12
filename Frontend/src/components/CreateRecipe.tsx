@@ -236,7 +236,7 @@ export function CriarReceita({ receitaInicial, onSalvar, onCancelar, onSolicitar
         let proporcao = qtd / 100;
         if (item.unidade === 'kg' || item.unidade === 'l') {
           proporcao = qtd * 10;
-        } else if (item.unidade === 'unidade') {
+        } else if (item.unidade === 'unidade' || item.unidade === 'un') {
           proporcao = qtd;
         }
 

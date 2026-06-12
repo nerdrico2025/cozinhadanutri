@@ -96,6 +96,7 @@ function App() {
     }
   });
   const [refeicaoEmEdicao, setRefeicaoEmEdicao] = useState<Refeicao | undefined>(undefined);
+  const [rascunhoRefeicao, setRascunhoRefeicao] = useState<Refeicao | undefined>(undefined);
   const [receitaEmEdicao, setReceitaEmEdicao] = useState<Receita | undefined>(undefined);
   const [receitaParaRotulo, setReceitaParaRotulo] = useState<Receita | null>(null);
   const [ingredienteEmEdicao, setIngredienteEmEdicao] = useState<Ingrediente | undefined>(undefined);
@@ -187,7 +188,7 @@ function App() {
           id: String(item.id),
           tacoId: item.numero,
           nome: item.descricao,
-          unidade: item.unidade_medida || 'g',
+          unidade: item.unidade_medida === 'un' ? 'unidade' : (item.unidade_medida || 'g'),
           preco: parseFloat(item.preco) || 0,
           dadosNutricionais: {
             calorias: parseFloat(item.energia_kcal) || 0,
@@ -439,7 +440,7 @@ function App() {
         id: String(itemSalvo.id),
         tacoId: itemSalvo.numero,
         nome: itemSalvo.descricao,
-        unidade: itemSalvo.unidade_medida || 'g',
+        unidade: itemSalvo.unidade_medida === 'un' ? 'unidade' : (itemSalvo.unidade_medida || 'g'),
         preco: parseFloat(itemSalvo.preco) || 0,
         dadosNutricionais: {
           calorias: parseFloat(itemSalvo.energia_kcal) || 0,
@@ -504,7 +505,7 @@ function App() {
         id: String(itemSalvo.id),
         tacoId: itemSalvo.numero,
         nome: itemSalvo.descricao,
-        unidade: itemSalvo.unidade_medida || 'g',
+        unidade: itemSalvo.unidade_medida === 'un' ? 'unidade' : (itemSalvo.unidade_medida || 'g'),
         preco: parseFloat(itemSalvo.preco) || 0,
         dadosNutricionais: {
           calorias: parseFloat(itemSalvo.energia_kcal) || 0,
@@ -565,11 +566,15 @@ function App() {
       case 'refeicao':
         return (
           <CreateMeal
-            refeicaoInicial={refeicaoEmEdicao}
+            refeicaoInicial={refeicaoEmEdicao || rascunhoRefeicao}
             receitasDisponiveis={receitas}
-            onSalvar={handleSalvarRefeicao}
+            onSalvar={(ref) => {
+              handleSalvarRefeicao(ref);
+              setRascunhoRefeicao(undefined);
+            }}
             onCancelar={() => {
               setRefeicaoEmEdicao(undefined);
+              setRascunhoRefeicao(undefined);
               window.history.back();
             }}
             onIrParaEstoque={() => setTelaAtiva('estoque')}
@@ -582,6 +587,7 @@ function App() {
             receitasDisponiveis={receitas}
             onEditar={(ref) => {
               setRefeicaoEmEdicao(ref);
+              setRascunhoRefeicao(undefined);
               setTelaAtiva('refeicao');
             }}
             onRemover={(id) => {
@@ -594,6 +600,7 @@ function App() {
             }}
             onNovaRefeicao={() => {
               setRefeicaoEmEdicao(undefined);
+              setRascunhoRefeicao(undefined);
               setTelaAtiva('refeicao');
             }}
           />

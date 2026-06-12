@@ -455,39 +455,29 @@ export function MealList({ refeicoes, receitasDisponiveis, onEditar, onRemover, 
                           <Info size={14} className="text-[#04585a]" /> Informação Nutricional (Total por Marmita)
                         </h4>
                         
-                        <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                          <div className="bg-orange-50/40 p-2.5 rounded-xl border border-orange-100/30 text-center">
-                            <p className="text-[9px] font-semibold text-gray-400 uppercase tracking-wider mb-0.5">Calorias</p>
-                            <p className="text-sm font-black text-orange-600">{(refeicao.dadosNutricionaisTotais?.calorias ?? 0).toFixed(0)} kcal</p>
-                          </div>
-                          <div className="bg-emerald-50/40 p-2.5 rounded-xl border border-emerald-100/30 text-center">
-                            <p className="text-[9px] font-semibold text-gray-400 uppercase tracking-wider mb-0.5">Proteínas</p>
-                            <p className="text-sm font-black text-emerald-600">{(refeicao.dadosNutricionaisTotais?.proteinas ?? 0).toFixed(1)} g</p>
-                          </div>
-                          <div className="bg-amber-50/40 p-2.5 rounded-xl border border-amber-100/30 text-center">
-                            <p className="text-[9px] font-semibold text-gray-400 uppercase tracking-wider mb-0.5">Carboidratos</p>
-                            <p className="text-sm font-black text-amber-600">{(refeicao.dadosNutricionaisTotais?.carboidratos ?? 0).toFixed(1)} g</p>
-                          </div>
-                          <div className="bg-pink-50/40 p-2.5 rounded-xl border border-pink-100/30 text-center">
-                            <p className="text-[9px] font-semibold text-gray-400 uppercase tracking-wider mb-0.5">Açúcares Adic.</p>
-                            <p className="text-sm font-black text-pink-600">{(refeicao.dadosNutricionaisTotais?.acucares_adicionados ?? 0).toFixed(1)} g</p>
-                          </div>
-                          <div className="bg-rose-50/40 p-2.5 rounded-xl border border-rose-100/30 text-center">
-                            <p className="text-[9px] font-semibold text-gray-400 uppercase tracking-wider mb-0.5">Gorduras Totais</p>
-                            <p className="text-sm font-black text-rose-600">{(refeicao.dadosNutricionaisTotais?.gorduras ?? 0).toFixed(1)} g</p>
-                          </div>
-                          <div className="bg-slate-50/60 p-2.5 rounded-xl border border-slate-200/40 text-center">
-                            <p className="text-[9px] font-semibold text-gray-400 uppercase tracking-wider mb-0.5">Sódio</p>
-                            <p className="text-sm font-black text-slate-600">{(refeicao.dadosNutricionaisTotais?.sodio ?? 0).toFixed(0)} mg</p>
-                          </div>
-                        </div>
-
-                        <div className="mt-3.5 border-t border-gray-50 pt-3 flex flex-wrap justify-between gap-x-4 gap-y-1.5 text-[11px] text-gray-400 font-medium">
-                          <span>Fibras: <strong className="text-gray-700">{(refeicao.dadosNutricionaisTotais?.fibras ?? 0).toFixed(1)}g</strong></span>
-                          <span>Açúcares Totais: <strong className="text-gray-700">{(refeicao.dadosNutricionaisTotais?.acucares_totais ?? 0).toFixed(1)}g</strong></span>
-                          <span>Gorduras Sat.: <strong className="text-gray-700">{(refeicao.dadosNutricionaisTotais?.gorduras_saturadas ?? 0).toFixed(1)}g</strong></span>
+                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                          {[
+                            { label: 'Calorias', value: refeicao.dadosNutricionaisTotais?.calorias ?? 0, unit: 'kcal', decimals: 0, classes: 'bg-orange-50/40 border-orange-100/30 text-orange-600' },
+                            { label: 'Carboidratos', value: refeicao.dadosNutricionaisTotais?.carboidratos ?? 0, unit: 'g', decimals: 1, classes: 'bg-amber-50/40 border-amber-100/30 text-amber-600' },
+                            { label: 'Açúcares Totais', value: refeicao.dadosNutricionaisTotais?.acucares_totais ?? 0, unit: 'g', decimals: 1, classes: 'bg-pink-50/40 border-pink-100/30 text-pink-600' },
+                            { label: 'Açúcares Adic.', value: refeicao.dadosNutricionaisTotais?.acucares_adicionados ?? 0, unit: 'g', decimals: 1, classes: 'bg-pink-50/40 border-pink-100/30 text-pink-600' },
+                            { label: 'Proteínas', value: refeicao.dadosNutricionaisTotais?.proteinas ?? 0, unit: 'g', decimals: 1, classes: 'bg-emerald-50/40 border-emerald-100/30 text-emerald-600' },
+                            { label: 'Gorduras Totais', value: refeicao.dadosNutricionaisTotais?.gorduras ?? 0, unit: 'g', decimals: 1, classes: 'bg-rose-50/40 border-rose-100/30 text-rose-600' },
+                            { label: 'Gord. Saturadas', value: refeicao.dadosNutricionaisTotais?.gorduras_saturadas ?? 0, unit: 'g', decimals: 1, classes: 'bg-rose-50/40 border-rose-100/30 text-rose-600' },
+                            { label: 'Gorduras Trans', value: refeicao.dadosNutricionaisTotais?.gorduras_trans ?? 0, unit: 'g', decimals: 1, classes: 'bg-rose-50/40 border-rose-100/30 text-rose-600' },
+                            { label: 'Fibras Alimentares', value: refeicao.dadosNutricionaisTotais?.fibras ?? 0, unit: 'g', decimals: 1, classes: 'bg-emerald-50/40 border-emerald-100/30 text-emerald-600' },
+                            { label: 'Sódio', value: refeicao.dadosNutricionaisTotais?.sodio ?? 0, unit: 'mg', decimals: 0, classes: 'bg-slate-50/60 border-slate-200/40 text-slate-600' },
+                            { label: 'Vitaminas', value: refeicao.dadosNutricionaisTotais?.vitaminas ?? 0, unit: 'g', decimals: 1, classes: 'bg-violet-50/40 border-violet-100/30 text-violet-600' },
+                            { label: 'Minerais', value: refeicao.dadosNutricionaisTotais?.minerais ?? 0, unit: 'g', decimals: 1, classes: 'bg-indigo-50/40 border-indigo-100/30 text-indigo-600' },
+                          ].map((nutri, idx) => (
+                            <div key={idx} className={`${nutri.classes} p-2.5 rounded-xl border text-center`}>
+                              <p className="text-[9px] font-semibold text-gray-400 uppercase tracking-wider mb-0.5">{nutri.label}</p>
+                              <p className="text-sm font-black">{nutri.value.toFixed(nutri.decimals)} {nutri.unit}</p>
+                            </div>
+                          ))}
                         </div>
                       </div>
+
 
                     </div>
                   </div>

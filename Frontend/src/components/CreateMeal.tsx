@@ -53,7 +53,13 @@ const inputCls = (hasError?: boolean) =>
       : "border-gray-200 bg-white focus:border-[#04585a] focus:ring-1 focus:ring-[#04585a]/20"
   }`;
 
-export function CreateMeal({ refeicaoInicial, receitasDisponiveis, onSalvar, onCancelar, onIrParaEstoque }: CreateMealProps) {
+export function CreateMeal({ 
+  refeicaoInicial, 
+  receitasDisponiveis, 
+  onSalvar, 
+  onCancelar, 
+  onIrParaEstoque
+}: CreateMealProps) {
   const [salvando, setSalvando] = useState(false);
   const [calculos, setCalculos] = useState<CalculosRefeicao | null>(null);
   const [sugestaoCustoOperacional, setSugestaoCustoOperacional] = useState<{ mes: string; valor: number } | null>(null);
@@ -400,7 +406,7 @@ export function CreateMeal({ refeicaoInicial, receitasDisponiveis, onSalvar, onC
     unidade: string
   ) => {
     if (!qtyUtilizada || qtyUtilizada <= 0) return 0;
-    if (unidade === 'porcoes' || unidade === 'unidade') {
+    if (unidade === 'porcoes' || unidade === 'unidade' || unidade === 'un') {
       return qtyUtilizada;
     }
     
@@ -487,6 +493,65 @@ export function CreateMeal({ refeicaoInicial, receitasDisponiveis, onSalvar, onC
   useEffect(() => {
     executarCalculos();
   }, [watchedReceitas, watchedMargem, watchedCustoOperacional, embalagensSelecionadas, executarCalculos]);
+
+  const obterRascunhoAtual = (): Refeicao => {
+    const data = getValues();
+    
+    const receitasMapeadas: ReceitaRefeicao[] = (data.receitas || []).map((item: any) => {
+      const receitaInfo = receitasDisponiveis.find((r) => r.id === item.receitaId);
+      const porcoes = receitaInfo ? obterPorcoesEquivalentes(
+        receitaInfo, 
+        item.quantidadeUtilizada, 
+        item.unidadeMedida
+      ) : 0;
+      return {
+        receitaId: item.receitaId,
+        nome: receitaInfo?.nome || "",
+        porcoesUtilizadas: porcoes,
+        quantidadeUtilizada: item.quantidadeUtilizada,
+        unidadeMedida: item.unidadeMedida,
+        custoPorPorcao: receitaInfo?.custoPorPorcao || 0,
+        dadosNutricionaisPorPorcao: receitaInfo?.dadosNutricionaisPorPorcao || {
+          calorias: 0, proteinas: 0, carboidratos: 0, gorduras: 0,
+          acucares_totais: 0, acucares_adicionados: 0, gorduras_saturadas: 0,
+          gorduras_trans: 0, fibras: 0, sodio: 0, vitaminas: 0, minerais: 0
+        },
+      };
+    });
+
+    let valorEmbalagem = 0;
+    embalagensSelecionadas.forEach((emb) => {
+      if (emb.checked) {
+        valorEmbalagem += (emb.quantidade || 0) * (emb.custoUnitario || 0);
+      }
+    });
+
+    return {
+      id: refeicaoInicial?.id,
+      nome: data.nome,
+      descricao: data.descricao,
+      receitas: receitasMapeadas,
+      custoTotal: calculos?.custoTotal || 0,
+      custoOperacional: data.custoOperacional || 0,
+      margemLucro: data.margemLucro || 0,
+      precoSugerido: calculos?.precoSugerido || 0,
+      valorEmbalagem,
+      embalagens: embalagensSelecionadas,
+      dadosNutricionaisTotais: calculos?.dadosNutricionaisTotais || {
+        calorias: 0, proteinas: 0, carboidratos: 0, gorduras: 0,
+        acucares_totais: 0, acucares_adicionados: 0, gorduras_saturadas: 0,
+        gorduras_trans: 0, fibras: 0, sodio: 0, vitaminas: 0, minerais: 0
+      },
+      dataValidade: data.dataValidade || undefined,
+      validadeDias: data.validadeDias || undefined,
+      contemGluten,
+      contemLactose,
+      alergicos,
+      podeConter,
+      outrosAlergenicos,
+      createdAt: refeicaoInicial?.createdAt ?? new Date().toISOString(),
+    };
+  };
 
   const onSubmit = async (data: any) => {
     if (!calculos) return;
@@ -885,6 +950,18 @@ export function CreateMeal({ refeicaoInicial, receitasDisponiveis, onSalvar, onC
                   })}
                 </div>
 
+                {/* Adicionar mais — rodapé da seção */}
+                <div className="px-5 py-3 border-t border-dashed border-gray-100">
+                  <button
+                    type="button"
+                    onClick={() => append({ receitaId: "", quantidadeUtilizada: 1, unidadeMedida: "porcoes" })}
+                    className="w-full flex items-center justify-center gap-2 text-sm text-white bg-emerald-600 hover:bg-emerald-700 py-2.5 rounded-xl border-0 transition-colors cursor-pointer focus:outline-none font-bold shadow-sm"
+                  >
+                    <Plus size={14} />
+                    Adicionar Receita
+                  </button>
+                </div>
+
               </section>
 
               {/* Seção 3 — Informações de Alergênicos */}
@@ -1234,16 +1311,6 @@ export function CreateMeal({ refeicaoInicial, receitasDisponiveis, onSalvar, onC
                   </p>
                 </div>
               </section>
-
-              {/* Botão Adicionar Receita no final da página */}
-              <button
-                type="button"
-                onClick={() => append({ receitaId: "", quantidadeUtilizada: 1, unidadeMedida: "porcoes" })}
-                className="w-full flex items-center justify-center gap-2 text-sm text-white bg-emerald-600 hover:bg-emerald-700 py-3.5 rounded-xl border-0 transition-colors cursor-pointer focus:outline-none font-bold shadow-sm mt-2"
-              >
-                <Plus size={14} />
-                Adicionar Receita
-              </button>
             </div>
 
             {/* ── Coluna lateral — resumo sticky ───────────────────────── */}
