@@ -983,9 +983,11 @@ export function CreateMeal({
                     <div>
                       <h3 className="text-sm font-bold text-gray-800 flex items-center gap-2">
                         <Factory size={16} className="text-indigo-500" />
-                        Volume de Produção
+                        Volume MENSAL de Produção
                       </h3>
-                      <p className="text-xs text-gray-500 mt-1">Informe quantas marmitas são produzidas nesse ciclo para calcular o rateio.</p>
+                      <p className="text-xs text-red-500 font-medium mt-1">
+                        ⚠️ ATENÇÃO: Como os custos abaixo (aluguel, funcionários) são MENSAIS, você deve informar sua produção do MÊS INTEIRO (ex: 600 marmitas), e não apenas de um dia ou lote!
+                      </p>
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
                       <input
@@ -1003,7 +1005,7 @@ export function CreateMeal({
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     {/* 4.2 Custos Fixos */}
                     <div>
-                      <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">Custos Fixos (Totais)</h3>
+                      <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">Custos Fixos Mensais</h3>
                       <div className="flex flex-col gap-2">
                         {Object.entries(custosFixos).map(([key, value]) => (
                           <div key={key} className="flex items-center justify-between gap-2">
@@ -1035,7 +1037,7 @@ export function CreateMeal({
 
                     {/* 4.3 Custos Variáveis */}
                     <div>
-                      <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">Custos Variáveis (Totais)</h3>
+                      <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">Custos Variáveis Mensais</h3>
                       <div className="flex flex-col gap-2">
                         {Object.entries(custosVariaveis).map(([key, value]) => (
                           <div key={key} className="flex items-center justify-between gap-2">

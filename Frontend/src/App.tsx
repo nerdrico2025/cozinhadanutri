@@ -184,25 +184,26 @@ function App() {
     const fetchIngredientes = async () => {
       try {
         const dadosBackend = await listarAlimentos();
+        const parseTacoVal = (val: any) => parseFloat(String(val || '0').replace(',', '.')) || 0;
         const parseados: Ingrediente[] = dadosBackend.map((item: any) => ({
           id: String(item.id),
           tacoId: item.numero,
           nome: item.descricao,
           unidade: item.unidade_medida === 'un' ? 'unidade' : (item.unidade_medida || 'g'),
-          preco: parseFloat(item.preco) || 0,
+          preco: parseTacoVal(item.preco),
           dadosNutricionais: {
-            calorias: parseFloat(item.energia_kcal) || 0,
-            proteinas: parseFloat(item.proteina) || 0,
-            carboidratos: parseFloat(item.carboidrato) || 0,
-            gorduras: parseFloat(item.lipideos) || 0,
-            acucares_totais: parseFloat(item.acucares_totais) || 0,
-            acucares_adicionados: parseFloat(item.acucares_adicionados) || 0,
-            gorduras_saturadas: parseFloat(item.saturados) || 0,
-            gorduras_trans: parseFloat(item.AG18_1t) + parseFloat(item.AG18_2t) || 0,
-            fibras: parseFloat(item.fibra_alimentar) || 0,
-            sodio: parseFloat(item.sodio) || 0,
-            vitaminas: parseFloat(item.vitaminas) || 0,
-            minerais: parseFloat(item.minerais) || 0,
+            calorias: parseTacoVal(item.energia_kcal),
+            proteinas: parseTacoVal(item.proteina),
+            carboidratos: parseTacoVal(item.carboidrato),
+            gorduras: parseTacoVal(item.lipideos),
+            acucares_totais: parseTacoVal(item.acucares_totais),
+            acucares_adicionados: parseTacoVal(item.acucares_adicionados),
+            gorduras_saturadas: parseTacoVal(item.saturados),
+            gorduras_trans: parseTacoVal(item.AG18_1t) + parseTacoVal(item.AG18_2t),
+            fibras: parseTacoVal(item.fibra_alimentar),
+            sodio: parseTacoVal(item.sodio),
+            vitaminas: parseTacoVal(item.vitaminas),
+            minerais: parseTacoVal(item.minerais),
           },
           createdAt: new Date(),
         }));
@@ -436,25 +437,26 @@ function App() {
   const handleSalvarIngrediente = async (ingrediente: Ingrediente) => {
     try {
       const itemSalvo = await salvarAlimento(ingrediente, ingrediente.tacoId);
+      const parseTacoVal = (val: any) => parseFloat(String(val || '0').replace(',', '.')) || 0;
       const ingredienteParseado: Ingrediente = {
         id: String(itemSalvo.id),
         tacoId: itemSalvo.numero,
         nome: itemSalvo.descricao,
         unidade: itemSalvo.unidade_medida === 'un' ? 'unidade' : (itemSalvo.unidade_medida || 'g'),
-        preco: parseFloat(itemSalvo.preco) || 0,
+        preco: parseTacoVal(itemSalvo.preco),
         dadosNutricionais: {
-          calorias: parseFloat(itemSalvo.energia_kcal) || 0,
-          proteinas: parseFloat(itemSalvo.proteina) || 0,
-          carboidratos: parseFloat(itemSalvo.carboidrato) || 0,
-          gorduras: parseFloat(itemSalvo.lipideos) || 0,
-          acucares_totais: parseFloat(itemSalvo.acucares_totais) || 0,
-          acucares_adicionados: parseFloat(itemSalvo.acucares_adicionados) || 0,
-          gorduras_saturadas: parseFloat(itemSalvo.saturados) || 0,
-          gorduras_trans: parseFloat(itemSalvo.AG18_1t) + parseFloat(itemSalvo.AG18_2t) || 0,
-          fibras: parseFloat(itemSalvo.fibra_alimentar) || 0,
-          sodio: parseFloat(itemSalvo.sodio) || 0,
-          vitaminas: parseFloat(itemSalvo.vitaminas) || 0,
-          minerais: parseFloat(itemSalvo.minerais) || 0,
+          calorias: parseTacoVal(itemSalvo.energia_kcal),
+          proteinas: parseTacoVal(itemSalvo.proteina),
+          carboidratos: parseTacoVal(itemSalvo.carboidrato),
+          gorduras: parseTacoVal(itemSalvo.lipideos),
+          acucares_totais: parseTacoVal(itemSalvo.acucares_totais),
+          acucares_adicionados: parseTacoVal(itemSalvo.acucares_adicionados),
+          gorduras_saturadas: parseTacoVal(itemSalvo.saturados),
+          gorduras_trans: parseTacoVal(itemSalvo.AG18_1t) + parseTacoVal(itemSalvo.AG18_2t),
+          fibras: parseTacoVal(itemSalvo.fibra_alimentar),
+          sodio: parseTacoVal(itemSalvo.sodio),
+          vitaminas: parseTacoVal(itemSalvo.vitaminas),
+          minerais: parseTacoVal(itemSalvo.minerais),
         },
         createdAt: new Date(),
       };
@@ -501,25 +503,26 @@ function App() {
         ingrediente.tacoId
       );
 
+      const parseTacoVal = (val: any) => parseFloat(String(val || '0').replace(',', '.')) || 0;
       const ingredienteParseado: Ingrediente = {
         id: String(itemSalvo.id),
         tacoId: itemSalvo.numero,
         nome: itemSalvo.descricao,
         unidade: itemSalvo.unidade_medida === 'un' ? 'unidade' : (itemSalvo.unidade_medida || 'g'),
-        preco: parseFloat(itemSalvo.preco) || 0,
+        preco: parseTacoVal(itemSalvo.preco),
         dadosNutricionais: {
-          calorias: parseFloat(itemSalvo.energia_kcal) || 0,
-          proteinas: parseFloat(itemSalvo.proteina) || 0,
-          carboidratos: parseFloat(itemSalvo.carboidrato) || 0,
-          gorduras: parseFloat(itemSalvo.lipideos) || 0,
-          acucares_totais: parseFloat(itemSalvo.acucares_totais) || 0,
-          acucares_adicionados: parseFloat(itemSalvo.acucares_adicionados) || 0,
-          gorduras_saturadas: parseFloat(itemSalvo.saturados) || 0,
-          gorduras_trans: parseFloat(itemSalvo.AG18_1t) + parseFloat(itemSalvo.AG18_2t) || 0,
-          fibras: parseFloat(itemSalvo.fibra_alimentar) || 0,
-          sodio: parseFloat(itemSalvo.sodio) || 0,
-          vitaminas: parseFloat(itemSalvo.vitaminas) || 0,
-          minerais: parseFloat(itemSalvo.minerais) || 0,
+          calorias: parseTacoVal(itemSalvo.energia_kcal),
+          proteinas: parseTacoVal(itemSalvo.proteina),
+          carboidratos: parseTacoVal(itemSalvo.carboidrato),
+          gorduras: parseTacoVal(itemSalvo.lipideos),
+          acucares_totais: parseTacoVal(itemSalvo.acucares_totais),
+          acucares_adicionados: parseTacoVal(itemSalvo.acucares_adicionados),
+          gorduras_saturadas: parseTacoVal(itemSalvo.saturados),
+          gorduras_trans: parseTacoVal(itemSalvo.AG18_1t) + parseTacoVal(itemSalvo.AG18_2t),
+          fibras: parseTacoVal(itemSalvo.fibra_alimentar),
+          sodio: parseTacoVal(itemSalvo.sodio),
+          vitaminas: parseTacoVal(itemSalvo.vitaminas),
+          minerais: parseTacoVal(itemSalvo.minerais),
         },
         createdAt: ingrediente.createdAt || new Date(),
       };

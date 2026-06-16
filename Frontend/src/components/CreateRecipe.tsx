@@ -274,6 +274,8 @@ export function CriarReceita({ receitaInicial, onSalvar, onCancelar, onSolicitar
       try {
         const results = await buscarAlimentosBackend(value);
 
+        const parseTacoVal = (val: any) => parseFloat(String(val || '0').replace(',', '.')) || 0;
+        
         const combined: SearchResult[] = results.map((item: any) => {
           const ingrediente: Ingrediente = {
             id: String(item.id),
@@ -282,18 +284,18 @@ export function CriarReceita({ receitaInicial, onSalvar, onCancelar, onSolicitar
             unidade: item.unidade_medida === 'un' ? 'unidade' : (item.unidade_medida || 'g'),
             preco: item.preco !== null ? parseFloat(item.preco) : 0,
             dadosNutricionais: {
-              calorias: parseFloat(item.energia_kcal) || 0,
-              proteinas: parseFloat(item.proteina) || 0,
-              carboidratos: parseFloat(item.carboidrato) || 0,
-              gorduras: parseFloat(item.lipideos) || 0,
-              acucares_totais: parseFloat(item.acucares_totais) || 0,
-              acucares_adicionados: parseFloat(item.acucares_adicionados) || 0,
-              gorduras_saturadas: parseFloat(item.saturados) || 0,
-              gorduras_trans: (parseFloat(item.AG18_1t) || 0) + (parseFloat(item.AG18_2t) || 0),
-              fibras: parseFloat(item.fibra_alimentar) || 0,
-              sodio: parseFloat(item.sodio) || 0,
-              vitaminas: parseFloat(item.vitaminas) || 0,
-              minerais: parseFloat(item.minerais) || 0,
+              calorias: parseTacoVal(item.energia_kcal),
+              proteinas: parseTacoVal(item.proteina),
+              carboidratos: parseTacoVal(item.carboidrato),
+              gorduras: parseTacoVal(item.lipideos),
+              acucares_totais: parseTacoVal(item.acucares_totais),
+              acucares_adicionados: parseTacoVal(item.acucares_adicionados),
+              gorduras_saturadas: parseTacoVal(item.saturados),
+              gorduras_trans: parseTacoVal(item.AG18_1t) + parseTacoVal(item.AG18_2t),
+              fibras: parseTacoVal(item.fibra_alimentar),
+              sodio: parseTacoVal(item.sodio),
+              vitaminas: parseTacoVal(item.vitaminas),
+              minerais: parseTacoVal(item.minerais),
             }
           };
 
@@ -531,7 +533,7 @@ export function CriarReceita({ receitaInicial, onSalvar, onCancelar, onSolicitar
                     />
                   </div>
 
-                 {/*  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                       <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">
                         Porções <span className="text-red-400">*</span>
@@ -544,7 +546,7 @@ export function CriarReceita({ receitaInicial, onSalvar, onCancelar, onSolicitar
                       />
                       {errors.porcoes && <p className="text-red-500 text-xs mt-1">{errors.porcoes.message}</p>}
                     </div>
-                  </div> */}
+                  </div>
                 </div>
               </section>
 

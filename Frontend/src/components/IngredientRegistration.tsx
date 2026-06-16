@@ -285,24 +285,26 @@ export function CadastroIngrediente({ ingredienteInicial, onSalvar, onCancelar, 
     }, 400);
   };
 
+  const parseTacoVal = (val: any) => parseFloat(String(val || '0').replace(',', '.')) || 0;
+
   const aplicarDadosTaco = (alimento: any) => {
     setValue('nome', alimento.descricao);
-    setValue('calorias', Number((parseFloat(alimento.energia_kcal) || 0).toFixed(1)));
-    setValue('proteinas', Number((parseFloat(alimento.proteina) || 0).toFixed(1)));
-    setValue('carboidratos', Number((parseFloat(alimento.carboidrato) || 0).toFixed(1)));
-    setValue('gorduras', Number((parseFloat(alimento.lipideos) || 0).toFixed(1)));
-    setValue('acucares_totais', Number((parseFloat(alimento.acucares_totais) || 0).toFixed(1)));
-    setValue('acucares_adicionados', Number((parseFloat(alimento.acucares_adicionados) || 0).toFixed(1)));
-    setValue('gorduras_saturadas', Number((parseFloat(alimento.saturados) || 0).toFixed(1)));
+    setValue('calorias', Number(parseTacoVal(alimento.energia_kcal).toFixed(1)));
+    setValue('proteinas', Number(parseTacoVal(alimento.proteina).toFixed(1)));
+    setValue('carboidratos', Number(parseTacoVal(alimento.carboidrato).toFixed(1)));
+    setValue('gorduras', Number(parseTacoVal(alimento.lipideos).toFixed(1)));
+    setValue('acucares_totais', Number(parseTacoVal(alimento.acucares_totais).toFixed(1)));
+    setValue('acucares_adicionados', Number(parseTacoVal(alimento.acucares_adicionados).toFixed(1)));
+    setValue('gorduras_saturadas', Number(parseTacoVal(alimento.saturados).toFixed(1)));
     
-    const trans1 = parseFloat(alimento.AG18_1t) || 0;
-    const trans2 = parseFloat(alimento.AG18_2t) || 0;
+    const trans1 = parseTacoVal(alimento.AG18_1t);
+    const trans2 = parseTacoVal(alimento.AG18_2t);
     setValue('gorduras_trans', Number((trans1 + trans2).toFixed(1)));
     
-    setValue('fibras', Number((parseFloat(alimento.fibra_alimentar) || 0).toFixed(1)));
-    setValue('sodio', Number((parseFloat(alimento.sodio) || 0).toFixed(1)));
-    setValue('vitaminas', Number((parseFloat(alimento.vitaminas) || 0).toFixed(1)));
-    setValue('minerais', Number((parseFloat(alimento.minerais) || 0).toFixed(1)));
+    setValue('fibras', Number(parseTacoVal(alimento.fibra_alimentar).toFixed(1)));
+    setValue('sodio', Number(parseTacoVal(alimento.sodio).toFixed(1)));
+    setValue('vitaminas', Number(parseTacoVal(alimento.vitaminas).toFixed(1)));
+    setValue('minerais', Number(parseTacoVal(alimento.minerais).toFixed(1)));
     setTacoNumeroSelecionado(alimento.numero);
     setTacoDbId(alimento.id);
     setMostrarSugestoes(false);
