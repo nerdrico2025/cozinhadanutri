@@ -6,10 +6,10 @@ import {
   Plus, Trash2, Loader2, ArrowLeft,
   UtensilsCrossed, DollarSign, Flame,
   Beef, Wheat, Droplets, Info, Activity,
-  AlertCircle, FolderHeart, PlusCircle
+  AlertCircle, FolderHeart, PlusCircle, Calculator, Factory
 } from "lucide-react";
 
-import { Receita, Refeicao, ReceitaRefeicao, DadosNutricionais, ItemEmbalagemSelecionada } from "../types";
+import { Receita, Refeicao, ReceitaRefeicao, DadosNutricionais, ItemEmbalagemSelecionada, CustosFixosMarmita, CustosVariaveisMarmita } from "../types";
 
 const mealSchema = z.object({
   nome: z.string().min(1, "Nome da refeição é obrigatório"),
@@ -44,6 +44,7 @@ interface CalculosRefeicao {
   precoSugerido: number;
   margemLucroReal: number;
   dadosNutricionaisTotais: DadosNutricionais;
+  rateioUnitario?: number;
 }
 
 const inputCls = (hasError?: boolean) =>
@@ -62,125 +63,72 @@ export function CreateMeal({
 }: CreateMealProps) {
   const [salvando, setSalvando] = useState(false);
   const [calculos, setCalculos] = useState<CalculosRefeicao | null>(null);
-  const [sugestaoCustoOperacional, setSugestaoCustoOperacional] = useState<{ mes: string; valor: number } | null>(null);
 
-  useEffect(() => {
-    try {
-      const rawDespesas = localStorage.getItem('despesas_operacionais');
-      const rawProducoes = localStorage.getItem('historico_producao');
-      if (rawDespesas && rawProducoes) {
-        const despesas = JSON.parse(rawDespesas) as any[];
-        const producoes = JSON.parse(rawProducoes) as any[];
+  // Novos Estados para a Calculadora de Rateio
+  const [producaoMarmitas, setProducaoMarmitas] = useState<number>(refeicaoInicial?.producaoMarmitas || 1);
+  const [custosFixos, setCustosFixos] = useState<CustosFixosMarmita>(refeicaoInicial?.custosFixos || {
+    aluguel: 0, internet: 0, contabilidade: 0, proLabore: 0,
+    funcionarios: 0, sistemas: 0, marketing: 0, outros: 0
+  });
+  const [custosVariaveis, setCustosVariaveis] = useState<CustosVariaveisMarmita>(refeicaoInicial?.custosVariaveis || {
+    energia: 0, agua: 0, gas: 0, taxasCartao: 0, outros: 0
+  });
 
-        const despesasPorMes: Record<string, number> = {};
-        despesas.forEach(d => {
-          if (d.embutirNoRateio) {
-            const mes = d.mesReferencia || d.data.substring(0, 7);
-            despesasPorMes[mes] = (despesasPorMes[mes] || 0) + (d.valorTotal || 0);
-          }
-        });
-
-        const producaoPorMes: Record<string, number> = {};
-        producoes.forEach(p => {
-          const mes = p.mesReferencia || p.data.substring(0, 7);
-          producaoPorMes[mes] = (producaoPorMes[mes] || 0) + (p.quantidade || 0);
-        });
-
-        const mesesComDados = Object.keys(despesasPorMes).filter(mes => producaoPorMes[mes] > 0);
-        
-        if (mesesComDados.length > 0) {
-          mesesComDados.sort((a, b) => b.localeCompare(a));
-          const mesRecente = mesesComDados[0];
-          const totalDespesas = despesasPorMes[mesRecente];
-          const totalProducao = producaoPorMes[mesRecente];
-          
-          if (totalProducao > 0) {
-            const rateio = totalDespesas / totalProducao;
-            const [y, m] = mesRecente.split('-');
-            const date = new Date(parseInt(y), parseInt(m) - 1);
-            const monthName = date.toLocaleDateString('pt-BR', { month: 'long' });
-            const mesFormatado = `${monthName.charAt(0).toUpperCase() + monthName.slice(1)}/${y}`;
-
-            setSugestaoCustoOperacional({
-              mes: mesFormatado,
-              valor: rateio
-            });
-          }
-        }
-      }
-    } catch (e) {
-      console.error("Erro ao calcular sugestão de custo operacional:", e);
-    }
-  }, []);
-
-  interface ItemEstoque {
-    id: string;
-    nome: string;
-    categoria: string;
-    custoMedio: number;
-  }
-
-  const [embalagensEstoque, setEmbalagensEstoque] = useState<ItemEstoque[]>([]);
   const [embalagensSelecionadas, setEmbalagensSelecionadas] = useState<ItemEmbalagemSelecionada[]>([]);
 
   useEffect(() => {
     try {
-      const raw = localStorage.getItem('estoque_itens');
-      if (raw) {
-        const parsed = JSON.parse(raw) as ItemEstoque[];
-        const filtered = parsed.filter(item => 
-          item.categoria?.toLowerCase() === "embalagem" || 
-          item.categoria?.toLowerCase() === "embalagens"
-        );
-        setEmbalagensEstoque(filtered);
+      const initialSaved = refeicaoInicial?.embalagens ?? [];
+      const mergedList: ItemEmbalagemSelecionada[] = [];
 
-        const initialSaved = refeicaoInicial?.embalagens ?? [];
-        
-        // Merge inventory items with saved selection
-        const mergedList: ItemEmbalagemSelecionada[] = filtered.map(item => {
-          const saved = initialSaved.find(s => s.id === item.id);
-          if (saved) {
-            return {
-              id: item.id,
-              nome: item.nome,
-              checked: saved.checked,
-              quantidade: saved.quantidade,
-              custoUnitario: saved.custoUnitario,
-            };
-          }
-          return {
-            id: item.id,
-            nome: item.nome,
-            checked: false,
-            quantidade: 1,
-            custoUnitario: item.custoMedio,
-          };
+      initialSaved.forEach(saved => {
+        mergedList.push(saved);
+      });
+
+      // Se for uma marmita legada que só tinha valorEmbalagem genérico
+      if (refeicaoInicial && refeicaoInicial.valorEmbalagem && refeicaoInicial.valorEmbalagem > 0 && mergedList.length === 0) {
+        mergedList.push({
+          id: 'legacy-pkg',
+          nome: 'Embalagem Principal (Legado)',
+          checked: true,
+          quantidade: 1,
+          custoUnitario: refeicaoInicial.valorEmbalagem,
+          isCustom: true,
         });
+      }
 
-        // Add custom manual items
-        initialSaved.forEach(saved => {
-          if (saved.isCustom && !mergedList.some(m => m.id === saved.id)) {
-            mergedList.push(saved);
-          }
-        });
-
-        // If it's a legacy meal that only has a generic valorEmbalagem and no detailed packaging list,
-        // we can add a custom entry so that the value is not lost.
-        if (refeicaoInicial && refeicaoInicial.valorEmbalagem && refeicaoInicial.valorEmbalagem > 0 && mergedList.filter(m => m.checked).length === 0) {
-          mergedList.push({
-            id: 'legacy-pkg',
-            nome: 'Embalagem Principal (Ficha)',
+      if (mergedList.length === 0 && !refeicaoInicial) {
+        mergedList.push(
+          {
+            id: crypto.randomUUID(),
+            nome: 'Embalagem',
             checked: true,
             quantidade: 1,
-            custoUnitario: refeicaoInicial.valorEmbalagem,
+            custoUnitario: 0,
             isCustom: true,
-          });
-        }
-
-        setEmbalagensSelecionadas(mergedList);
+          },
+          {
+            id: crypto.randomUUID(),
+            nome: 'Talher',
+            checked: true,
+            quantidade: 1,
+            custoUnitario: 0,
+            isCustom: true,
+          },
+          {
+            id: crypto.randomUUID(),
+            nome: 'Frete',
+            checked: true,
+            quantidade: 1,
+            custoUnitario: 0,
+            isCustom: true,
+          }
+        );
       }
+
+      setEmbalagensSelecionadas(mergedList);
     } catch (e) {
-      console.error("Erro ao carregar embalagens do estoque:", e);
+      console.error("Erro ao inicializar embalagens:", e);
     }
   }, [refeicaoInicial]);
 
@@ -428,12 +376,23 @@ export function CreateMeal({
     
     custoTotal += valEmbalagem;
 
+    // Calcular rateio
+    const sumFixos = Object.values(custosFixos).reduce((a, b) => a + (b || 0), 0);
+    const sumVariaveis = Object.values(custosVariaveis).reduce((a, b) => a + (b || 0), 0);
+    const totalDespesasRateio = sumFixos + sumVariaveis;
+    const rateioUnitario = producaoMarmitas > 0 ? totalDespesasRateio / producaoMarmitas : 0;
+
+    // Se mudou o rateio, atualiza o form
+    if (Math.abs((custoOperacionalVal || 0) - rateioUnitario) > 0.001) {
+      setTimeout(() => setValue("custoOperacional", parseFloat(rateioUnitario.toFixed(2))), 0);
+    }
+
     if (validas.length === 0 && valEmbalagem === 0) {
       setCalculos(null);
       return;
     }
 
-    const custoTotalReal = custoTotal + custoOperacionalVal;
+    const custoTotalReal = custoTotal + rateioUnitario;
     const precoSugerido = custoTotalReal * (1 + margemLucroVal / 100);
     const margemLucroReal = precoSugerido - custoTotalReal;
 
@@ -442,12 +401,13 @@ export function CreateMeal({
       precoSugerido,
       margemLucroReal,
       dadosNutricionaisTotais: totais,
+      rateioUnitario
     });
-  }, [watchedReceitas, watchedMargem, watchedCustoOperacional, embalagensSelecionadas, receitasDisponiveis, getValues, obterPorcoesEquivalentes]);
+  }, [watchedReceitas, watchedMargem, watchedCustoOperacional, embalagensSelecionadas, receitasDisponiveis, getValues, obterPorcoesEquivalentes, custosFixos, custosVariaveis, producaoMarmitas, setValue]);
 
   useEffect(() => {
     executarCalculos();
-  }, [watchedReceitas, watchedMargem, watchedCustoOperacional, embalagensSelecionadas, executarCalculos]);
+  }, [watchedReceitas, watchedMargem, watchedCustoOperacional, embalagensSelecionadas, custosFixos, custosVariaveis, producaoMarmitas, executarCalculos]);
 
   const obterRascunhoAtual = (): Refeicao => {
     const data = getValues();
@@ -482,7 +442,7 @@ export function CreateMeal({
     });
 
     return {
-      id: refeicaoInicial?.id,
+      id: refeicaoInicial?.id ?? crypto.randomUUID(),
       nome: data.nome,
       descricao: data.descricao,
       receitas: receitasMapeadas,
@@ -504,6 +464,9 @@ export function CreateMeal({
       alergicos,
       podeConter,
       outrosAlergenicos,
+      producaoMarmitas,
+      custosFixos,
+      custosVariaveis,
       createdAt: refeicaoInicial?.createdAt ?? new Date().toISOString(),
     };
   };
@@ -556,6 +519,9 @@ export function CreateMeal({
         alergicos,
         podeConter,
         outrosAlergenicos,
+        producaoMarmitas,
+        custosFixos,
+        custosVariaveis,
         createdAt: refeicaoInicial?.createdAt ?? new Date().toISOString(),
       });
       reset();
@@ -1001,66 +967,122 @@ export function CreateMeal({
                 </div>
               </section>
 
-              {/* Seção 4 — Embalagem e Insumos da Marmita */}
+              {/* Seção 4 — Calculadora de Rateio e Custos Diretos */}
               <section className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-                <div className="flex items-center justify-between px-5 py-4 border-b border-gray-50">
+                <div className="flex items-center justify-between px-5 py-4 border-b border-gray-50 bg-[#04585a]/5">
                   <div className="flex items-center gap-3">
                     <span className="w-6 h-6 rounded-full bg-[#04585a] text-white text-xs font-bold flex items-center justify-center shrink-0">4</span>
-                    <h2 className="text-sm font-semibold text-gray-800">Custos Fixos e Variáveis</h2>
+                    <h2 className="text-sm font-semibold text-[#04585a]">Custos Fixos e Variáveis </h2>
                   </div>
-                  
-                  {onIrParaEstoque && (
-                    <button
-                      type="button"
-                      onClick={onIrParaEstoque}
-                      className="text-xs font-bold text-[#04585a] hover:text-[#04585a]/80 flex items-center gap-1 bg-transparent border-0 cursor-pointer"
-                    >
-                      <PlusCircle size={14} />
-                      Ir p/ Estoque
-                    </button>
-                  )}
                 </div>
 
-                <div className="p-5 flex flex-col gap-4">
-                  <p className="text-xs text-gray-400 leading-relaxed">
-                    Marque os itens que compõem a embalagem e transporte desta marmita. Você pode alterar a quantidade e o custo de cada item individualmente.
-                  </p>
+                <div className="p-5 flex flex-col gap-6">
+                  
+                  {/* 4.1 Produção */}
+                  <div className="bg-gray-50/50 p-4 rounded-xl border border-gray-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div>
+                      <h3 className="text-sm font-bold text-gray-800 flex items-center gap-2">
+                        <Factory size={16} className="text-indigo-500" />
+                        Volume de Produção
+                      </h3>
+                      <p className="text-xs text-gray-500 mt-1">Informe quantas marmitas são produzidas nesse ciclo para calcular o rateio.</p>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <input
+                        type="number"
+                        min="1"
+                        step="1"
+                        value={producaoMarmitas || ""}
+                        onChange={(e) => setProducaoMarmitas(parseInt(e.target.value) || 0)}
+                        className="w-24 px-3 py-2 border border-indigo-200 rounded-lg text-sm text-center font-bold text-indigo-700 bg-white focus:outline-none focus:border-indigo-500"
+                      />
+                      <span className="text-xs font-bold text-gray-500">unids.</span>
+                    </div>
+                  </div>
 
-                  {embalagensSelecionadas.length === 0 ? (
-                    <div className="bg-amber-50/50 border border-amber-200/60 rounded-xl p-4 text-center">
-                      <p className="text-xs text-amber-700 font-medium mb-3">
-                        Nenhuma embalagem ou insumo encontrado no estoque.
-                      </p>
-                      <div className="flex flex-wrap items-center justify-center gap-3">
-                        {onIrParaEstoque && (
-                          <button
-                            type="button"
-                            onClick={onIrParaEstoque}
-                            className="text-xs bg-amber-600 hover:bg-amber-700 text-white font-bold px-3 py-1.5 rounded-lg border-0 transition cursor-pointer"
-                          >
-                            Cadastrar no Estoque
-                          </button>
-                        )}
-                        <button
-                          type="button"
-                          onClick={() => {
-                            const newItem: ItemEmbalagemSelecionada = {
-                              id: crypto.randomUUID(),
-                              nome: "Marmita Principal",
-                              checked: true,
-                              quantidade: 1,
-                              custoUnitario: 1.20,
-                              isCustom: true,
-                            };
-                            setEmbalagensSelecionadas(prev => [...prev, newItem]);
-                          }}
-                          className="text-xs bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold px-3 py-1.5 rounded-lg border-0 transition cursor-pointer"
-                        >
-                          + Adicionar Insumo Manual
-                        </button>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {/* 4.2 Custos Fixos */}
+                    <div>
+                      <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">Custos Fixos (Totais)</h3>
+                      <div className="flex flex-col gap-2">
+                        {Object.entries(custosFixos).map(([key, value]) => (
+                          <div key={key} className="flex items-center justify-between gap-2">
+                            <label className="text-xs font-semibold text-gray-600 capitalize w-28">
+                              {key === 'proLabore' ? 'Pró-labore' : key === 'taxasCartao' ? 'Taxas Cartão' : key}
+                            </label>
+                            <div className="relative flex-1">
+                              <span className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-400 text-xs">R$</span>
+                              <input
+                                type="number"
+                                min="0"
+                                step="any"
+                                value={value === 0 ? '' : value}
+                                onChange={(e) => setCustosFixos(prev => ({ ...prev, [key]: parseFloat(e.target.value) || 0 }))}
+                                placeholder="0.00"
+                                className="w-full pl-7 pr-2 py-1.5 border border-gray-200 rounded text-xs focus:border-[#04585a] focus:outline-none bg-white transition-colors"
+                              />
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                      <div className="mt-3 pt-3 border-t border-gray-100 flex justify-between items-center">
+                        <span className="text-xs font-bold text-gray-500">Total Fixos:</span>
+                        <span className="text-xs font-bold text-gray-800">
+                          R$ {Object.values(custosFixos).reduce((a, b) => a + (b || 0), 0).toFixed(2)}
+                        </span>
                       </div>
                     </div>
-                  ) : (
+
+                    {/* 4.3 Custos Variáveis */}
+                    <div>
+                      <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">Custos Variáveis (Totais)</h3>
+                      <div className="flex flex-col gap-2">
+                        {Object.entries(custosVariaveis).map(([key, value]) => (
+                          <div key={key} className="flex items-center justify-between gap-2">
+                            <label className="text-xs font-semibold text-gray-600 capitalize w-28">
+                              {key === 'taxasCartao' ? 'Taxas Cartão' : key}
+                            </label>
+                            <div className="relative flex-1">
+                              <span className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-400 text-xs">R$</span>
+                              <input
+                                type="number"
+                                min="0"
+                                step="any"
+                                value={value === 0 ? '' : value}
+                                onChange={(e) => setCustosVariaveis(prev => ({ ...prev, [key]: parseFloat(e.target.value) || 0 }))}
+                                placeholder="0.00"
+                                className="w-full pl-7 pr-2 py-1.5 border border-gray-200 rounded text-xs focus:border-[#04585a] focus:outline-none bg-white transition-colors"
+                              />
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                      <div className="mt-3 pt-3 border-t border-gray-100 flex justify-between items-center">
+                        <span className="text-xs font-bold text-gray-500">Total Variáveis:</span>
+                        <span className="text-xs font-bold text-gray-800">
+                          R$ {Object.values(custosVariaveis).reduce((a, b) => a + (b || 0), 0).toFixed(2)}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="bg-[#04585a]/10 px-4 py-3 rounded-lg border border-[#04585a]/20 flex items-center justify-between">
+                    <span className="text-sm font-semibold text-[#04585a] flex items-center gap-2">
+                      <Calculator size={16} />
+                      Custo Operacional de Rateio p/ Marmita:
+                    </span>
+                    <span className="text-lg font-black text-[#04585a]">
+                      R$ {producaoMarmitas > 0 ? ((Object.values(custosFixos).reduce((a, b) => a + (b || 0), 0) + Object.values(custosVariaveis).reduce((a, b) => a + (b || 0), 0)) / producaoMarmitas).toFixed(2) : '0.00'}
+                    </span>
+                  </div>
+
+                  {/* 4.4 Custos Diretos (Embalagens) */}
+                  <div className="mt-4 border-t border-gray-100 pt-6">
+                    <h3 className="text-sm font-bold text-gray-800 mb-1">Custos Diretos na Marmita</h3>
+                    <p className="text-xs text-gray-500 mb-4">
+                      Adicione itens que acompanham cada marmita individualmente (frete por unidade, embalagem, talheres, etc).
+                    </p>
+
                     <div className="flex flex-col gap-3">
                       <div className="divide-y divide-gray-50 border border-gray-100 rounded-xl overflow-hidden bg-gray-50/30">
                         {embalagensSelecionadas.map((emb) => (
@@ -1070,7 +1092,6 @@ export function CreateMeal({
                               emb.checked ? "bg-white" : "opacity-60"
                             }`}
                           >
-                            {/* Checkbox + Nome */}
                             <div className="flex items-center gap-3 flex-1 min-w-0">
                               <input
                                 type="checkbox"
@@ -1078,22 +1099,15 @@ export function CreateMeal({
                                 onChange={(e) => handleToggleEmbalagem(emb.id, e.target.checked)}
                                 className="w-4 h-4 text-[#04585a] focus:ring-[#04585a] border-gray-300 rounded cursor-pointer"
                               />
-                              {emb.isCustom ? (
-                                <input
-                                  type="text"
-                                  value={emb.nome}
-                                  onChange={(e) => handleUpdateEmbalagemNome(emb.id, e.target.value)}
-                                  className="text-sm font-medium text-gray-800 bg-transparent border-b border-gray-200 focus:border-[#04585a] focus:outline-none py-0.5 w-full max-w-xs"
-                                  placeholder="Nome do insumo..."
-                                />
-                              ) : (
-                                <span className="text-sm font-semibold text-gray-700 truncate">
-                                  {emb.nome}
-                                </span>
-                              )}
+                              <input
+                                type="text"
+                                value={emb.nome}
+                                onChange={(e) => handleUpdateEmbalagemNome(emb.id, e.target.value)}
+                                className="text-sm font-medium text-gray-800 bg-transparent border-b border-gray-200 focus:border-[#04585a] focus:outline-none py-0.5 w-full max-w-xs"
+                                placeholder="Nome do custo..."
+                              />
                             </div>
 
-                            {/* Inputs: Quantidade e Custo */}
                             <div className="flex items-center gap-2 shrink-0">
                               <div className="flex items-center gap-1.5">
                                 <span className="text-[10px] text-gray-400 uppercase font-bold">Qtd</span>
@@ -1121,16 +1135,14 @@ export function CreateMeal({
                                 />
                               </div>
 
-                              {emb.isCustom && (
-                                <button
-                                  type="button"
-                                  onClick={() => handleRemoverEmbalagemPersonalizada(emb.id)}
-                                  className="text-red-400 hover:text-red-600 p-1 bg-transparent border-0 cursor-pointer focus:outline-none"
-                                  title="Remover custo manual"
-                                >
-                                  <Trash2 size={14} />
-                                </button>
-                              )}
+                              <button
+                                type="button"
+                                onClick={() => handleRemoverEmbalagemPersonalizada(emb.id)}
+                                className="text-red-400 hover:text-red-600 p-1 bg-transparent border-0 cursor-pointer focus:outline-none"
+                                title="Remover"
+                              >
+                                <Trash2 size={14} />
+                              </button>
                             </div>
                           </div>
                         ))}
@@ -1153,11 +1165,11 @@ export function CreateMeal({
                           className="text-xs text-[#04585a] hover:text-[#04585a]/80 font-bold flex items-center gap-1 bg-transparent border-0 cursor-pointer"
                         >
                           <Plus size={12} />
-                          Adicionar Insumo Manual (Ex: sacola, talher)
+                          Adicionar Custo Direto (Outros)
                         </button>
 
                         <div className="text-xs font-semibold text-gray-500">
-                          Total Embalagens: <span className="text-[#04585a] font-bold">R$ {
+                          Total Diretos: <span className="text-[#04585a] font-bold">R$ {
                             embalagensSelecionadas
                               .filter(e => e.checked)
                               .reduce((acc, curr) => acc + (curr.quantidade * curr.custoUnitario), 0)
@@ -1166,7 +1178,7 @@ export function CreateMeal({
                         </div>
                       </div>
                     </div>
-                  )}
+                  </div>
                 </div>
               </section>
 
@@ -1175,35 +1187,10 @@ export function CreateMeal({
                 <div className="flex items-center justify-between px-5 py-4 border-b border-gray-50">
                   <div className="flex items-center gap-3">
                     <span className="w-6 h-6 rounded-full bg-[#04585a] text-white text-xs font-bold flex items-center justify-center shrink-0">5</span>
-                    <h2 className="text-sm font-semibold text-gray-800">Precificação</h2>
+                    <h2 className="text-sm font-semibold text-gray-800">Precificação Final</h2>
                   </div>
                 </div>
                 <div className="p-5 flex flex-col gap-4">
-                  {/* Banner de sugestão de despesa operacional rateada */}
-                  {sugestaoCustoOperacional !== null && (
-                    <div className="bg-[#04585a]/5 border border-[#04585a]/15 rounded-xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 animate-fadeIn">
-                      <div className="flex items-start gap-2.5">
-                        <Info size={16} className="text-[#04585a] shrink-0 mt-0.5" />
-                        <div className="text-xs text-gray-600 leading-relaxed">
-                          <span className="font-semibold text-gray-800">Custo Operacional Estimado (Rateio):</span>
-                          <p>
-                            Com base nas suas despesas e produção de <strong className="capitalize">{sugestaoCustoOperacional.mes}</strong>, o custo operacional médio por marmita é de <strong>R$ {sugestaoCustoOperacional.valor.toFixed(2)}</strong>.
-                          </p>
-                        </div>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setValue("custoOperacional", parseFloat(sugestaoCustoOperacional.valor.toFixed(2)));
-                          executarCalculos();
-                        }}
-                        className="text-xs bg-[#04585a] hover:bg-[#034446] text-white font-bold px-3 py-1.5 rounded-lg border-0 transition shrink-0 cursor-pointer focus:outline-none"
-                      >
-                        Usar este valor
-                      </button>
-                    </div>
-                  )}
-
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-md">
                     <div>
                       <label className="flex items-end min-h-[32px] text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">
@@ -1213,15 +1200,13 @@ export function CreateMeal({
                         <DollarSign size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
                         <input
                           type="number"
-                          min={0}
-                          step="0.01"
                           {...register("custoOperacional", { valueAsNumber: true })}
-                          placeholder="Ex: 5.50"
-                          className={`${inputCls(!!errors.custoOperacional)} pl-8`}
+                          disabled
+                          className="w-full pl-8 pr-3 py-2.5 border border-gray-200 rounded-lg text-sm bg-gray-50 text-gray-500 font-bold outline-none cursor-not-allowed"
+                          title="Valor calculado automaticamente pelo rateio"
                         />
                       </div>
-                      <span className="text-[10px] text-gray-400 block mt-1">Ex: Luz, gás, salários...</span>
-                      {errors.custoOperacional && <p className="text-red-500 text-xs mt-1">{errors.custoOperacional.message}</p>}
+                      <span className="text-[10px] text-[#04585a] font-semibold block mt-1">Calculado na etapa 4</span>
                     </div>
 
                     <div>
@@ -1243,7 +1228,7 @@ export function CreateMeal({
                     </div>
                   </div>
                   <p className="text-xs text-gray-500 italic">
-                    O preço sugerido será calculado como: (Custo de Insumos + Custo Operacional) + Margem de Lucro (%).
+                    O preço sugerido será calculado como: (Custo de Insumos + Rateio Operacional) + Margem de Lucro (%).
                   </p>
                 </div>
               </section>

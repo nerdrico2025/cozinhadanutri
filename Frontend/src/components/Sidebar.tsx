@@ -50,7 +50,7 @@ const menuCategories = [
     items: [
       {
         tela: 'refeicao' as TelaAtiva,
-        titulo: 'Nova Refeição',
+        titulo: 'Nova Refeição e Precificação',
         Icon: Utensils,
         iconBgClass: 'bg-emerald-100',
         iconColor: '#059669',
@@ -62,23 +62,23 @@ const menuCategories = [
         iconBgClass: 'bg-blue-100',
         iconColor: '#2563eb',
       },
-      {
+     /*  {
         tela: 'producao' as TelaAtiva,
         titulo: 'Registrar Produção',
         Icon: PackageOpen,
         iconBgClass: 'bg-indigo-100',
         iconColor: '#4f46e5',
-      },
-      {
+      }, */
+      /* {
         tela: 'estoque' as TelaAtiva,
         titulo: 'Controle de Estoque',
         Icon: Archive,
         iconBgClass: 'bg-amber-100',
         iconColor: '#d97706',
-      },
+      }, */
     ],
   },
-  {
+  /*{
     nome: 'Financeiro & Estatísticas',
     items: [
       {
@@ -88,7 +88,7 @@ const menuCategories = [
         iconBgClass: 'bg-rose-100',
         iconColor: '#e11d48',
       },
-      {
+       {
         tela: 'estatisticas' as TelaAtiva,
         titulo: 'Estatísticas',
         Icon: BarChart3,
@@ -96,8 +96,8 @@ const menuCategories = [
         iconColor: '#4f46e5',
       },
     ],
-  },
-  {
+  }, */
+  /* {
     nome: 'Conteúdo',
     items: [
       {
@@ -108,7 +108,7 @@ const menuCategories = [
         iconColor: '#0891b2',
       },
     ],
-  },
+  }, */
 ];
 
 export function Sidebar({ activeTela, onNavegar }: SidebarProps) {

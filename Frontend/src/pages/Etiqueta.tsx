@@ -1116,7 +1116,7 @@ export function Etiqueta({ onVoltar, usuario }: EtiquetaProps): JSX.Element {
                   ))}
                 </div>
 
-                <span className="block text-xs font-semibold text-gray-500 uppercase mb-2">Alérgicos: Pode Conter (Cruzada)</span>
+                <span className="block text-xs font-semibold text-gray-500 uppercase mb-2">Alérgicos: Pode Conter</span>
                 <div className="grid grid-cols-2 gap-2 mb-3 border-b border-gray-100 pb-3">
                   {[
                     { id: 'leite', label: 'Leite' },

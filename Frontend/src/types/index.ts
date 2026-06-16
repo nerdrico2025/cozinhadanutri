@@ -100,6 +100,25 @@ export interface ItemEmbalagemSelecionada {
   isCustom?: boolean;
 }
 
+export interface CustosFixosMarmita {
+  aluguel: number;
+  internet: number;
+  contabilidade: number;
+  proLabore: number;
+  funcionarios: number;
+  sistemas: number;
+  marketing: number;
+  outros: number;
+}
+
+export interface CustosVariaveisMarmita {
+  energia: number;
+  agua: number;
+  gas: number;
+  taxasCartao: number;
+  outros: number;
+}
+
 export interface Refeicao {
   id: string;
   nome: string;
@@ -120,5 +139,8 @@ export interface Refeicao {
   alergicos?: Record<string, boolean>;
   podeConter?: Record<string, boolean>;
   outrosAlergenicos?: string;
+  producaoMarmitas?: number;
+  custosFixos?: CustosFixosMarmita;
+  custosVariaveis?: CustosVariaveisMarmita;
   createdAt: string; // ISO string
 }

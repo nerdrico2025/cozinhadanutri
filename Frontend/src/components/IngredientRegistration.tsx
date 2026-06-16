@@ -633,14 +633,14 @@ export function CadastroIngrediente({ ingredienteInicial, onSalvar, onCancelar, 
                             placeholder="Nome do fornecedor" className={inputCls(false)}
                           />
                         </div>
-                        <div>
+                        {/* <div>
                           <label className="block text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-1">Estoque Mínimo (Alerta)</label>
                           <input 
                             type="number" min={0} step="any"
                             value={estoqueMinimo} onChange={e => setEstoqueMinimo(e.target.value === '' ? '' : Number(e.target.value))}
                             placeholder="Ex: 1" className={inputCls(false)}
                           />
-                        </div>
+                        </div> */}
                       </div>
 
                       {/* Segunda Linha */}
