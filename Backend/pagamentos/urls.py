@@ -1,15 +1,17 @@
 from django.urls import path
+
 from .views import (
-    CreatePreferenceView,
+    CreatePaymentView,
     PaymentStatusView,
-    MercadoPagoWebhookView
+    AsaasWebhookView
 )
 
 urlpatterns = [
+
     path(
-        "preference/",
-        CreatePreferenceView.as_view(),
-        name="payment-preference"
+        "payment/",
+        CreatePaymentView.as_view(),
+        name="payment"
     ),
 
     path(
@@ -20,7 +22,7 @@ urlpatterns = [
 
     path(
         "webhook/",
-        MercadoPagoWebhookView.as_view(),
-        name="payment-webhook"
+        AsaasWebhookView.as_view(),
+        name="asaas-webhook"
     ),
 ]

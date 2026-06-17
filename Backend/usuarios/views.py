@@ -11,7 +11,6 @@ from .models import User
 from .serializer import AdminUserSerializer
 from .models import Auditoria
 from .serializer import AuditoriaSerializer
-from pagamentos.services import sdk
 
 
 from .models import (
