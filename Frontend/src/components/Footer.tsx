@@ -34,7 +34,7 @@ export function Footer({ onNavegar }: FooterProps) {
           <p className="text-sm text-teal-100 leading-relaxed">
             Tecnologia nutricional para quem transforma alimentos em negócio. Receitas, custos e rótulos num só lugar.
           </p>
-          <div className="flex items-center gap-3 mt-1">
+          {/* <div className="flex items-center gap-3 mt-1">
             <a
               href={`https://instagram.com/${config.instagram}`}
               target="_blank"
@@ -48,7 +48,7 @@ export function Footer({ onNavegar }: FooterProps) {
                 <circle cx="17.5" cy="6.5" r="1" fill="currentColor" stroke="none"/>
               </svg>
             </a>
-          </div>
+          </div> */}
         </div>
 
         {/* Sistema */}
