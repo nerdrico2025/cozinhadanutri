@@ -4,7 +4,9 @@ from rest_framework.response import Response
 from .services import (
     criar_cliente,
     criar_pagamento_pix,
-    consultar_pagamento
+    consultar_pagamento,
+    consultar_qr_code_pix,
+    criar_pagamento_indefinido
 )
 
 
@@ -16,6 +18,7 @@ class CreatePaymentView(APIView):
         email = request.data.get("email")
         cpf = request.data.get("cpf")
         valor = request.data.get("valor")
+        metodo = request.data.get("metodoPagamento")
 
         cliente = criar_cliente(
             nome,
@@ -23,13 +26,39 @@ class CreatePaymentView(APIView):
             cpf
         )
 
-        pagamento = criar_pagamento_pix(
-            cliente["id"],
-            valor,
-            "2026-12-31"
-        )
+        if "errors" in cliente:
+            return Response(cliente, status=400)
 
-        return Response(pagamento)
+        if metodo == "pix":
+            pagamento = criar_pagamento_pix(
+                cliente["id"],
+                valor,
+                "2026-12-31"
+            )
+            
+            if "errors" in pagamento:
+                return Response(pagamento, status=400)
+                
+            qr_data = consultar_qr_code_pix(pagamento["id"])
+            return Response({
+                "paymentId": pagamento.get("id"),
+                "pixQrCode": qr_data.get("encodedImage"),
+                "pixCopyPaste": qr_data.get("payload")
+            })
+        else:
+            pagamento = criar_pagamento_indefinido(
+                cliente["id"],
+                valor,
+                "2026-12-31"
+            )
+            
+            if "errors" in pagamento:
+                return Response(pagamento, status=400)
+                
+            return Response({
+                "paymentId": pagamento.get("id"),
+                "checkoutUrl": pagamento.get("invoiceUrl")
+            })
 
 
 class PaymentStatusView(APIView):

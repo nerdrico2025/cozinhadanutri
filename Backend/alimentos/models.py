@@ -12,7 +12,7 @@ UNIDADES = [('g', 'gramas'),
             ]
 
 class Alimento(models.Model):
-    numero = models.IntegerField(unique=True)
+    numero = models.IntegerField()
     descricao = models.CharField(max_length=255)
     
     energia_kcal = models.DecimalField(max_digits=20, decimal_places=4, null=True, blank=True, verbose_name='Valor energético (kcal)')

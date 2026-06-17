@@ -9,12 +9,14 @@ django.setup()
 from alimentos.models import Alimento
 
 # ler planilhas taco
-df_macro = pd.read_excel("original-Taco_4a_edicao_2011 (REVISADA).xlsx", sheet_name=0, header=2)
-df_ag = pd.read_excel("original-Taco_4a_edicao_2011 (REVISADA).xlsx", sheet_name='AGtaco3', header=2)
+df_macro = pd.read_excel("original-Taco_4a_edicao_2011_(REVISADA_v2).xlsx", sheet_name=0, header=2)
+df_ag = pd.read_excel("original-Taco_4a_edicao_2011_(REVISADA_v2).xlsx", sheet_name='AGtaco3', header=2)
+df_ibge = pd.read_excel("tabela_ibge_v1_completa.xlsx", sheet_name="Página1", header=2)
 
 # remover espaços extras dos nomes das colunas
 df_macro.columns = df_macro.columns.str.strip()
 df_ag.columns = df_ag.columns.str.strip()
+df_ibge.columns = df_ibge.columns.str.strip()
 
 # Juntar os dados baseando no Número do Alimento
 df_ag = df_ag.drop(columns=['Descri\u00e7\u00e3o dos alimentos'], errors='ignore')
@@ -33,7 +35,7 @@ def limpar_valor(valor):
     if isinstance(valor, str):
         valor = valor.strip()
 
-        if valor in ["Tr", "*", ""]: # valores inválidos da taco
+        if valor in ["Tr", "*", "", "-"]: # valores inválidos das planilhas
             return None
 
         # substituir vírgula por ponto para decimais
@@ -46,7 +48,7 @@ def limpar_valor(valor):
 
     return valor
 
-for _, row in df.iterrows(): # percorrer cada linha da planilha
+for _, row in df.iterrows(): # percorrer cada linha da planilha taco
     try:
         numero = row['Numero do Alimento']
 
@@ -59,7 +61,6 @@ for _, row in df.iterrows(): # percorrer cada linha da planilha
         if pd.isna(descricao):
             continue
 
-        kcal = limpar_valor(row['Energia (kcal)'])
 
         # se o alimento já existe, atualiza os dados, caso contrário, cria um novo registro
         Alimento.objects.update_or_create(
@@ -81,9 +82,9 @@ for _, row in df.iterrows(): # percorrer cada linha da planilha
                     (limpar_valor(row.get('18:1t (g)')) or 0) + (limpar_valor(row.get('18:2t (g)')) or 0)
                 ),
                 
-                # totais
-                'acucares_totais': 0,
-                'acucares_adicionados': 0,
+                # açúcares
+                'acucares_totais': limpar_valor(row.get('Açúcares Totais (g)')),
+                'acucares_adicionados': limpar_valor(row.get('Açúcares Adicionados (g)')),
             }
         )
 
@@ -120,5 +121,43 @@ for _, row in df.iterrows(): # percorrer cada linha da planilha
     except Exception as e:
         desc = str(row.get('Descricao dos alimentos', 'Desconhecido'))
         print(f"Erro ao processar alimento {desc.encode('ascii', 'ignore').decode()}: {e}")
+
+for _, row in df_ibge.iterrows(): # percorrer cada linha da planilha ibge
+    try:
+        numero = row['Número do Alimento']
+
+        if pd.isna(numero):
+            continue
+
+        descricao = row['Descrição dos alimentos']
+
+        if pd.isna(descricao):
+            continue
+
+        Alimento.objects.update_or_create(
+            numero=int(numero),
+            descricao=descricao,
+            defaults={
+                
+
+                'energia_kcal': limpar_valor(row.get('Energia (kcal)')),
+                'proteinas': limpar_valor(row.get('Proteína (g)')),
+                'gorduras_totais': limpar_valor(row.get('Lipídeos (g)')),
+                'carboidratos': limpar_valor(row.get('Carboidrato (g)')),
+                'fibra_alimentar': limpar_valor(row.get('Fibra Alimentar (g)')),
+
+                'gorduras_saturadas': limpar_valor(row.get('Gorduras Saturadas (g)')),
+                'gorduras_trans': limpar_valor(row.get('Gorduras Trans (g)')),
+
+                'sodio': limpar_valor(row.get('Sódio (mg)')),
+
+                'acucares_totais': limpar_valor(row.get('Açúcares Totais (g)')),
+                'acucares_adicionados': limpar_valor(row.get('Açúcares Adicionados (g)')),
+            }
+        )
+
+    except Exception as e:
+        desc = str(row.get('Descrição dos alimentos', 'Desconhecido'))
+        print(f"Erro ao processar alimento {desc}: {e}")
 
 print("Importação finalizada!")

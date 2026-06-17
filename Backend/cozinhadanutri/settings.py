@@ -219,6 +219,6 @@ STATIC_URL = 'static/'
 
 load_dotenv()
 
-MERCADO_PAGO_ACCESS_TOKEN = os.getenv(
-    "MERCADO_PAGO_ACCESS_TOKEN"
-)
+
+ASAAS_API_KEY = os.getenv("ASAAS_API_KEY")
+ASAAS_URL = os.getenv("ASAAS_URL", "https://sandbox.asaas.com/api/v3")

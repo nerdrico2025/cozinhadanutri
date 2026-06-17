@@ -337,8 +337,6 @@ class AdminUserDetailView(generics.RetrieveUpdateDestroyAPIView):
                 plano = Plano.objects.filter(id=1).first() or Plano.objects.filter(nome__iexact='grátis').first()
             elif plano_str == 'profissional':
                 plano = Plano.objects.filter(id=2).first() or Plano.objects.filter(nome__iexact='profissional').first()
-            elif plano_str == 'empresarial':
-                plano = Plano.objects.filter(id=3).first() or Plano.objects.filter(nome__iexact='empresarial').first()
             
             if plano:
                 user.empresa.plano = plano
