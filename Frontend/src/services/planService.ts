@@ -1,4 +1,4 @@
-export type Plano = 'Grátis' | 'Profissional' | 'Empresarial';
+export type Plano = 'Grátis' | 'Profissional';
 
 export interface PlanData {
   mensal: number;
@@ -27,18 +27,6 @@ const DEFAULT_PLANS: Record<Plano, PlanData> = {
       'Precificação avançada',
       'Exportar rótulos em PDF',
       'Suporte prioritário',
-    ]
-  },
-  'Empresarial': {
-    mensal: 99,
-    anual: 79,
-    recursos: [
-      'Tudo do Profissional',
-      'Múltiplos usuários',
-      'Relatórios gerenciais',
-      'API de integração',
-      'Onboarding dedicado',
-      'Histórico de receitas',
     ]
   }
 };
@@ -74,9 +62,7 @@ export const MAP_PLANO_FRONTEND_TO_DB: Record<string, number> = {
   'gratis': 1,
   'iniciante': 1,
   'profissional': 2,
-  'basico': 2,
-  'empresarial': 3,
-  'premium': 3
+  'basico': 2
 };
 
 export const obterMeuPlano = async (): Promise<EmpresaPlanoResponse> => {

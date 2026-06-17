@@ -1,4 +1,4 @@
-const API_BASE = import.meta.env.VITE_API_BASE_URL as string;
+const API_BASE = import.meta.env.VITE_API_URL as string;
 
 export type PlanoId = 'profissional' | 'empresarial';
 export type MetodoPagamento = 'pix' | 'cartao';
@@ -8,6 +8,7 @@ export interface PagamentoPayload {
   email: string;
   cpf: string;
   valor: number;
+  metodoPagamento: 'pix' | 'cartao';
 }
 
 export interface PreferenciaResposta {
@@ -29,7 +30,7 @@ export interface StatusPagamentoResposta {
 export async function criarPagamento(
   payload: PagamentoPayload
 ): Promise<PreferenciaResposta> {
-  const res = await fetch(`${API_BASE}/api/payments/`, {
+  const res = await fetch(`${API_BASE}/api/payments/payment/`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
@@ -37,9 +38,8 @@ export async function criarPagamento(
 
   if (!res.ok) {
     const erro = await res.json().catch(() => ({}));
-    throw new Error(
-      (erro as { message?: string }).message ?? 'Erro ao criar cobrança no Asaas.'
-    );
+    const message = erro.errors?.[0]?.description || erro.message || 'Erro ao criar cobrança no Asaas.';
+    throw new Error(message);
   }
 
   return res.json() as Promise<PreferenciaResposta>;

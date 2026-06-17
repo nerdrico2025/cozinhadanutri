@@ -109,6 +109,7 @@ export function Payments({ usuario, planoPreSelecionado, onVoltar, onLogin }: Pa
         email: usuario.email,
         cpf: cpf.replace(/\D/g, ''),
         valor: valorFinal,
+        metodoPagamento: metodoPagamento,
       });
 
       if (resposta.checkoutUrl) {
