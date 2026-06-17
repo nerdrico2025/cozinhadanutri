@@ -12,15 +12,9 @@ import {
   QrCode,
   ChevronDown,
 } from 'lucide-react';
-import { criarPreferencia, PlanoId, MetodoPagamento } from '../services/mercadoPagoApi';
+import { criarPagamento, PlanoId, MetodoPagamento } from '../services/asaasApi';
 import { UsuarioLogado } from '../types';
-import { initMercadoPago, Wallet } from '@mercadopago/sdk-react';
 import { trocarPlano, MAP_PLANO_FRONTEND_TO_DB } from '../services/planService';
-
-// Inicializa o Mercado Pago com a chave pública
-// IMPORTANTE: Adicione VITE_MP_PUBLIC_KEY no seu arquivo .env do Frontend
-const MP_PUBLIC_KEY = import.meta.env.VITE_MP_PUBLIC_KEY as string || 'TEST-sua-public-key-aqui';
-initMercadoPago(MP_PUBLIC_KEY, { locale: 'pt-BR' });
 
 interface Plano {
   id: PlanoId;
@@ -91,13 +85,18 @@ export function Payments({ usuario, planoPreSelecionado, onVoltar, onLogin }: Pa
   const [cicloAnual, setCicloAnual] = useState(false);
   const [metodoPagamento, setMetodoPagamento] = useState<MetodoPagamento | null>(null);
   const [parcelas, setParcelas] = useState(1);
+  const [cpf, setCpf] = useState(usuario?.empresa?.cnpj || '');
   const [carregando, setCarregando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
-  const [preferenceId, setPreferenceId] = useState<string | null>(null);
+  const [checkoutUrl, setCheckoutUrl] = useState<string | null>(null);
+  const [pixQrCode, setPixQrCode] = useState<string | null>(null);
+  const [pixCopyPaste, setPixCopyPaste] = useState<string | null>(null);
 
   useEffect(() => {
-    // Se o usuário alterar opções, invalidamos o preferenceId gerado para forçar um novo
-    setPreferenceId(null);
+    // Se o usuário alterar opções, resetamos os dados de checkout
+    setCheckoutUrl(null);
+    setPixQrCode(null);
+    setPixCopyPaste(null);
   }, [planoSelecionado, cicloAnual, metodoPagamento, parcelas]);
 
   const planoAtual = planos.find((p) => p.id === planoSelecionado);
@@ -108,30 +107,34 @@ export function Payments({ usuario, planoPreSelecionado, onVoltar, onLogin }: Pa
   const valorFinal = metodoPagamento === 'pix' ? valorBase * (1 - DESCONTO_PIX) : valorBase;
   const valorParcela = valorFinal / parcelas;
 
-  const podePagar = !!planoAtual && !!metodoPagamento;
+  const podePagar = !!planoAtual && !!metodoPagamento && cpf.replace(/\D/g, '').length >= 11;
 
   const handleAssinar = async () => {
-    if (!planoAtual || !metodoPagamento) return;
+    if (!planoAtual || !metodoPagamento || !cpf) return;
     if (!usuario) { onLogin?.(); return; }
 
     setCarregando(true);
     setErro(null);
-    setPreferenceId(null);
+    setCheckoutUrl(null);
+    setPixQrCode(null);
+    setPixCopyPaste(null);
 
     try {
-      const resposta = await criarPreferencia({
-        planoId: planoAtual.id,
-        planoNome: planoAtual.nome,
+      const resposta = await criarPagamento({
+        nome: usuario.nome || usuario.empresa?.razao_social || 'Cliente',
+        email: usuario.email,
+        cpf: cpf.replace(/\D/g, ''),
         valor: valorFinal,
-        usuarioEmail: usuario.email,
-        usuarioNome: usuario.nome,
-        metodoPagamento,
-        parcelas: metodoPagamento === 'cartao' ? parcelas : undefined,
       });
 
-      // O SDK do Mercado Pago usa o preferenceId para renderizar o botão Wallet (Checkout Pro),
-      // em vez de redirecionar manualmente o usuário pelo window.location.
-      setPreferenceId(resposta.preferenceId);
+      if (resposta.checkoutUrl) {
+        setCheckoutUrl(resposta.checkoutUrl);
+        // Redireciona imediatamente para o Asaas se for link
+        window.location.href = resposta.checkoutUrl;
+      } else if (resposta.pixQrCode && resposta.pixCopyPaste) {
+        setPixQrCode(resposta.pixQrCode);
+        setPixCopyPaste(resposta.pixCopyPaste);
+      }
       
       // Atualiza o plano localmente e no banco de dados para fins de simulação/teste local
       const dbPlanoId = MAP_PLANO_FRONTEND_TO_DB[planoAtual.id];
@@ -139,11 +142,6 @@ export function Payments({ usuario, planoPreSelecionado, onVoltar, onLogin }: Pa
         await trocarPlano(dbPlanoId);
         window.dispatchEvent(new Event('session_updated'));
       }
-      
-      // Obs: a lógica de redirecionamento manual abaixo foi substituída pelo componente Wallet.
-      // const isSandbox = import.meta.env.DEV;
-      // const url = isSandbox ? resposta.sandboxInitPoint : resposta.initPoint;
-      // window.location.href = url;
     } catch (err) {
       setErro(
         err instanceof Error ? err.message : 'Erro ao iniciar o pagamento. Tente novamente.'
@@ -168,7 +166,7 @@ export function Payments({ usuario, planoPreSelecionado, onVoltar, onLogin }: Pa
         ) : <div />}
         <p className="text-xs text-gray-400 flex items-center gap-1.5">
           <ShieldCheck size={12} className="text-[#04585a]" />
-          Pagamento seguro via Mercado Pago
+          Pagamento seguro via Asaas
         </p>
       </div>
 
@@ -357,6 +355,20 @@ export function Payments({ usuario, planoPreSelecionado, onVoltar, onLogin }: Pa
                   </div>
                 </div>
               )}
+              {/* CPF / CNPJ */}
+              <div className="flex flex-col gap-1.5 mt-4">
+                <label htmlFor="cpf" className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                  CPF ou CNPJ para faturamento
+                </label>
+                <input
+                  id="cpf"
+                  type="text"
+                  value={cpf}
+                  onChange={(e) => setCpf(e.target.value)}
+                  placeholder="000.000.000-00"
+                  className="w-full rounded-xl border-2 border-gray-200 bg-white px-4 py-2.5 text-sm text-gray-800 focus:outline-none focus:border-[#04585a] transition"
+                />
+              </div>
             </div>
           </div>
 
@@ -415,8 +427,8 @@ export function Payments({ usuario, planoPreSelecionado, onVoltar, onLogin }: Pa
                       </div>
                     )}
 
-                    {/* Botão ou Wallet do Mercado Pago */}
-                    {!preferenceId ? (
+                    {/* Botão de pagamento Asaas */}
+                    {!checkoutUrl && !pixQrCode ? (
                       <button
                         type="button"
                         onClick={handleAssinar}
@@ -428,7 +440,7 @@ export function Payments({ usuario, planoPreSelecionado, onVoltar, onLogin }: Pa
                         }`}
                       >
                         {carregando ? (
-                          <><Loader2 size={15} className="animate-spin" /> Preparando...</>
+                          <><Loader2 size={15} className="animate-spin" /> Processando...</>
                         ) : metodoPagamento === 'pix' ? (
                           <><QrCode size={15} /> Pagar com PIX</>
                         ) : metodoPagamento === 'cartao' ? (
@@ -437,22 +449,45 @@ export function Payments({ usuario, planoPreSelecionado, onVoltar, onLogin }: Pa
                           'Selecione como pagar'
                         )}
                       </button>
+                    ) : pixQrCode ? (
+                      <div className="mt-2 w-full bg-white rounded-xl p-4 flex flex-col items-center">
+                        <p className="text-center text-sm text-[#04585a] font-bold mb-2">Escaneie o QR Code</p>
+                        <img src={`data:image/png;base64,${pixQrCode}`} alt="QR Code PIX" className="w-48 h-48 mb-4 object-contain" />
+                        <div className="w-full flex flex-col gap-2">
+                          <p className="text-xs text-gray-500 font-semibold text-center">Ou copie e cole o código abaixo:</p>
+                          <input 
+                            type="text" 
+                            value={pixCopyPaste ?? ''} 
+                            readOnly 
+                            className="w-full px-3 py-2 border rounded-lg text-xs outline-none text-gray-700 bg-gray-50"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (pixCopyPaste) navigator.clipboard.writeText(pixCopyPaste);
+                              alert("Código copiado!");
+                            }}
+                            className="w-full bg-[#04585a] text-white py-2 rounded-lg text-sm font-semibold hover:bg-[#034042] transition"
+                          >
+                            Copiar Código
+                          </button>
+                        </div>
+                      </div>
                     ) : (
-                      <div className="mt-2 w-full">
-                        <p className="text-center text-xs text-white/80 mb-2">Clique abaixo para finalizar com segurança:</p>
-                        <Wallet initialization={{ preferenceId }} />
+                      <div className="mt-2 w-full text-center">
+                        <p className="text-sm text-white/80">Redirecionando para o pagamento seguro...</p>
                       </div>
                     )}
 
-                    {/* Link MP */}
+                    {/* Link Asaas */}
                     <a
-                      href="https://www.mercadopago.com.br/seguranca"
+                      href="https://www.asaas.com"
                       target="_blank"
                       rel="noopener noreferrer"
                       className="flex items-center justify-center gap-1.5 text-xs text-white/40 hover:text-white/70 transition"
                     >
                       <ExternalLink size={10} />
-                      Checkout seguro — Mercado Pago
+                      Checkout seguro — Asaas
                     </a>
                   </>
                 ) : (

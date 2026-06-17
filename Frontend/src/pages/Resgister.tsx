@@ -183,7 +183,7 @@ function FormPessoaJuridica({ onCadastrar, onVerTermos, onVerPrivacidade }: { on
         setCnpjValido(false);
         clearErrors('cnpj');
         try {
-          const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+          const apiUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
           const res = await fetch(`${apiUrl}/api/cnpj/${rawCnpj}/`, {
             method: 'GET',
             headers: {
