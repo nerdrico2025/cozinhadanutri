@@ -680,11 +680,13 @@ function App() {
         return (
           <ListaReceitas
             receitas={receitas}
+            temIngredientes={ingredientes.length > 0}
             onEditar={(r) => { setReceitaEmEdicao(r); setTelaAtiva('criar-receita'); }}
             onRemover={handleRemoverReceita}
             onGerarRotulo={(r) => {
               window.location.hash = `etiqueta?id=${r.id}`;
             }}
+            onNovaReceita={() => { setReceitaEmEdicao(undefined); setTelaAtiva('criar-receita'); }}
           />
         );
       case 'cadastro-ingrediente':
@@ -705,6 +707,7 @@ function App() {
             ingredientes={ingredientes}
             onEditar={(i) => { setIngredienteEmEdicao(i); setTelaAtiva('cadastro-ingrediente'); }}
             onRemover={handleRemoverIngrediente}
+            onNovoIngrediente={() => { setIngredienteEmEdicao(undefined); setTelaAtiva('cadastro-ingrediente'); }}
           />
         );
       case 'login':

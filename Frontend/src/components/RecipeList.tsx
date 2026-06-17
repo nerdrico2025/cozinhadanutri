@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { 
+  Plus,
   ChefHat, 
   Calculator, 
   Trash2, 
@@ -24,6 +25,8 @@ interface ListaReceitasProps {
   onEditar?: (receita: Receita) => void;
   onRemover: (id: string, senha?: string) => void;
   onGerarRotulo?: (receita: Receita) => void;
+  onNovaReceita?: () => void;
+  temIngredientes?: boolean;
 }
 
 const obterEquivalenciaPorcao = (receita: Receita) => {
@@ -78,7 +81,7 @@ const obterEquivalenciaPorcao = (receita: Receita) => {
   return partes.join(' + ');
 };
 
-export function ListaReceitas({ receitas, onEditar, onRemover, onGerarRotulo }: ListaReceitasProps) {
+export function ListaReceitas({ receitas, temIngredientes, onEditar, onRemover, onGerarRotulo, onNovaReceita }: ListaReceitasProps) {
   const [query, setQuery] = useState('');
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [deleteModal, setDeleteModal] = useState<{ isOpen: boolean; recipeId: string | null; recipeName: string }>({
@@ -100,14 +103,20 @@ export function ListaReceitas({ receitas, onEditar, onRemover, onGerarRotulo }: 
 
   if (receitas.length === 0) {
     return (
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm px-8 py-20 text-center">
-        <div className="flex justify-center mb-6">
-          <div className="p-5 rounded-3xl bg-teal-50 text-teal-500">
-            <ChefHat size={48} strokeWidth={1.5} />
-          </div>
+      <div className="bg-white rounded-3xl border border-gray-100 shadow-sm px-8 py-20 text-center max-w-3xl mx-auto mt-6 flex flex-col items-center justify-center">
+        <div className="p-6 rounded-full bg-teal-50/50 text-teal-500 mb-6">
+          <ChefHat size={48} strokeWidth={1.5} />
         </div>
-        <h3 className="text-xl font-bold text-gray-800 mb-2">Sua cozinha está vazia</h3>
-        <p className="text-gray-500 max-w-xs mx-auto">Crie sua primeira receita para começar a organizar sua produção e precificar com precisão.</p>
+        <h3 className="text-2xl font-black text-gray-800 mb-3">Sua cozinha está vazia</h3>
+        <p className="text-sm text-gray-500 max-w-md mx-auto mb-8 leading-relaxed">Crie sua primeira receita para começar a organizar sua produção e precificar com precisão.</p>
+        {onNovaReceita && temIngredientes && (
+          <button
+            onClick={onNovaReceita}
+            className="px-8 py-3 bg-teal-600 hover:bg-teal-700 text-white font-bold text-sm rounded-xl border-0 cursor-pointer shadow-sm transition hover:shadow-md hover:-translate-y-0.5"
+          >
+            Criar Nova Receita
+          </button>
+        )}
       </div>
     );
   }
@@ -128,21 +137,33 @@ export function ListaReceitas({ receitas, onEditar, onRemover, onGerarRotulo }: 
           </div>
         </div>
 
-        <div className="relative w-full sm:w-72">
-          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
-          <input
-            type="text"
-            placeholder="Buscar por nome ou descrição..."
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            className="w-full pl-10 pr-10 py-2.5 text-sm rounded-xl border border-gray-200 bg-gray-50 focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 focus:bg-white transition-all placeholder-gray-400"
-          />
-          {query && (
+        <div className="flex items-center gap-3 w-full sm:w-auto shrink-0">
+          <div className="relative w-full sm:w-72">
+            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+            <input
+              type="text"
+              placeholder="Buscar por nome ou descrição..."
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              className="w-full pl-10 pr-10 py-2.5 text-sm rounded-xl border border-gray-200 bg-gray-50 focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 focus:bg-white transition-all placeholder-gray-400"
+            />
+            {query && (
+              <button
+                onClick={() => setQuery('')}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 border-0 bg-transparent cursor-pointer p-0 focus:outline-none"
+              >
+                <X size={16} />
+              </button>
+            )}
+          </div>
+          
+          {onNovaReceita && temIngredientes && (
             <button
-              onClick={() => setQuery('')}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+              onClick={onNovaReceita}
+              className="flex items-center gap-1.5 px-4 py-2.5 bg-teal-600 hover:bg-teal-700 text-white font-bold text-sm rounded-xl border-0 cursor-pointer shadow-sm transition whitespace-nowrap"
             >
-              <X size={16} />
+              <Plus size={16} />
+              <span className="hidden sm:inline">Criar Receita</span>
             </button>
           )}
         </div>

@@ -65,13 +65,54 @@ export function CreateMeal({
   const [calculos, setCalculos] = useState<CalculosRefeicao | null>(null);
 
   // Novos Estados para a Calculadora de Rateio
-  const [producaoMarmitas, setProducaoMarmitas] = useState<number>(refeicaoInicial?.producaoMarmitas || 1);
-  const [custosFixos, setCustosFixos] = useState<CustosFixosMarmita>(refeicaoInicial?.custosFixos || {
-    aluguel: 0, internet: 0, contabilidade: 0, proLabore: 0,
-    funcionarios: 0, sistemas: 0, marketing: 0, outros: 0
+  const [producaoMarmitas, setProducaoMarmitas] = useState<number>(() => {
+    if (refeicaoInicial?.producaoMarmitas) return refeicaoInicial.producaoMarmitas;
+    try {
+      const salvas = localStorage.getItem('refeicoes');
+      if (salvas) {
+        const parsed = JSON.parse(salvas);
+        if (parsed.length > 0) {
+          const ultima = parsed[parsed.length - 1];
+          if (ultima.producaoMarmitas) return ultima.producaoMarmitas;
+        }
+      }
+    } catch (e) {}
+    return 1;
   });
-  const [custosVariaveis, setCustosVariaveis] = useState<CustosVariaveisMarmita>(refeicaoInicial?.custosVariaveis || {
-    energia: 0, agua: 0, gas: 0, taxasCartao: 0, outros: 0
+
+  const [custosFixos, setCustosFixos] = useState<CustosFixosMarmita>(() => {
+    if (refeicaoInicial?.custosFixos) return refeicaoInicial.custosFixos;
+    try {
+      const salvas = localStorage.getItem('refeicoes');
+      if (salvas) {
+        const parsed = JSON.parse(salvas);
+        if (parsed.length > 0) {
+          const ultima = parsed[parsed.length - 1];
+          if (ultima.custosFixos) return ultima.custosFixos;
+        }
+      }
+    } catch (e) {}
+    return {
+      aluguel: 0, internet: 0, contabilidade: 0, proLabore: 0,
+      funcionarios: 0, sistemas: 0, marketing: 0, outros: 0
+    };
+  });
+
+  const [custosVariaveis, setCustosVariaveis] = useState<CustosVariaveisMarmita>(() => {
+    if (refeicaoInicial?.custosVariaveis) return refeicaoInicial.custosVariaveis;
+    try {
+      const salvas = localStorage.getItem('refeicoes');
+      if (salvas) {
+        const parsed = JSON.parse(salvas);
+        if (parsed.length > 0) {
+          const ultima = parsed[parsed.length - 1];
+          if (ultima.custosVariaveis) return ultima.custosVariaveis;
+        }
+      }
+    } catch (e) {}
+    return {
+      energia: 0, agua: 0, gas: 0, taxasCartao: 0, outros: 0
+    };
   });
 
   const [embalagensSelecionadas, setEmbalagensSelecionadas] = useState<ItemEmbalagemSelecionada[]>([]);
@@ -759,10 +800,10 @@ export function CreateMeal({
                         </div>
 
                         {/* Seleção de Receita e Quantidade Dinâmica */}
-                        <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-end">
-                          <div className="md:col-span-6">
-                            <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">
-                              Selecionar Receita Cadastrada <span className="text-red-400">*</span>
+                        <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-start">
+                          <div className="md:col-span-6 flex flex-col">
+                            <label className="flex items-end min-h-[32px] text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">
+                              Selecionar Receita Cadastrada <span className="text-red-400 ml-1">*</span>
                             </label>
                             <select
                               {...register(`receitas.${index}.receitaId`)}
@@ -780,9 +821,9 @@ export function CreateMeal({
                             )}
                           </div>
 
-                          <div className="md:col-span-3">
-                            <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">
-                              Quantidade Utilizada <span className="text-red-400">*</span>
+                          <div className="md:col-span-3 flex flex-col">
+                            <label className="flex items-end min-h-[32px] text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">
+                              Quantidade Utilizada <span className="text-red-400 ml-1">*</span>
                             </label>
                             <input
                               type="number"
@@ -797,8 +838,8 @@ export function CreateMeal({
                             )}
                           </div>
 
-                          <div className="md:col-span-3">
-                            <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">
+                          <div className="md:col-span-3 flex flex-col">
+                            <label className="flex items-end min-h-[32px] text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">
                               Unidade de Medida
                             </label>
                             <select
@@ -1193,7 +1234,7 @@ export function CreateMeal({
                   </div>
                 </div>
                 <div className="p-5 flex flex-col gap-4">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-md">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                       <label className="flex items-end min-h-[32px] text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">
                         Custo Operacional p/ Marmita (R$)

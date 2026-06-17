@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { 
-  Trash2, Edit3, Package, DollarSign, Flame, Beef, Wheat, 
+  Plus, Trash2, Edit3, Package, DollarSign, Flame, Beef, Wheat, 
   Droplets, Search, X, ChevronDown, ChevronUp, Info, 
   Activity, Scale, AlertTriangle
 } from 'lucide-react';
@@ -11,6 +11,7 @@ interface ListaIngredientesProps {
   ingredientes: Ingrediente[];
   onEditar?: (ingrediente: Ingrediente) => void;
   onRemover: (id: string, senha?: string) => void;
+  onNovoIngrediente?: () => void;
 }
 
 const resumoNutrientes = [
@@ -35,7 +36,7 @@ const todosNutrientes = [
   { key: 'minerais', label: 'Minerais', unit: 'g', Icon: Scale, color: 'text-indigo-500', bg: 'bg-indigo-50' },
 ];
 
-export function ListaIngredientes({ ingredientes, onEditar, onRemover }: ListaIngredientesProps) {
+export function ListaIngredientes({ ingredientes, onEditar, onRemover, onNovoIngrediente }: ListaIngredientesProps) {
   const [query, setQuery] = useState('');
   const [expandido, setExpandido] = useState<string | null>(null);
   const [itemParaRemover, setItemParaRemover] = useState<Ingrediente | null>(null);
@@ -92,14 +93,20 @@ export function ListaIngredientes({ ingredientes, onEditar, onRemover }: ListaIn
 
   if (ingredientes.length === 0) {
     return (
-      <div className="bg-white rounded-xl border border-gray-100 shadow-sm px-8 py-16 text-center">
-        <div className="flex justify-center mb-4">
-          <div className="p-4 rounded-2xl bg-gray-50">
-            <Package size={40} className="text-gray-300" />
-          </div>
+      <div className="bg-white rounded-3xl border border-gray-100 shadow-sm px-8 py-20 text-center max-w-3xl mx-auto mt-6 flex flex-col items-center justify-center">
+        <div className="p-6 rounded-full bg-teal-50/50 text-teal-500 mb-6">
+          <Package size={48} strokeWidth={1.5} />
         </div>
-        <h3 className="text-base font-semibold text-gray-500 mb-1">Nenhum ingrediente cadastrado</h3>
-        <p className="text-sm text-gray-400">Cadastre seus primeiros ingredientes para começar a criar receitas.</p>
+        <h3 className="text-2xl font-black text-gray-800 mb-3">Nenhum ingrediente cadastrado</h3>
+        <p className="text-sm text-gray-500 max-w-md mx-auto mb-8 leading-relaxed">Cadastre seus primeiros ingredientes para começar a criar receitas.</p>
+        {onNovoIngrediente && (
+          <button
+            onClick={onNovoIngrediente}
+            className="px-8 py-3 bg-teal-600 hover:bg-teal-700 text-white font-bold text-sm rounded-xl border-0 cursor-pointer shadow-sm transition hover:shadow-md hover:-translate-y-0.5"
+          >
+            Cadastrar Ingrediente
+          </button>
+        )}
       </div>
     );
   }
@@ -141,9 +148,17 @@ export function ListaIngredientes({ ingredientes, onEditar, onRemover }: ListaIn
           </div>
         </div>
 
-        {/* Lado Direito: Espaçador para manter o centro (ou futuras ações) */}
-        <div className="hidden lg:flex lg:w-1/4 justify-end">
-          {/* Espaço reservado para manter o equilíbrio visual */}
+        {/* Lado Direito: Ações */}
+        <div className="flex justify-start lg:justify-end lg:w-1/4">
+          {onNovoIngrediente && (
+            <button
+              onClick={onNovoIngrediente}
+              className="flex items-center gap-2 px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white font-bold text-sm rounded-xl border-0 cursor-pointer shadow-sm transition whitespace-nowrap"
+            >
+              <Plus size={16} />
+              Cadastrar Ingrediente
+            </button>
+          )}
         </div>
       </div>
 

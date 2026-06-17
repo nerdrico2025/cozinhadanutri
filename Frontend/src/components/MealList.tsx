@@ -73,18 +73,16 @@ export function MealList({ refeicoes, receitasDisponiveis, onEditar, onRemover, 
 
   if (refeicoes.length === 0) {
     return (
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm px-8 py-20 text-center max-w-5xl mx-auto mt-6">
-        <div className="flex justify-center mb-6">
-          <div className="p-5 rounded-3xl bg-[#04585a]/10 text-[#04585a]">
-            <UtensilsCrossed size={48} strokeWidth={1.5} />
-          </div>
+      <div className="bg-white rounded-3xl border border-gray-100 shadow-sm px-8 py-20 text-center max-w-3xl mx-auto mt-6 flex flex-col items-center justify-center">
+        <div className="p-6 rounded-full bg-[#04585a]/5 text-[#04585a] mb-6">
+          <UtensilsCrossed size={48} strokeWidth={1.5} />
         </div>
-        <h3 className="text-xl font-bold text-gray-800 mb-2">Nenhuma refeição cadastrada</h3>
-        <p className="text-gray-500 max-w-xs mx-auto mb-6">Monte sua primeira marmita combinando receitas, embalagens e calculando seu custo real.</p>
-        {onNovaRefeicao && (
+        <h3 className="text-2xl font-black text-gray-800 mb-3">Nenhuma refeição cadastrada</h3>
+        <p className="text-sm text-gray-500 max-w-md mx-auto mb-8 leading-relaxed">Monte sua primeira marmita combinando receitas, embalagens e calculando seu custo real.</p>
+        {onNovaRefeicao && receitasDisponiveis.length > 0 && (
           <button
             onClick={onNovaRefeicao}
-            className="px-6 py-2.5 bg-[#04585a] hover:bg-[#034446] text-white font-bold text-sm rounded-xl border-0 cursor-pointer shadow-sm transition"
+            className="px-8 py-3 bg-[#04585a] hover:bg-[#034446] text-white font-bold text-sm rounded-xl border-0 cursor-pointer shadow-sm transition hover:shadow-md hover:-translate-y-0.5"
           >
             Criar Nova Refeição
           </button>
@@ -129,7 +127,7 @@ export function MealList({ refeicoes, receitasDisponiveis, onEditar, onRemover, 
             )}
           </div>
           
-          {onNovaRefeicao && (
+          {onNovaRefeicao && receitasDisponiveis.length > 0 && (
             <button
               onClick={onNovaRefeicao}
               className="flex items-center gap-1.5 px-4 py-2 bg-[#04585a] hover:bg-[#034446] text-white font-bold text-sm rounded-xl border-0 cursor-pointer shadow-sm transition whitespace-nowrap"
