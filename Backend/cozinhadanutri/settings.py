@@ -46,7 +46,7 @@ EMAILJS_PUBLIC_KEY = os.environ.get('EMAILJS_PUBLIC_KEY')
 EMAILJS_PRIVATE_KEY = os.environ.get('EMAILJS_PRIVATE_KEY')
 SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-dev-fallback-key')
 RECEITAWS_API_TOKEN = os.environ.get('RECEITAWS_API_TOKEN')
-
+MP_ACCESS_TOKEN = os.environ.get('MP_ACCESS_TOKEN')
 
 
 # Quick-start development settings - unsuitable for production
@@ -215,3 +215,10 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/6.0/howto/static-files/
 
 STATIC_URL = 'static/'
+
+
+load_dotenv()
+
+MERCADO_PAGO_ACCESS_TOKEN = os.getenv(
+    "MERCADO_PAGO_ACCESS_TOKEN"
+)

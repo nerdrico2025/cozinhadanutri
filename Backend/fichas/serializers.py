@@ -1,6 +1,14 @@
 from rest_framework import serializers
 from .models import ConfiguracaoEtiqueta
 from .models import Etiqueta
+from .models import FichaTecnica
+
+
+class LupasSerializer(serializers.Serializer):
+    alto_acucar = serializers.BooleanField()
+    alto_gordura_saturada = serializers.BooleanField()
+    alto_sodio = serializers.BooleanField()
+
 
 class TabelaNutricionalSerializer(serializers.Serializer):
     gorduras_totais = serializers.FloatField()
@@ -21,12 +29,13 @@ class RotuloSerializer(serializers.Serializer):
         child=serializers.CharField()
     )
     tabela_nutricional = TabelaNutricionalSerializer()
+    lupas = LupasSerializer()
+
 
 class ConfiguracaoEtiquetaSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = ConfiguracaoEtiqueta
-
         fields = [
             'id',
             'nome_personalizado',
@@ -34,6 +43,7 @@ class ConfiguracaoEtiquetaSerializer(serializers.ModelSerializer):
             'informacoes_complementares',
             'tamanho_etiqueta'
         ]
+
 
 class EtiquetaSerializer(serializers.ModelSerializer):
 

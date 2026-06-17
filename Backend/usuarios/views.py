@@ -12,6 +12,7 @@ from .serializer import AdminUserSerializer
 from .models import Auditoria
 from .serializer import AuditoriaSerializer
 
+
 from .models import (
     User,
     Auditoria,
@@ -507,14 +508,34 @@ class ConsultaCNPJView(APIView):
             "cep": data.get("cep", ""),
         })
     
-class PaymentPreferenceView(APIView):
+
+class CreatePreferenceView(APIView):
 
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
 
+        plano = request.data.get("plano", "Premium")
+
+        preference_data = {
+            "items": [
+                {
+                    "title": f"Plano {plano}",
+                    "quantity": 1,
+                    "currency_id": "BRL",
+                    "unit_price": 49.90
+                }
+            ]
+        }
+
+        result = sdk.preference().create(
+            preference_data
+        )
+
+        preference = result["response"]
+
         return Response({
-            "detail": "Mercado Pago ainda não implementado"
+            "preference_id": preference["id"]
         })
 
 

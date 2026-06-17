@@ -1,10 +1,9 @@
 from decimal import Decimal
-
 from django.shortcuts import get_object_or_404
-
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
+from .services import calcular_lupas
 
 from .models import (
     Etiqueta,
@@ -116,7 +115,7 @@ class RotuloView(APIView):
         ingredientes = IngredienteFichaTecnica.objects.filter(
             ficha=ficha
         )
-
+    
         tabela = {
             "gorduras_totais": Decimal('0'),
             "energia_kcal": Decimal('0'),
@@ -178,11 +177,14 @@ class RotuloView(APIView):
                 alimento.sodio or 0
             ) * fator
 
+        lupas = calcular_lupas(tabela)
+
         dados = {
             "nome_produto": ficha.nome,
             "porcao": "100g",
             "ingredientes": lista_ingredientes,
-            "tabela_nutricional": tabela
+            "tabela_nutricional": tabela,
+            "lupas": lupas
         }
 
         serializer = RotuloSerializer(dados)
@@ -267,3 +269,4 @@ class EtiquetaView(APIView):
             serializer.errors,
             status=400
         )
+
