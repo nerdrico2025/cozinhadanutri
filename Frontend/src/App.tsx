@@ -294,7 +294,10 @@ function App() {
     console.log('USUARIO LOGADO:', logado.email, 'ROLE:', logado.role);
     
     // Ordem de prioridade no redirecionamento:
-    if (rascunhoReceita) {
+    if (planoPreSelecionado) {
+      console.log('REDIRECIONANDO PARA: pagamento (plano pre-selecionado)');
+      setTelaAtiva('pagamento');
+    } else if (rascunhoReceita) {
       console.log('REDIRECIONANDO PARA: criar-receita (rascunho)');
       setTelaAtiva('criar-receita');
     } else if (logado.role === 'admin') {
@@ -318,7 +321,9 @@ function App() {
       const logado = await login(dados.email, dados.senha);
       if (logado) {
         setUsuario(logado);
-        if (rascunhoReceita) {
+        if (planoPreSelecionado) {
+          setTelaAtiva('pagamento');
+        } else if (rascunhoReceita) {
           setTelaAtiva('criar-receita');
         } else {
           setTelaAtiva('boas-vindas');

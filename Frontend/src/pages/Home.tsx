@@ -29,9 +29,9 @@ const funcionalidades: Funcionalidade[] = [
     imageAlt: "Calculadora e finanças",
   },
   {
-    titulo: "Dados Nutricionais TACO",
+    titulo: "Dados Nutricionais TACO e IBGE",
     descricao:
-      "Informações nutricionais precisas obtidas diretamente da Tabela Brasileira de Composição de Alimentos.",
+      "Informações nutricionais precisas obtidas diretamente da Tabela Brasileira de Composição de Alimentos e da Tabela do IBGE.",
     Icon: FlaskConical,
     imagemUrl:
       "https://imgv2-1-f.scribdassets.com/img/document/38777470/original/e7af914de2/1?v=1",
@@ -106,9 +106,9 @@ const diferenciais = [
       "Rótulos gerados em conformidade com a RDC 429/2020 e IN 75/2020 da ANVISA.",
   },
   {
-    titulo: "Base de dados TACO",
+    titulo: "Base de dados TACO e IBGE",
     descricao:
-      "Composição nutricional referenciada na Tabela Brasileira de Composição de Alimentos da UNICAMP.",
+      "Composição nutricional referenciada na Tabela Brasileira de Composição de Alimentos da UNICAMP e na Tabela Nutricional do IBGE.",
   },
   {
     titulo: "Controle de custo por porção",

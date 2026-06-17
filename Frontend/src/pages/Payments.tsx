@@ -32,36 +32,20 @@ const planos: Plano[] = [
   {
     id: 'profissional',
     nome: 'Profissional',
-    valorMensal: 29.9,
-    valorAnualMes: 24.17,
-    totalAnual: 290,
-    economiaMensal: 5.73,
+    valorMensal: 97,
+    valorAnualMes: 79,
+    totalAnual: 948,
+    economiaMensal: 18,
     destaque: true,
     icon: Zap,
     recursos: [
-      'Receitas ilimitadas',
-      'Ingredientes ilimitados',
-      'Precificação avançada',
-      'Exportar rótulos em PDF',
-      'Histórico de receitas',
-      'Suporte prioritário',
-    ],
-  },
-  {
-    id: 'empresarial',
-    nome: 'Empresarial',
-    valorMensal: 79.9,
-    valorAnualMes: 65.83,
-    totalAnual: 790,
-    economiaMensal: 14.07,
-    destaque: false,
-    icon: Building2,
-    recursos: [
-      'Tudo do Profissional',
-      'Múltiplos usuários',
-      'Relatórios gerenciais',
-      'API de integração',
-      'Onboarding dedicado',
+      'Até 60 receitas',
+      'Rótulo nutricional ANVISA',
+      'Etiqueta personalizável',
+      'Exportação PDF e Excel',
+      'Relatório de custo e margem',
+      'Suporte por WhatsApp',
+      'Comunidade Exclusiva',
     ],
   },
 ];
@@ -81,7 +65,7 @@ function formatarMoeda(valor: number) {
 }
 
 export function Payments({ usuario, planoPreSelecionado, onVoltar, onLogin }: PaymentsProps): JSX.Element {
-  const [planoSelecionado, setPlanoSelecionado] = useState<PlanoId | null>(planoPreSelecionado ?? null);
+  const [planoSelecionado, setPlanoSelecionado] = useState<PlanoId | null>(planoPreSelecionado ?? 'profissional');
   const [cicloAnual, setCicloAnual] = useState(false);
   const [metodoPagamento, setMetodoPagamento] = useState<MetodoPagamento | null>(null);
   const [parcelas, setParcelas] = useState(1);

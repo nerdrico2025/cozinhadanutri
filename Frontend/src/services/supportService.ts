@@ -42,20 +42,20 @@ const DEFAULT_FAQ: FAQEntry[] = [
   {
     id: '1',
     categoria: 'Nutrição',
-    pergunta: 'O que é a tabela TACO?',
-    resposta: 'A Tabela Brasileira de Composição de Alimentos (TACO) é um banco de dados nutricional desenvolvido pela Unicamp com valores de referência para alimentos consumidos no Brasil. O sistema usa esta tabela para calcular automaticamente os dados nutricionais das suas receitas.',
+    pergunta: 'Quais são as fontes de dados nutricionais do sistema?',
+    resposta: 'Nosso sistema utiliza duas fontes oficiais de dados: a Tabela TACO e a Tabela Nutricional do IBGE. Importante: todas essas informações estão salvas de forma segura diretamente em nosso banco de dados (DB) para garantir cálculos rápidos e precisos das suas receitas.',
   },
   {
     id: '2',
     categoria: 'Nutrição',
-    pergunta: 'Como uso a tabela TACO para cadastrar ingredientes?',
-    resposta: 'Ao adicionar um ingrediente à receita, basta digitar o nome do alimento no campo de busca. O sistema pesquisa automaticamente na tabela TACO e exibe os resultados com os respectivos valores nutricionais. Selecione o alimento desejado e informe a quantidade em gramas.',
+    pergunta: 'Como uso as tabelas TACO e IBGE para cadastrar ingredientes?',
+    resposta: 'Ao adicionar um ingrediente à receita, basta digitar o nome do alimento no campo de busca. O sistema pesquisa automaticamente nas tabelas TACO e IBGE e exibe os resultados com os respectivos valores nutricionais. Selecione o alimento desejado e informe a quantidade em gramas.',
   },
   {
     id: '3',
     categoria: 'Nutrição',
-    pergunta: 'E se o ingrediente que preciso não estiver na tabela TACO?',
-    resposta: 'Nos planos pagos é possível cadastrar ingredientes personalizados informando manualmente os valores nutricionais. No plano Grátis, o sistema utiliza apenas os alimentos disponíveis na tabela TACO.',
+    pergunta: 'E se o ingrediente que preciso não estiver nas tabelas TACO ou IBGE?',
+    resposta: 'Nos planos pagos é possível cadastrar ingredientes personalizados informando manualmente os valores nutricionais. No plano Grátis, o sistema utiliza apenas os alimentos já disponíveis na base de dados (TACO e IBGE).',
   },
   {
     id: '4',
@@ -107,7 +107,7 @@ const DEFAULT_FAQ: FAQEntry[] = [
     id: '11',
     categoria: 'Receitas',
     pergunta: 'Como cadastrar uma nova receita?',
-    resposta: 'No menu principal, clique em "Receitas" e depois em "Nova Receita". Informe o nome, descrição, número de porções e adicione os ingredientes buscando pela tabela TACO. O sistema calculará os valores nutricionais em tempo real.',
+    resposta: 'No menu principal, clique em "Receitas" e depois em "Nova Receita". Informe o nome, descrição, número de porções e adicione os ingredientes buscando em nossa base de dados (TACO e IBGE). O sistema calculará os valores nutricionais em tempo real.',
   },
   {
     id: '12',
@@ -211,7 +211,7 @@ const DEFAULT_FAQ: FAQEntry[] = [
     id: '27',
     categoria: 'Assinatura',
     pergunta: 'Quais formas de pagamento são aceitas?',
-    resposta: 'Aceitamos cartão de crédito (em até 12x) e Pix (com 5% de desconto). O processamento é feito com segurança pelo Mercado Pago.',
+    resposta: 'Aceitamos cartão de crédito (em até 12x) e Pix (com 5% de desconto). O processamento é feito com total segurança pelo Asaas.',
   },
   {
     id: '28',
