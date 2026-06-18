@@ -222,3 +222,7 @@ load_dotenv()
 
 ASAAS_API_KEY = os.getenv("ASAAS_API_KEY")
 ASAAS_URL = os.getenv("ASAAS_URL", "https://sandbox.asaas.com/api/v3")
+
+# Default primary key field type
+# https://docs.djangoproject.com/en/6.0/ref/settings/#default-auto-field
+DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
