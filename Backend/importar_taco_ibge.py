@@ -134,12 +134,17 @@ for _, row in df_ibge.iterrows(): # percorrer cada linha da planilha ibge
         if pd.isna(descricao):
             continue
 
+        numero_base = int(numero) * 100
+        numero_final = numero_base
+        
+        # Garante que o numero é único, incrementando se já existir outro alimento com o mesmo número
+        while Alimento.objects.filter(numero=numero_final).exclude(descricao=descricao).exists():
+            numero_final += 1
+
         Alimento.objects.update_or_create(
-            numero=int(numero),
             descricao=descricao,
             defaults={
-                
-
+                'numero': numero_final,
                 'energia_kcal': limpar_valor(row.get('Energia (kcal)')),
                 'proteinas': limpar_valor(row.get('Proteína (g)')),
                 'gorduras_totais': limpar_valor(row.get('Lipídeos (g)')),
