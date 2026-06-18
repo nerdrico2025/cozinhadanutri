@@ -55,6 +55,11 @@ const unidades: { value: Unidade; label: string }[] = [
   { value: 'unidade', label: 'Unidade' },
 ];
 
+const getFonte = (numero?: number) => {
+  if (!numero) return '';
+  return numero < 10000 ? 'TACO' : 'IBGE';
+};
+
 const inputCls = (hasError?: boolean) =>
   `w-full px-0 py-2.5 bg-transparent border-0 border-b-2 ${
     hasError
@@ -279,7 +284,7 @@ export function CadastroIngrediente({ ingredienteInicial, onSalvar, onCancelar, 
         setSugestoesTaco(resultados);
         setMostrarSugestoes(resultados.length > 0);
       } catch {
-        setErroApi('Não foi possível buscar na API TACO. Preencha os dados manualmente.');
+        setErroApi('Não foi possível buscar na API TACO / IBGE. Preencha os dados manualmente.');
         setSugestoesTaco([]); setMostrarSugestoes(false);
       } finally { setCarregando(false); }
     }, 400);
@@ -503,7 +508,7 @@ export function CadastroIngrediente({ ingredienteInicial, onSalvar, onCancelar, 
                     })}
                     onBlur={() => setTimeout(() => setMostrarSugestoes(false), 200)}
                     onFocus={() => sugestoesTaco.length > 0 && setMostrarSugestoes(true)}
-                    placeholder="Digite para pesquisar na tabela TACO…"
+                    placeholder="Digite para pesquisar na tabela TACO / IBGE…"
                     className={`${inputCls(!!errors.nome)} pl-9 pr-8`}
                   />
                   {carregando && (
@@ -515,7 +520,7 @@ export function CadastroIngrediente({ ingredienteInicial, onSalvar, onCancelar, 
                 {tacoNumeroSelecionado && (
                   <p className="text-brand text-xs mt-1 flex items-center gap-1">
                     <span className="inline-block w-1.5 h-1.5 rounded-full bg-brand" />
-                    Vinculado à tabela TACO (Nº {tacoNumeroSelecionado})
+                    Vinculado à tabela {getFonte(tacoNumeroSelecionado)} (Nº {tacoNumeroSelecionado})
                   </p>
                 )}
 
@@ -523,13 +528,13 @@ export function CadastroIngrediente({ ingredienteInicial, onSalvar, onCancelar, 
                   <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-xl shadow-xl z-20 max-h-52 overflow-y-auto">
                     {sugestoesTaco.map((alimento) => (
                       <button
-                        key={alimento.numero || alimento.id}
+                        key={alimento.id}
                         type="button"
                         onMouseDown={() => aplicarDadosTaco(alimento)}
                         className="w-full text-left px-4 py-2.5 hover:bg-brand/5 border-0 bg-transparent cursor-pointer flex items-center justify-between gap-3 border-b border-gray-50 last:border-b-0"
                       >
                         <span className="text-sm text-gray-800 truncate">{alimento.descricao}</span>
-                        <span className="text-xs text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full shrink-0">TACO {alimento.numero}</span>
+                        <span className="text-xs text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full shrink-0">{getFonte(alimento.numero)} {alimento.numero}</span>
                       </button>
                     ))}
                   </div>
@@ -712,7 +717,7 @@ export function CadastroIngrediente({ ingredienteInicial, onSalvar, onCancelar, 
               </div>
               {tacoNumeroSelecionado && (
                 <span className="text-xs bg-brand/8 text-brand px-2 py-0.5 rounded-full font-medium">
-                  Preenchido via TACO
+                  Preenchido via {getFonte(tacoNumeroSelecionado)}
                 </span>
               )}
             </div>
@@ -747,7 +752,7 @@ export function CadastroIngrediente({ ingredienteInicial, onSalvar, onCancelar, 
                         <div className="group relative ml-auto flex items-center justify-center">
                           <HelpCircle size={14} className="text-brand/80 cursor-help" />
                           <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 p-2 bg-gray-800 text-white text-xs rounded-lg shadow-lg opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity z-10 text-center">
-                            A tabela TACO não possui este dado. Preencha manualmente, se desejar.
+                            A tabela {getFonte(tacoNumeroSelecionado)} não possui este dado. Preencha manualmente, se desejar.
                           </div>
                         </div>
                       )}

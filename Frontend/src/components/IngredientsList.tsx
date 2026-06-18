@@ -41,6 +41,11 @@ export function ListaIngredientes({ ingredientes, onEditar, onRemover, onNovoIng
   const [expandido, setExpandido] = useState<string | null>(null);
   const [itemParaRemover, setItemParaRemover] = useState<Ingrediente | null>(null);
 
+  const getFonte = (numero?: number) => {
+    if (!numero) return 'TACO';
+    return numero >= 10000 ? 'IBGE' : 'TACO';
+  };
+
   const [itensEstoque, setItensEstoque] = useState<any[]>(() => {
     try {
       const salvas = localStorage.getItem('estoque_itens');
@@ -348,7 +353,7 @@ export function ListaIngredientes({ ingredientes, onEditar, onRemover, onNovoIng
                       <div className="mt-4 flex items-center gap-2 px-3 py-2 bg-blue-50/50 rounded-lg border border-blue-100">
                         <div className="w-1.5 h-1.5 rounded-full bg-blue-400 animate-pulse"></div>
                         <p className="text-[11px] text-blue-600 font-medium">
-                          Este ingrediente está vinculado à tabela TACO (Nº {ingrediente.tacoId})
+                          Este ingrediente está vinculado à tabela {getFonte(ingrediente.tacoId)} (Nº {ingrediente.tacoId})
                         </p>
                       </div>
                     )}
