@@ -37,7 +37,7 @@ export function Support({ onNavegar, usuario }: SupportProps): JSX.Element {
     return () => window.removeEventListener('support_updated', handleUpdate);
   }, []);
 
-  const isProfissional = usuario?.planoAtual === 'profissional' || usuario?.planoAtual === 'empresarial';
+  const isProfissional = usuario?.planoAtual === 'profissional';
 
   const canais = [
     {

@@ -468,7 +468,7 @@ export function Statistic({ onVoltar, refeicoes, receitas }: StatisticProps) {
       </style>
       
       {/* Header */}
-      <header className="sticky top-0 z-30 bg-white border-b border-gray-200 shadow-sm print:hidden">
+      <header className="sticky top-16 z-30 bg-white border-b border-gray-200 shadow-sm print:hidden">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
           <div className="flex items-center gap-6">
             <button

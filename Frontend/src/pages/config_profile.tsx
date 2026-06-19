@@ -101,6 +101,7 @@ export interface ProfileProps {
     bairro?: string;
     municipio?: string;
     uf?: string;
+    planoAtual?: 'gratis' | 'profissional';
   };
   onSalvar?: (dados: FormProfile, senhaAtual: string) => Promise<boolean> | boolean;
   onVoltar?: () => void;
@@ -260,6 +261,120 @@ export function Profile({ dadosIniciais, onSalvar, onVoltar, onUpgrade, onApagar
   const [acaoPendente, setAcaoPendente] = useState<'salvar' | 'apagar' | null>(null);
   const [erroModal, setErroModal]     = useState<string | null>(null);
   const [activeTab, setActiveTab]     = useState<'geral' | 'endereco' | 'seguranca' | 'pagamentos'>('geral');
+  const [paymentHistory, setPaymentHistory] = useState<any[]>([]);
+
+  const carregarHistorico = useCallback(() => {
+    try {
+      const saved = localStorage.getItem('payment_history');
+      if (saved) {
+        setPaymentHistory(JSON.parse(saved));
+      } else {
+        if (dadosIniciais?.planoAtual === 'profissional') {
+          setPaymentHistory([
+            {
+              id: 'REC-12345678-MP',
+              data: new Date().toLocaleDateString('pt-BR'),
+              plano: 'Plano Profissional (Anual)',
+              valor: 'R$ 948,00',
+              metodo: 'PIX',
+              status: 'Concluído'
+            }
+          ]);
+        } else {
+          setPaymentHistory([]);
+        }
+      }
+    } catch (e) {
+      console.error(e);
+      setPaymentHistory([]);
+    }
+  }, [dadosIniciais?.planoAtual]);
+
+  useEffect(() => {
+    carregarHistorico();
+    window.addEventListener('session_updated', carregarHistorico);
+    return () => {
+      window.removeEventListener('session_updated', carregarHistorico);
+    };
+  }, [carregarHistorico]);
+
+  const imprimirRecibo = (pgto: any) => {
+    const popup = window.open('', '_blank');
+    if (!popup) {
+      alert('Por favor, libere os pop-ups para visualizar o recibo.');
+      return;
+    }
+    popup.document.write(`
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Recibo de Pagamento - Cozinha da Nutri</title>
+        <meta charset="utf-8">
+        <style>
+          body { font-family: 'Helvetica Neue', Arial, sans-serif; color: #333; padding: 40px; line-height: 1.6; }
+          .container { max-width: 600px; margin: 0 auto; border: 1px solid #e2e8f0; border-radius: 16px; padding: 40px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05); }
+          .header { text-align: center; margin-bottom: 40px; border-bottom: 2px solid #04585a; padding-bottom: 20px; }
+          .header h1 { color: #04585a; margin: 0; font-size: 24px; }
+          .header p { color: #666; margin: 5px 0 0 0; font-size: 14px; }
+          .info-table { width: 100%; border-collapse: collapse; margin-bottom: 40px; }
+          .info-table td { padding: 12px 0; border-bottom: 1px solid #f1f5f9; font-size: 15px; }
+          .info-table td.label { font-weight: bold; color: #4b5563; width: 40%; }
+          .info-table td.value { text-align: right; color: #1f2937; }
+          .total { font-size: 20px; font-weight: bold; color: #04585a; }
+          .footer { text-align: center; color: #9ca3af; font-size: 12px; margin-top: 40px; border-top: 1px solid #f1f5f9; padding-top: 20px; }
+          @media print {
+            body { padding: 0; }
+            .container { border: none; box-shadow: none; padding: 0; }
+          }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="header">
+            <h1>Cozinha da Nutri</h1>
+            <p>Recibo de Transação Eletrônica</p>
+          </div>
+          <table class="info-table">
+            <tr>
+              <td class="label">Identificador (ID)</td>
+              <td class="value" style="font-family: monospace;">\${pgto.id}</td>
+            </tr>
+            <tr>
+              <td class="label">Data de Emissão</td>
+              <td class="value">\${pgto.data}</td>
+            </tr>
+            <tr>
+              <td class="label">Plano Assinado</td>
+              <td class="value">\${pgto.plano}</td>
+            </tr>
+            <tr>
+              <td class="label">Método de Pagamento</td>
+              <td class="value">\${pgto.metodo}</td>
+            </tr>
+            <tr>
+              <td class="label">Status</td>
+              <td class="value" style="font-weight: bold; color: #10b981;">\${pgto.status}</td>
+            </tr>
+            <tr class="total">
+              <td class="label">Valor Pago</td>
+              <td class="value">\${pgto.valor}</td>
+            </tr>
+          </table>
+          <div class="footer">
+            <p>Este documento serve como comprovante de transação eletrônica.</p>
+            <p>Dúvidas? Entre em contato com suporte@cozinhadanutri.com</p>
+          </div>
+        </div>
+        <script>
+          window.onload = function() {
+            window.print();
+          }
+        </script>
+      </body>
+      </html>
+    `);
+    popup.document.close();
+  };
 
   const { register, handleSubmit, setValue, reset, formState: { errors, isSubmitting } } =
     useForm<FormProfile>({
@@ -531,18 +646,26 @@ export function Profile({ dadosIniciais, onSalvar, onVoltar, onUpgrade, onApagar
                     <Zap size={28} className="animate-pulse" />
                   </div>
                   <div>
-                    <h3 className="text-lg font-bold text-white mb-1">Plano Atual: Grátis</h3>
-                    <p className="text-sm text-white/90 font-medium">Faça upgrade para desbloquear rótulos ilimitados e suporte VIP.</p>
+                    <h3 className="text-lg font-bold text-white mb-1">
+                      Plano Atual: {dadosIniciais?.planoAtual === 'profissional' ? 'Profissional' : 'Grátis'}
+                    </h3>
+                    <p className="text-sm text-white/90 font-medium">
+                      {dadosIniciais?.planoAtual === 'profissional'
+                        ? 'Você tem acesso ilimitado a receitas, rótulos e suporte premium!'
+                        : 'Faça upgrade para desbloquear rótulos ilimitados e suporte VIP.'}
+                    </p>
                   </div>
                 </div>
-                <button
-                  type="button"
-                  onClick={onUpgrade}
-                  className="relative z-10 w-full sm:w-auto flex items-center justify-center gap-2 bg-white text-brand text-sm font-bold px-6 py-3.5 rounded-xl shadow-[0_4px_14px_0_rgba(255,255,255,0.39)] hover:bg-gray-50 hover:scale-105 transition-all active:scale-95 cursor-pointer"
-                >
-                  <Zap size={16} className="text-brand" />
-                  Fazer Upgrade Agora
-                </button>
+                {(!dadosIniciais?.planoAtual || dadosIniciais?.planoAtual === 'gratis') && (
+                  <button
+                    type="button"
+                    onClick={onUpgrade}
+                    className="relative z-10 w-full sm:w-auto flex items-center justify-center gap-2 bg-white text-brand text-sm font-bold px-6 py-3.5 rounded-xl shadow-[0_4px_14px_0_rgba(255,255,255,0.39)] hover:bg-gray-50 hover:scale-105 transition-all active:scale-95 cursor-pointer"
+                  >
+                    <Zap size={16} className="text-brand" />
+                    Fazer Upgrade Agora
+                  </button>
+                )}
               </section>
             )}
               </div>
@@ -622,66 +745,57 @@ export function Profile({ dadosIniciais, onSalvar, onVoltar, onUpgrade, onApagar
                   </div>
 
                   <div className="flex flex-col gap-4">
-                    {[
-                      {
-                        id: 'REC-12345678-MP',
-                        data: '15/05/2026',
-                        plano: 'Plano Profissional (Anual)',
-                        valor: 'R$ 290,00',
-                        metodo: 'PIX',
-                        status: 'Concluído'
-                      },
-                      {
-                        id: 'REC-87654321-CC',
-                        data: '15/05/2025',
-                        plano: 'Plano Básico (Mensal)',
-                        valor: 'R$ 29,90',
-                        metodo: 'Cartão de Crédito',
-                        status: 'Concluído'
-                      }
-                    ].map((pgto, idx) => (
-                      <div key={idx} className="border border-gray-100 bg-gray-50/50 rounded-2xl p-5 flex flex-col md:flex-row md:items-center justify-between gap-4 transition-all hover:bg-white hover:shadow-md hover:border-gray-200">
-                        <div className="flex flex-col gap-3">
-                          <div className="flex items-center gap-3">
-                            <span className="bg-green-100 text-green-700 text-xs font-bold px-2.5 py-1 rounded-md flex items-center gap-1.5">
-                              <CheckCircle2 size={12} />
-                              {pgto.status}
-                            </span>
-                            <span className="text-sm font-mono text-gray-500 flex items-center gap-1">
-                              <Hash size={14} />
-                              {pgto.id}
-                            </span>
-                          </div>
-                          
-                          <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
-                            <div className="flex items-center gap-2 text-sm text-gray-700">
-                              <Calendar size={16} className="text-gray-400" />
-                              <span className="font-semibold">{pgto.data}</span>
-                            </div>
-                            <div className="flex items-center gap-2 text-sm text-gray-700">
-                              <CheckCircle2 size={16} className="text-gray-400" />
-                              <span className="font-medium">{pgto.plano}</span>
-                            </div>
-                            <div className="flex items-center gap-2 text-sm text-gray-700">
-                              <CreditCard size={16} className="text-gray-400" />
-                              <span className="font-medium">{pgto.metodo}</span>
-                            </div>
-                          </div>
-                        </div>
-
-                        <div className="flex items-center justify-between md:flex-col md:items-end gap-3 border-t md:border-t-0 border-gray-200 pt-4 md:pt-0">
-                          <div className="text-lg font-extrabold text-gray-900">{pgto.valor}</div>
-                          <button
-                            type="button"
-                            onClick={() => window.print()}
-                            className="flex items-center gap-2 bg-white border border-gray-200 text-gray-600 text-sm font-bold px-4 py-2 rounded-xl hover:bg-gray-50 hover:text-brand transition-all cursor-pointer active:scale-95"
-                          >
-                            <Printer size={16} />
-                            Recibo
-                          </button>
-                        </div>
+                    {paymentHistory.length === 0 ? (
+                      <div className="text-center py-12 bg-gray-50/50 border border-dashed border-gray-200 rounded-2xl">
+                        <Receipt size={32} className="mx-auto text-gray-300 mb-2" />
+                        <p className="text-sm font-semibold text-gray-500">Nenhum pagamento registrado.</p>
+                        <p className="text-xs text-gray-400 mt-1">Ao assinar um plano, o histórico de transações aparecerá aqui.</p>
                       </div>
-                    ))}
+                    ) : (
+                      paymentHistory.map((pgto, idx) => (
+                        <div key={idx} className="border border-gray-100 bg-gray-50/50 rounded-2xl p-5 flex flex-col md:flex-row md:items-center justify-between gap-4 transition-all hover:bg-white hover:shadow-md hover:border-gray-200">
+                          <div className="flex flex-col gap-3">
+                            <div className="flex items-center gap-3">
+                              <span className="bg-green-100 text-green-700 text-xs font-bold px-2.5 py-1 rounded-md flex items-center gap-1.5">
+                                <CheckCircle2 size={12} />
+                                {pgto.status}
+                              </span>
+                              <span className="text-sm font-mono text-gray-500 flex items-center gap-1">
+                                <Hash size={14} />
+                                {pgto.id}
+                              </span>
+                            </div>
+                            
+                            <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
+                              <div className="flex items-center gap-2 text-sm text-gray-700">
+                                <Calendar size={16} className="text-gray-400" />
+                                <span className="font-semibold">{pgto.data}</span>
+                              </div>
+                              <div className="flex items-center gap-2 text-sm text-gray-700">
+                                <CheckCircle2 size={16} className="text-gray-400" />
+                                <span className="font-medium">{pgto.plano}</span>
+                              </div>
+                              <div className="flex items-center gap-2 text-sm text-gray-700">
+                                <CreditCard size={16} className="text-gray-400" />
+                                <span className="font-medium">{pgto.metodo}</span>
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center justify-between md:flex-col md:items-end gap-3 border-t md:border-t-0 border-gray-200 pt-4 md:pt-0">
+                            <div className="text-lg font-extrabold text-gray-900">{pgto.valor}</div>
+                            <button
+                              type="button"
+                              onClick={() => imprimirRecibo(pgto)}
+                              className="flex items-center gap-2 bg-white border border-gray-200 text-gray-600 text-sm font-bold px-4 py-2 rounded-xl hover:bg-gray-50 hover:text-brand transition-all cursor-pointer active:scale-95"
+                            >
+                              <Printer size={16} />
+                              Recibo
+                            </button>
+                          </div>
+                        </div>
+                      ))
+                    )}
                   </div>
                 </section>
               </div>

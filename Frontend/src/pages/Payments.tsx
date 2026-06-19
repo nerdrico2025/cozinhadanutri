@@ -125,6 +125,24 @@ export function Payments({ usuario, planoPreSelecionado, onVoltar, onLogin }: Pa
       const dbPlanoId = MAP_PLANO_FRONTEND_TO_DB[planoAtual.id];
       if (dbPlanoId) {
         await trocarPlano(dbPlanoId);
+        
+        try {
+          const historicoSalvo = localStorage.getItem('payment_history');
+          const historico = historicoSalvo ? JSON.parse(historicoSalvo) : [];
+          const novoPgto = {
+            id: resposta.paymentId || `REC-${Math.floor(10000000 + Math.random() * 90000000)}-${metodoPagamento === 'pix' ? 'MP' : 'CC'}`,
+            data: new Date().toLocaleDateString('pt-BR'),
+            plano: `Plano ${planoAtual.nome}${cicloAnual ? ' (Anual)' : ' (Mensal)'}`,
+            valor: formatarMoeda(valorFinal),
+            metodo: metodoPagamento === 'pix' ? 'PIX' : 'Cartão de Crédito',
+            status: 'Concluído'
+          };
+          historico.unshift(novoPgto);
+          localStorage.setItem('payment_history', JSON.stringify(historico));
+        } catch (e) {
+          console.error('Erro ao salvar no histórico de pagamentos', e);
+        }
+
         window.dispatchEvent(new Event('session_updated'));
       }
     } catch (err) {

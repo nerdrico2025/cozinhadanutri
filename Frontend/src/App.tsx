@@ -658,6 +658,7 @@ function App() {
             onNavegar={setTelaAtiva}
             receitas={receitas}
             totalIngredientes={ingredientes.length}
+            usuario={usuario}
           />
         );
       case 'criar-receita':
@@ -772,6 +773,7 @@ function App() {
               inscricaoEstadual: usuario.empresa?.inscricao_estadual || '',
               telefone:        usuario.empresa?.telefone || '',
               email:           usuario.email,
+              planoAtual:      usuario.planoAtual,
             } : undefined}
             onSalvar={async (dados, senhaAtual) => {
               if (!usuario) return false;

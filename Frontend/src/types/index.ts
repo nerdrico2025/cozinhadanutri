@@ -15,7 +15,7 @@ export interface UsuarioLogado {
   nome: string;
   email: string;
   role: 'admin' | 'user';
-  planoAtual?: 'gratis' | 'profissional' | 'empresarial';
+  planoAtual?: 'gratis' | 'profissional';
   empresa?: {
     razao_social: string;
     nome_fantasia: string;

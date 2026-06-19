@@ -1,14 +1,15 @@
 import {
-  ChefHat, Leaf, ScrollText, Banknote, Utensils
+  ChefHat, Leaf, ScrollText, Banknote, Utensils, Zap
 } from 'lucide-react';
-import { Receita } from '../types';
+import { Receita, UsuarioLogado } from '../types';
 
-type TelaAtiva = 'home' | 'dashboard' | 'receitas' | 'criar-receita' | 'cadastro-ingrediente' | 'lista-ingredientes' | 'estoque' | 'login' | 'register' | 'refeicao' | 'despesas' | 'producao' | 'estatisticas' | 'aulas';
+type TelaAtiva = 'home' | 'dashboard' | 'receitas' | 'criar-receita' | 'cadastro-ingrediente' | 'lista-ingredientes' | 'estoque' | 'login' | 'register' | 'refeicao' | 'despesas' | 'producao' | 'estatisticas' | 'aulas' | 'pagamento';
 
 interface DashboardProps {
-  onNavegar: (tela: TelaAtiva) => void;
+  onNavegar: (tela: any) => void;
   receitas: Receita[];
   totalIngredientes: number;
+  usuario?: UsuarioLogado | null;
 }
 
 interface StatCardProps {
@@ -34,7 +35,7 @@ function StatCard({ label, value, Icon, iconBg, iconColor, accentColor }: StatCa
   );
 }
 
-export function Dashboard({ receitas, totalIngredientes }: DashboardProps) {
+export function Dashboard({ receitas, totalIngredientes, usuario, onNavegar }: DashboardProps) {
   const totalReceitas = receitas.length;
   const totalIngredientesCadastrados = totalIngredientes;
   
@@ -62,7 +63,6 @@ export function Dashboard({ receitas, totalIngredientes }: DashboardProps) {
           </p>
         </div>
       </div>
-
       {/* Stats Grid */}
       <section className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
         <StatCard
@@ -152,6 +152,31 @@ export function Dashboard({ receitas, totalIngredientes }: DashboardProps) {
         </div>
       </section>
 
+      {/* Propaganda Banner for Free Plan */}
+      {(!usuario?.planoAtual || usuario?.planoAtual === 'gratis') && (
+        <div className="relative overflow-hidden bg-gradient-to-r from-amber-500 via-orange-600 to-rose-600 rounded-3xl p-6 text-white shadow-md flex flex-col md:flex-row items-start md:items-center justify-between gap-6 animate-fadeIn">
+          <div className="absolute inset-0 bg-white opacity-5 mix-blend-overlay"></div>
+          <div className="relative z-10 flex items-center gap-4">
+            <div className="bg-white/20 backdrop-blur-md rounded-2xl p-3.5 text-white shadow-inner">
+              <Zap size={28} className="animate-pulse" />
+            </div>
+            <div>
+              <h3 className="text-lg font-black text-white tracking-tight">Desbloqueie o Potencial Máximo!</h3>
+              <p className="text-sm text-white/90 max-w-xl leading-relaxed mt-1 font-medium">
+                Você está no plano <b>Grátis</b> (limite de 5 receitas). Faça o upgrade para o plano <b>Profissional</b> e tenha receitas ilimitadas, etiquetas personalizáveis, exportação e suporte prioritário!
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => onNavegar('pagamento')}
+            className="relative z-10 w-full md:w-auto flex items-center justify-center gap-2 bg-white text-orange-700 text-sm font-extrabold px-6 py-3.5 rounded-xl shadow-[0_4px_14px_0_rgba(255,255,255,0.39)] hover:bg-gray-50 hover:scale-105 transition-all active:scale-95 cursor-pointer shrink-0 border-0"
+          >
+            <Zap size={15} />
+            Seja Profissional
+          </button>
+        </div>
+      )}
     </div>
   );
 }
