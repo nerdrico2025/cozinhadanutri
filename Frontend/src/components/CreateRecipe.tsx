@@ -111,7 +111,7 @@ const emptyRow = (): RowSearch => ({
 
 interface CriarReceitaProps {
   receitaInicial?: Receita;
-  onSalvar: (receita: Receita) => void;
+  onSalvar: (receita: Receita) => Promise<boolean | void> | boolean | void;
   onCancelar: () => void;
   onSolicitarCadastro?: (dadosIniciais: Partial<Ingrediente>, rascunho: Receita) => void;
   ingredientes: Ingrediente[];
@@ -419,7 +419,7 @@ export function CriarReceita({ receitaInicial, onSalvar, onCancelar, onSolicitar
       }) as IngredienteReceita[];
 
       const custos = calcularCustosReceita(ingredientesComNumeros, data.porcoes, 0);
-      onSalvar({
+      const sucesso = await onSalvar({
         id: receitaInicial?.id,
         nome: data.nome,
         descricao: data.descricao,
@@ -433,9 +433,12 @@ export function CriarReceita({ receitaInicial, onSalvar, onCancelar, onSolicitar
         dadosNutricionaisPorPorcao: calculos.dadosNutricionaisPorPorcao,
         createdAt: receitaInicial?.createdAt ?? new Date(),
       });
-      reset();
-      setRowSearches([emptyRow()]);
-      setCalculos(null);
+      
+      if (sucesso !== false) {
+        reset();
+        setRowSearches([emptyRow()]);
+        setCalculos(null);
+      }
     } finally {
       setSalvando(false);
     }

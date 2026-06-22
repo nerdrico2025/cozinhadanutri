@@ -297,7 +297,7 @@ class FichaTecnicaCreateView(APIView):
 
         if empresa and empresa.plano:
 
-            limite = empresa.plano.limite_fichas
+            limite = empresa.plano.limite_receitas
 
             if limite is not None:
 

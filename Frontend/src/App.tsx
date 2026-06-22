@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { Lock, ArrowUpRight } from 'lucide-react';
 import { Header } from './components/Header';
 import { ForgotMyPassword } from './components/ForgotMyPassword';
 import { Home } from './pages/Home';
@@ -103,6 +104,7 @@ function App() {
   const [rascunhoReceita, setRascunhoReceita] = useState<Receita | undefined>(undefined);
   const [carregandoSessao, setCarregandoSessao] = useState(true);
   const [planoSelecionado, setPlanoSelecionado] = useState<'profissional' | 'empresarial' | undefined>(undefined);
+  const [modalLimiteAberto, setModalLimiteAberto] = useState(false);
 
   const publicTelas: TelaAtiva[] = ['home', 'login', 'register', 'esqueci-senha', 'faq', 'suporte', 'termos', 'privacidade', 'not-found', 'planos'];
 
@@ -407,14 +409,18 @@ function App() {
       );
       setReceitaEmEdicao(undefined);
       setTelaAtiva('receitas');
+      return true;
     } catch (err: any) {
       console.error("Erro ao salvar receita:", err);
       if (err.response?.status === 401) {
         alert("Sua sessão expirou. Por favor, faça login novamente para salvar.");
         setTelaAtiva('login');
+      } else if (err.response?.status === 403 && err.response?.data?.erro === 'LIMIT_REACHED') {
+        setModalLimiteAberto(true);
       } else {
         alert("Falha ao salvar a receita no servidor. Verifique os dados e tente novamente.");
       }
+      return false;
     }
   };
 
@@ -864,6 +870,43 @@ function App() {
           onFechar={() => setReceitaParaRotulo(null)}
           onImprimir={() => window.print()}
         />
+      )}
+      
+      {modalLimiteAberto && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4 animate-in fade-in">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden border border-slate-100">
+            <div className="p-6">
+              <div className="w-12 h-12 bg-slate-100 rounded-lg flex items-center justify-center mb-4">
+                <Lock size={24} className="text-slate-600" />
+              </div>
+              <h2 className="text-xl font-semibold text-slate-800 mb-2">Limite de receitas atingido</h2>
+              <p className="text-sm text-slate-600 leading-relaxed mb-6">
+                Você atingiu o limite de 5 receitas do seu plano atual. Para continuar cadastrando e desbloquear ferramentas avançadas como rótulos personalizados e planilhas de custo, faça o upgrade para o plano <strong className="text-slate-800 font-semibold">Profissional</strong>.
+              </p>
+              
+              <div className="flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => setModalLimiteAberto(false)}
+                  className="flex-1 py-2.5 px-4 bg-white border border-slate-200 text-slate-700 rounded-lg font-medium hover:bg-slate-50 transition-colors cursor-pointer"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setModalLimiteAberto(false);
+                    setTelaAtiva('pagamento');
+                  }}
+                  className="flex-[1.5] py-2.5 px-4 bg-orange-600 text-white rounded-lg font-medium hover:bg-orange-700 transition-colors cursor-pointer flex items-center justify-center gap-2 border-0 shadow-sm shadow-orange-600/20"
+                >
+                  Assinar plano Profissional
+                  <ArrowUpRight size={16} className="text-orange-200" />
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

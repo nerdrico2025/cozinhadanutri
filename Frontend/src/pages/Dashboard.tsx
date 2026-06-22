@@ -1,5 +1,5 @@
 import {
-  ChefHat, Leaf, ScrollText, Banknote, Utensils, Zap
+  ChefHat, Leaf, ScrollText, Banknote, Utensils, Zap, Crown, ArrowUpRight
 } from 'lucide-react';
 import { Receita, UsuarioLogado } from '../types';
 
@@ -154,26 +154,25 @@ export function Dashboard({ receitas, totalIngredientes, usuario, onNavegar }: D
 
       {/* Propaganda Banner for Free Plan */}
       {(!usuario?.planoAtual || usuario?.planoAtual === 'gratis') && (
-        <div className="relative overflow-hidden bg-gradient-to-r from-amber-500 via-orange-600 to-rose-600 rounded-3xl p-6 text-white shadow-md flex flex-col md:flex-row items-start md:items-center justify-between gap-6 animate-fadeIn">
-          <div className="absolute inset-0 bg-white opacity-5 mix-blend-overlay"></div>
-          <div className="relative z-10 flex items-center gap-4">
-            <div className="bg-white/20 backdrop-blur-md rounded-2xl p-3.5 text-white shadow-inner">
-              <Zap size={28} className="animate-pulse" />
+        <div className="relative overflow-hidden bg-slate-900 rounded-2xl p-6 shadow-sm border border-slate-800 flex flex-col md:flex-row items-start md:items-center justify-between gap-6 animate-fadeIn">
+          <div className="relative z-10 flex items-start sm:items-center gap-5">
+            <div className="bg-slate-800/80 rounded-xl p-3 border border-slate-700/50 shadow-sm shrink-0">
+              <Crown size={24} className="text-amber-400" />
             </div>
             <div>
-              <h3 className="text-lg font-black text-white tracking-tight">Desbloqueie o Potencial Máximo!</h3>
-              <p className="text-sm text-white/90 max-w-xl leading-relaxed mt-1 font-medium">
-                Você está no plano <b>Grátis</b> (limite de 5 receitas). Faça o upgrade para o plano <b>Profissional</b> e tenha receitas ilimitadas, etiquetas personalizáveis, exportação e suporte prioritário!
+              <h3 className="text-[17px] font-semibold text-white tracking-tight">Eleve sua operação com o Plano Profissional</h3>
+              <p className="text-[13px] text-slate-400 max-w-2xl leading-relaxed mt-1.5">
+                Atualmente você está no plano <strong className="text-slate-200 font-medium">Grátis</strong> (limite de 5 receitas). Faça o upgrade para criar até <strong className="text-slate-200 font-medium">60 receitas</strong>, gerar etiquetas personalizáveis, exportar relatórios e ter suporte prioritário.
               </p>
             </div>
           </div>
           <button
             type="button"
             onClick={() => onNavegar('pagamento')}
-            className="relative z-10 w-full md:w-auto flex items-center justify-center gap-2 bg-white text-orange-700 text-sm font-extrabold px-6 py-3.5 rounded-xl shadow-[0_4px_14px_0_rgba(255,255,255,0.39)] hover:bg-gray-50 hover:scale-105 transition-all active:scale-95 cursor-pointer shrink-0 border-0"
+            className="relative z-10 w-full md:w-auto flex items-center justify-center gap-2 bg-white text-slate-900 text-sm font-semibold px-5 py-2.5 rounded-lg hover:bg-slate-50 transition-colors cursor-pointer shrink-0 border-0 shadow-sm"
           >
-            <Zap size={15} />
-            Seja Profissional
+            Fazer Upgrade
+            <ArrowUpRight size={16} className="text-slate-500" />
           </button>
         </div>
       )}

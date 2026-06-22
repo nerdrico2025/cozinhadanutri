@@ -49,6 +49,27 @@ class ReceitaListCreate(generics.ListCreateAPIView):
     def get_queryset(self):
         return Receita.objects.filter(usuario=self.request.user)
 
+    def create(self, request, *args, **kwargs):
+        empresa = getattr(request.user, 'empresa', None)
+        limite = 5  # Default limit for free/no-plan users
+        
+        if empresa and getattr(empresa, 'plano', None):
+            if empresa.plano.limite_receitas is not None:
+                limite = empresa.plano.limite_receitas
+            else:
+                limite = float('inf') # If limite is truly None, it might mean unlimited
+                
+        if limite != float('inf'):
+            total_receitas = Receita.objects.filter(usuario=request.user).count()
+            if total_receitas >= limite:
+                from rest_framework.response import Response
+                from rest_framework import status
+                return Response(
+                    {"erro": "LIMIT_REACHED", "message": "Limite de receitas atingido. Por favor, atualize seu plano para criar mais receitas."},
+                    status=status.HTTP_403_FORBIDDEN
+                )
+        return super().create(request, *args, **kwargs)
+
     def perform_create(self, serializer):
         receita = serializer.save(usuario=self.request.user)
         Auditoria.log(self.request.user, f"Criou a receita: {receita.nome}", "receita")
