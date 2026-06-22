@@ -6,7 +6,7 @@ from .services import (
     criar_pagamento_pix,
     consultar_pagamento,
     consultar_qr_code_pix,
-    criar_pagamento_indefinido
+    criar_pagamento_indefinido,
 )
 
 

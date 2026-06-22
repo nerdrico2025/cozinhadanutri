@@ -50,3 +50,11 @@ class EtiquetaSerializer(serializers.ModelSerializer):
     class Meta:
         model = Etiqueta
         fields = '__all__'
+
+
+class FichaTecnicaSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = FichaTecnica
+        fields = "__all__"
+        read_only_fields = ["usuario"]

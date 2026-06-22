@@ -5,6 +5,9 @@ from .views import (
     RotuloView,
     ConfiguracaoEtiquetaView,
     EtiquetaView,
+    FichaTecnicaCreateView,
+    FichaTecnicaListView,
+    FichaTecnicaDetailView,
 )
 
 urlpatterns = [
@@ -30,5 +33,20 @@ urlpatterns = [
         'etiquetas/<int:id>/',
         EtiquetaView.as_view(),
         name='etiqueta'
+    ),
+    
+    path(
+        "fichas-tecnicas/",
+        FichaTecnicaListView.as_view()
+    ),
+
+    path(
+        "fichas-tecnicas/criar/",
+        FichaTecnicaCreateView.as_view()
+    ),
+
+    path(
+        "fichas-tecnicas/<int:id>/",
+        FichaTecnicaDetailView.as_view()
     ),
 ]

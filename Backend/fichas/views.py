@@ -4,6 +4,7 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from .services import calcular_lupas
+from .serializers import FichaTecnicaSerializer
 
 from .models import (
     Etiqueta,
@@ -111,6 +112,23 @@ class RotuloView(APIView):
                 {"erro": "Acesso negado"},
                 status=403
             )
+
+        empresa = request.user.empresa
+
+        if not empresa or not empresa.plano:
+            return Response(
+                {"erro": "Você precisa de um plano ativo para acessar esta funcionalidade."},
+                status=403
+            )
+        limite_rotulo = empresa.plano.limite_rotulo
+        if limite_rotulo is not None:
+            total_rotulos = Etiqueta.objects.filter(ficha__usuario=request.user).count()
+
+            if total_rotulos >= limite_rotulo:
+                return Response(
+                    {"erro": "Limite de rótulos do plano atingido. Por favor, atualize seu plano para criar mais rótulos."},
+                    status=403
+                )
 
         ingredientes = IngredienteFichaTecnica.objects.filter(
             ficha=ficha
@@ -270,3 +288,104 @@ class EtiquetaView(APIView):
             status=400
         )
 
+class FichaTecnicaCreateView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+
+        empresa = request.user.empresa
+
+        if empresa and empresa.plano:
+
+            limite = empresa.plano.limite_fichas
+
+            if limite is not None:
+
+                total_fichas = FichaTecnica.objects.filter(
+                    usuario=request.user
+                ).count()
+
+                if total_fichas >= limite:
+                    return Response(
+                        {
+                            "erro": "Limite de fichas atingido."
+                        },
+                        status=403
+                    )
+
+        serializer = FichaTecnicaSerializer(
+            data=request.data
+        )
+
+        serializer.is_valid(raise_exception=True)
+
+        serializer.save(
+            usuario=request.user
+        )
+
+        return Response(
+            serializer.data,
+            status=201
+        )
+class FichaTecnicaListView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+
+        fichas = FichaTecnica.objects.filter(
+            usuario=request.user
+        )
+
+        serializer = FichaTecnicaSerializer(
+            fichas,
+            many=True
+        )
+
+        return Response(serializer.data)
+
+class FichaTecnicaDetailView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, id):
+
+        ficha = get_object_or_404(
+            FichaTecnica,
+            id=id,
+            usuario=request.user
+        )
+
+        serializer = FichaTecnicaSerializer(ficha)
+
+        return Response(serializer.data)
+
+    def patch(self, request, id):
+
+        ficha = get_object_or_404(
+            FichaTecnica,
+            id=id,
+            usuario=request.user
+        )
+
+        serializer = FichaTecnicaSerializer(
+            ficha,
+            data=request.data,
+            partial=True
+        )
+
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+
+        return Response(serializer.data)
+
+    def delete(self, request, id):
+
+        ficha = get_object_or_404(
+            FichaTecnica,
+            id=id,
+            usuario=request.user
+        )
+
+        ficha.delete()
+
+        return Response(status=204)
+    
