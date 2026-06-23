@@ -1,5 +1,4 @@
 from .models import Assinatura
-import mercadopago
 from django.conf import settings
 
 
@@ -32,8 +31,3 @@ def trocar_plano(usuario, novo_plano):
     )
 
     return nova_assinatura
-
-
-sdk = mercadopago.SDK(
-    settings.MERCADO_PAGO_ACCESS_TOKEN
-)
