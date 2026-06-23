@@ -1,64 +1,16 @@
 import {
-  ChefHat, Leaf, LayoutList, FilePlus2,
-  ScrollText, FileBarChart2, Banknote, Utensils, ArrowRight,
+  ChefHat, Leaf, ScrollText, Banknote, Utensils, Zap, Crown, ArrowUpRight
 } from 'lucide-react';
-import { Receita } from '../types';
+import { Receita, UsuarioLogado } from '../types';
 
-type TelaAtiva = 'home' | 'dashboard' | 'receitas' | 'criar-receita' | 'cadastro-ingrediente' | 'lista-ingredientes' | 'login' | 'register';
+type TelaAtiva = 'home' | 'dashboard' | 'receitas' | 'criar-receita' | 'cadastro-ingrediente' | 'lista-ingredientes' | 'estoque' | 'login' | 'register' | 'refeicao' | 'despesas' | 'producao' | 'estatisticas' | 'aulas' | 'pagamento';
 
 interface DashboardProps {
-  onNavegar: (tela: TelaAtiva) => void;
+  onNavegar: (tela: any) => void;
   receitas: Receita[];
   totalIngredientes: number;
+  usuario?: UsuarioLogado | null;
 }
-
-const menuItems = [
-  {
-    tela: 'criar-receita' as TelaAtiva,
-    titulo: 'Nova Receita',
-    descricao: 'Crie uma receita vinculando ingredientes da tabela TACO com dados nutricionais automáticos.',
-    iconBgClass: 'bg-green-100',
-    iconColor: '#16a34a',
-    Icon: FilePlus2,
-    btnLabel: 'Criar receita',
-  },
-  {
-    tela: 'receitas' as TelaAtiva,
-    titulo: 'Minhas Receitas',
-    descricao: 'Visualize, edite e gerencie todas as receitas cadastradas no sistema.',
-    iconBgClass: 'bg-blue-100',
-    iconColor: '#2563eb',
-    Icon: ScrollText,
-    btnLabel: 'Ver receitas',
-  },
-  {
-    tela: 'cadastro-ingrediente' as TelaAtiva,
-    titulo: 'Cadastrar Ingrediente',
-    descricao: 'Pesquise e registre ingredientes com base na tabela TACO.',
-    iconBgClass: 'bg-amber-100',
-    iconColor: '#d97706',
-    Icon: Leaf,
-    btnLabel: 'Cadastrar ingrediente',
-  },
-  {
-    tela: 'lista-ingredientes' as TelaAtiva,
-    titulo: 'Lista de Ingredientes',
-    descricao: 'Consulte e gerencie todos os ingredientes disponíveis no sistema.',
-    iconBgClass: 'bg-purple-100',
-    iconColor: '#9333ea',
-    Icon: LayoutList,
-    btnLabel: 'Ver ingredientes',
-  },
-  {
-    tela: 'receitas' as TelaAtiva,
-    titulo: 'Rótulo Nutricional',
-    descricao: 'Gere rótulos nutricionais no padrão ANVISA a partir das suas receitas.',
-    iconBgClass: 'bg-orange-100',
-    iconColor: '#ea580c',
-    Icon: FileBarChart2,
-    btnLabel: 'Gerar rótulo',
-  },
-];
 
 interface StatCardProps {
   label: string;
@@ -71,92 +23,164 @@ interface StatCardProps {
 
 function StatCard({ label, value, Icon, iconBg, iconColor, accentColor }: StatCardProps) {
   return (
-    <div className={`bg-white rounded-xl p-5 shadow-sm border-l-4 ${accentColor} flex items-center gap-4`}>
+    <div className={`bg-white rounded-2xl p-5 shadow-sm border-l-4 ${accentColor} flex items-center gap-4 border border-gray-100`}>
       <div className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 ${iconBg}`}>
         <Icon size={22} color={iconColor} />
       </div>
       <div>
-        <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">{label}</p>
-        <p className="text-2xl font-bold text-gray-800 leading-none">{value}</p>
+        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wide mb-1">{label}</p>
+        <p className="text-xl font-black text-gray-800 leading-none">{value}</p>
       </div>
     </div>
   );
 }
 
-export function Dashboard({ onNavegar, receitas, totalIngredientes }: DashboardProps) {
-  const totalValor = receitas.reduce((acc, r) => acc + r.precoSugerido, 0);
+export function Dashboard({ receitas, totalIngredientes, usuario, onNavegar }: DashboardProps) {
+  const totalReceitas = receitas.length;
+  const totalIngredientesCadastrados = totalIngredientes;
+  
+  const somaPrecoSugerido = receitas.reduce((acc, r) => acc + (r.precoSugerido || 0), 0);
+  const mediaPrecoSugerido = totalReceitas > 0 ? somaPrecoSugerido / totalReceitas : 0;
+  
+  const somaCustoPorPorcao = receitas.reduce((acc, r) => acc + (r.custoPorPorcao || 0), 0);
+  const mediaCustoPorPorcao = totalReceitas > 0 ? somaCustoPorPorcao / totalReceitas : 0;
 
   return (
-    <div className="py-8 min-h-[80vh] max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-
-      {/* Cabeçalho */}
-      <div className="mb-10">
-        <div className="flex items-center gap-3 mb-1">
-          <div className="w-9 h-9 rounded-lg bg-green-100 flex items-center justify-center">
-            <ChefHat size={20} color="#16a34a" />
-          </div>
-          <h1 className="text-2xl font-bold text-gray-800">Dashboard</h1>
+    <div className="py-8 min-h-[80vh] max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col gap-6">
+      
+      {/* Welcome Banner */}
+      <div className="bg-gradient-to-r from-emerald-600 to-[#04585a] rounded-3xl p-6 text-white shadow-sm relative overflow-hidden">
+        <div className="absolute right-0 top-0 translate-x-6 -translate-y-6 opacity-10">
+          <ChefHat size={160} />
         </div>
-        <p className="text-sm text-gray-500 ml-12">Gerencie receitas, ingredientes e rótulos nutricionais em um só lugar.</p>
+        <div className="relative z-10 flex flex-col gap-1.5">
+          <span className="bg-white/20 text-[10px] font-bold tracking-wider uppercase px-2.5 py-1 rounded-full self-start">
+            Painel Geral
+          </span>
+          <h1 className="text-xl sm:text-2xl font-black tracking-tight">Cozinha da Nutri</h1>
+          <p className="text-xs sm:text-sm text-emerald-50/90 max-w-xl leading-relaxed">
+            Bem-vindo ao seu sistema de gestão. Aqui você pode formular receitas, calcular custos, cadastrar insumos e gerar informações nutricionais automaticamente de acordo com as regras da ANVISA.
+          </p>
+        </div>
       </div>
-
-      {/* Estatísticas */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-10">
+      {/* Stats Grid */}
+      <section className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
         <StatCard
-          label="Receitas cadastradas"
-          value={String(receitas.length)}
-          Icon={ChefHat}
-          iconBg="bg-green-100"
-          iconColor="#16a34a"
-          accentColor="border-l-green-500"
-        />
-        <StatCard
-          label="Valor total do cardápio"
-          value={`R$ ${totalValor.toFixed(2)}`}
-          Icon={Banknote}
-          iconBg="bg-emerald-100"
+          label="Receitas Cadastradas"
+          value={String(totalReceitas)}
+          Icon={ScrollText}
+          iconBg="bg-emerald-50"
           iconColor="#059669"
-          accentColor="border-l-emerald-500"
+          accentColor="border-emerald-500"
         />
         <StatCard
-          label="Ingredientes cadastrados"
-          value={String(totalIngredientes)}
-          Icon={Utensils}
-          iconBg="bg-purple-100"
-          iconColor="#9333ea"
-          accentColor="border-l-purple-500"
+          label="Ingredientes Cadastrados"
+          value={String(totalIngredientesCadastrados)}
+          Icon={Leaf}
+          iconBg="bg-amber-50"
+          iconColor="#d97706"
+          accentColor="border-amber-500"
         />
-      </div>
+        <StatCard
+          label="Preço de Venda Médio"
+          value={`R$ ${mediaPrecoSugerido.toFixed(2).replace('.', ',')}`}
+          Icon={Banknote}
+          iconBg="bg-indigo-50"
+          iconColor="#4f46e5"
+          accentColor="border-indigo-500"
+        />
+        <StatCard
+          label="Custo Médio p/ Porção"
+          value={`R$ ${mediaCustoPorPorcao.toFixed(2).replace('.', ',')}`}
+          Icon={Utensils}
+          iconBg="bg-rose-50"
+          iconColor="#e11d48"
+          accentColor="border-rose-500"
+        />
+      </section>
 
-      {/* Cards de navegação */}
-      <div className="flex items-center justify-between mb-5">
-        <p className="text-base font-semibold text-gray-700">O que deseja fazer?</p>
-        <span className="text-xs text-gray-400">{menuItems.length} ações disponíveis</span>
-      </div>
+      {/* Workflow Guide */}
+      <section className="bg-white rounded-3xl border border-gray-100 shadow-sm p-6 flex flex-col gap-5">
+        <div>
+          <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider">
+            Fluxo de Trabalho Recomendado
+          </h3>
+          <p className="text-xs text-gray-500 mt-0.5">Siga estes passos para extrair o máximo do sistema</p>
+        </div>
+        
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          
+          {/* Step 1 */}
+          <div className="flex flex-col gap-3 p-4 bg-gray-50/50 rounded-2xl border border-gray-100/50">
+            <div className="w-9 h-9 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center font-bold text-sm shrink-0">
+              1
+            </div>
+            <div>
+              <h4 className="text-xs font-bold text-gray-800 mb-1">Cadastrar Ingredientes</h4>
+              <p className="text-[11px] text-gray-500 leading-relaxed">
+                Adicione seus insumos, informando preço de compra e unidade de medida. Associe-os à tabela TACO para buscar os dados de energia, carboidratos, proteínas e mais de forma totalmente automática.
+              </p>
+            </div>
+          </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        {menuItems.map((item) => (
+          {/* Step 2 */}
+          <div className="flex flex-col gap-3 p-4 bg-gray-50/50 rounded-2xl border border-gray-100/50">
+            <div className="w-9 h-9 rounded-xl bg-green-100 text-green-700 flex items-center justify-center font-bold text-sm shrink-0">
+              2
+            </div>
+            <div>
+              <h4 className="text-xs font-bold text-gray-800 mb-1">Criar & Precificar Receitas</h4>
+              <p className="text-[11px] text-gray-500 leading-relaxed">
+                Combine ingredientes e informe quantidades. O sistema calcula na hora o custo dos insumos, sugere preços de venda ideais e consolida a tabela de informação nutricional de cada porção.
+              </p>
+            </div>
+          </div>
+
+          {/* Step 3 */}
+          <div className="flex flex-col gap-3 p-4 bg-gray-50/50 rounded-2xl border border-gray-100/50">
+            <div className="w-9 h-9 rounded-xl bg-blue-100 text-blue-700 flex items-center justify-center font-bold text-sm shrink-0">
+              3
+            </div>
+            <div>
+              <h4 className="text-xs font-bold text-gray-800 mb-1">Gerar Rótulo da ANVISA</h4>
+              <p className="text-[11px] text-gray-500 leading-relaxed">
+                Com a receita salva, gere o rótulo de informação nutricional no novo padrão da ANVISA pronto para impressão e colagem nas embalagens dos seus produtos e marmitas.
+              </p>
+            </div>
+          </div>
+
+        </div>
+      </section>
+
+      {/* Propaganda Banner for Free Plan */}
+      {(!usuario?.planoAtual || usuario?.planoAtual === 'gratis') && (
+        <div className="relative overflow-hidden bg-gradient-to-r from-orange-600 to-amber-500 rounded-2xl p-6 shadow-sm border border-orange-500/20 flex flex-col md:flex-row items-start md:items-center justify-between gap-6 animate-fadeIn">
+          {/* Subtle background decoration */}
+          <div className="absolute right-0 top-0 translate-x-12 -translate-y-12 opacity-10 text-white pointer-events-none">
+            <Crown size={180} />
+          </div>
+          
+          <div className="relative z-10 flex items-start sm:items-center gap-5">
+            <div className="bg-white/20 rounded-xl p-3 border border-white/20 shadow-sm shrink-0">
+              <Crown size={24} className="text-white" />
+            </div>
+            <div>
+              <h3 className="text-[17px] font-semibold text-white tracking-tight">Eleve sua operação com o Plano Profissional</h3>
+              <p className="text-[13px] text-orange-50/90 max-w-2xl leading-relaxed mt-1.5">
+                Atualmente você está no plano <strong className="text-white font-bold">Grátis</strong> (limite de 5 receitas). Faça o upgrade para criar até <strong className="text-white font-bold">60 receitas</strong>, gerar etiquetas personalizáveis, exportar relatórios e ter suporte prioritário.
+              </p>
+            </div>
+          </div>
           <button
-            key={item.titulo}
             type="button"
-            onClick={() => onNavegar(item.tela)}
-            className="bg-white rounded-xl p-6 shadow-sm border border-gray-100 cursor-pointer flex flex-col gap-3 text-left transition-all duration-200 hover:shadow-md hover:border-gray-200 hover:-translate-y-0.5 group"
+            onClick={() => onNavegar('pagamento')}
+            className="relative z-10 w-full md:w-auto flex items-center justify-center gap-2 bg-white text-orange-700 text-sm font-semibold px-5 py-2.5 rounded-lg hover:bg-orange-50 transition-colors cursor-pointer shrink-0 border-0 shadow-sm"
           >
-            <div className={`w-11 h-11 rounded-xl flex items-center justify-center ${item.iconBgClass} transition-transform duration-200 group-hover:scale-110`}>
-              <item.Icon size={20} color={item.iconColor} />
-            </div>
-            <div className="flex flex-col gap-1">
-              <p className="text-sm font-semibold text-gray-800">{item.titulo}</p>
-              <p className="text-xs text-gray-500 leading-relaxed">{item.descricao}</p>
-            </div>
-            <div className="mt-auto pt-2 flex items-center gap-1 text-xs font-semibold text-brand group-hover:gap-2 transition-all duration-200">
-              {item.btnLabel}
-              <ArrowRight size={13} />
-            </div>
+            Fazer Upgrade
+            <ArrowUpRight size={16} className="text-orange-600" />
           </button>
-        ))}
-      </div>
+        </div>
+      )}
     </div>
   );
 }
-

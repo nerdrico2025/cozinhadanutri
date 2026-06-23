@@ -1,4 +1,4 @@
-export type Unidade = 'g' | 'kg' | 'ml' | 'l' | 'unidade';
+export type Unidade = 'g' | 'kg' | 'ml' | 'l' | 'unidade' | 'un';
 
 export interface Ingrediente {
   id: string;
@@ -15,25 +15,42 @@ export interface UsuarioLogado {
   nome: string;
   email: string;
   role: 'admin' | 'user';
-  planoAtual?: 'gratis' | 'profissional' | 'empresarial';
+  planoAtual?: 'gratis' | 'profissional';
+  empresa?: {
+    razao_social: string;
+    nome_fantasia: string;
+    cnpj: string;
+    inscricao_estadual: string;
+    telefone: string;
+  };
 }
 
 export interface DadosNutricionais {
   calorias: number; // por 100g
-  proteinas: number; // por 100g
   carboidratos: number; // por 100g
-  gorduras: number; // por 100g
+  acucares_totais: number; // por 100g
+  acucares_adicionados: number; // por 100g
+  proteinas: number; // por 100g
+  gorduras: number; // por 100g (Totais)
+  gorduras_saturadas: number; // por 100g
+  gorduras_trans: number; // por 100g
+  fibras: number; // por 100g
+  sodio: number; // por 100g (mg)
+  vitaminas: number; // por 100g (g)
+  minerais: number; // por 100g (g)
 }
 
 export interface IngredienteReceita {
   tacoId: number;
   nome: string;
-  quantidade: number; // em gramas
-  preco: number; // preço por 100g (R$)
+  quantidade: number; // quantidade na unidade escolhida
+  preco: number; // preço da unidade inteira (ex: por kg, por l, ou por 100g se g)
+  unidade?: Unidade;
+  baseUnidade?: Unidade;
 }
 
 export interface Receita {
-  id: string;
+  id?: string;
   nome: string;
   descricao?: string;
   ingredientes: IngredienteReceita[];
@@ -62,4 +79,68 @@ export interface RotuloNutricional {
     gordurasTotais: number;
     sodio: number;
   };
+}
+
+export interface ReceitaRefeicao {
+  receitaId: string;
+  nome: string;
+  porcoesUtilizadas: number;
+  unidadeMedida?: string;
+  quantidadeUtilizada?: number;
+  custoPorPorcao: number;
+  dadosNutricionaisPorPorcao: DadosNutricionais;
+}
+
+export interface ItemEmbalagemSelecionada {
+  id: string;
+  nome: string;
+  checked: boolean;
+  quantidade: number;
+  custoUnitario: number;
+  isCustom?: boolean;
+}
+
+export interface CustosFixosMarmita {
+  aluguel: number;
+  internet: number;
+  contabilidade: number;
+  proLabore: number;
+  funcionarios: number;
+  sistemas: number;
+  marketing: number;
+  outros: number;
+}
+
+export interface CustosVariaveisMarmita {
+  energia: number;
+  agua: number;
+  gas: number;
+  taxasCartao: number;
+  outros: number;
+}
+
+export interface Refeicao {
+  id: string;
+  nome: string;
+  descricao?: string;
+  receitas: ReceitaRefeicao[];
+  custoTotal: number;
+  valorEmbalagem?: number;
+  embalagemId?: string;
+  embalagens?: ItemEmbalagemSelecionada[];
+  custoOperacional?: number;
+  margemLucro?: number;
+  precoSugerido?: number;
+  dadosNutricionaisTotais: DadosNutricionais;
+  dataValidade?: string;
+  validadeDias?: number;
+  contemGluten?: boolean;
+  contemLactose?: boolean;
+  alergicos?: Record<string, boolean>;
+  podeConter?: Record<string, boolean>;
+  outrosAlergenicos?: string;
+  producaoMarmitas?: number;
+  custosFixos?: CustosFixosMarmita;
+  custosVariaveis?: CustosVariaveisMarmita;
+  createdAt: string; // ISO string
 }

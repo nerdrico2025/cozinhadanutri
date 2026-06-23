@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -160,34 +160,109 @@ function PainelDireito() {
   );
 }
 
-const RECAPTCHA_SITE_KEY = import.meta.env.VITE_RECAPTCHA_SITE_KEY as string | undefined;
+const rawRecaptchaKey = import.meta.env.VITE_RECAPTCHA_SITE_KEY as string | undefined;
+const RECAPTCHA_SITE_KEY = (
+  rawRecaptchaKey && 
+  rawRecaptchaKey.trim() !== '' && 
+  rawRecaptchaKey.trim() !== 'sua_chave_publica_do_recaptcha' && 
+  !rawRecaptchaKey.includes('EXEMPLO') &&
+  !rawRecaptchaKey.includes('YOUR_')
+) ? rawRecaptchaKey.trim() : undefined;
 
-function FormPessoaJuridica({ onCadastrar, onVerTermos }: { onCadastrar: (data: FormPJ) => void; onVerTermos?: () => void }) {
-  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+function FormPessoaJuridica({ onCadastrar, onVerTermos, onVerPrivacidade }: { onCadastrar: (data: FormPJ) => void; onVerTermos?: () => void; onVerPrivacidade?: () => void }) {
+  const [captchaToken, setCaptchaToken] = useState<string | null>(
+    !RECAPTCHA_SITE_KEY ? 'dev' : null
+  );
   const [captchaKey, setCaptchaKey] = useState(0);
   const [aceitouTermos, setAceitouTermos] = useState(false);
-  const { register, handleSubmit, setValue, formState: { errors } } = useForm<FormPJ>({ resolver: zodResolver(schemaPJ) });
+  const [aceitouPrivacidade, setAceitouPrivacidade] = useState(false);
+  const [buscandoCnpj, setBuscandoCnpj] = useState(false);
+  const [cnpjValido, setCnpjValido] = useState(false);
+  const [mostrarAvisoColdStart, setMostrarAvisoColdStart] = useState(false);
+  const { register, handleSubmit, setValue, watch, setError, clearErrors, formState: { errors } } = useForm<FormPJ>({ resolver: zodResolver(schemaPJ) });
+
+  const cnpjValue = watch('cnpj');
+
+  useEffect(() => {
+    const rawCnpj = cnpjValue?.replace(/\D/g, '');
+    if (rawCnpj?.length === 14) {
+      const fetchCnpj = async () => {
+        setBuscandoCnpj(true);
+        setCnpjValido(false);
+        clearErrors('cnpj');
+        setMostrarAvisoColdStart(false);
+
+        const timer = setTimeout(() => {
+          setMostrarAvisoColdStart(true);
+        }, 3000);
+
+        try {
+          const apiUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
+          const res = await fetch(`${apiUrl}/api/cnpj/${rawCnpj}/`, {
+            method: 'GET',
+            headers: {
+              'Accept': 'application/json'
+            }
+          });
+          const data = await res.json();
+          if (res.ok && data.status === 'OK') {
+            if (data.nome) setValue('nomeEmpresarial', data.nome.substring(0, 200), { shouldValidate: true });
+            if (data.fantasia) {
+              setValue('nomeFantasia', data.fantasia.substring(0, 150), { shouldValidate: true });
+            } else if (data.nome) {
+              setValue('nomeFantasia', data.nome.substring(0, 150), { shouldValidate: true });
+            }
+            if (data.email) setValue('email', data.email.substring(0, 254).toLowerCase(), { shouldValidate: true });
+            if (data.telefone) {
+              // Get only the first phone number if multiple are returned
+              const tel = data.telefone.split(/[/(]/)[0].trim();
+              // Sometimes ReceitaWS returns (XX) XXXX-XXXX or XX XXXXXXXX
+              const digitsOnly = tel.replace(/\D/g, '');
+              setValue('telefone', maskTelefone(digitsOnly), { shouldValidate: true });
+            }
+            setCnpjValido(true);
+          } else {
+            setError('cnpj', { type: 'manual', message: data.message || 'CNPJ não encontrado ou inválido' });
+          }
+        } catch (error) {
+          console.error('Erro ao buscar CNPJ da ReceitaWS:', error);
+          setError('cnpj', { type: 'manual', message: 'Erro de conexão ao buscar CNPJ' });
+        } finally {
+          clearTimeout(timer);
+          setBuscandoCnpj(false);
+          setMostrarAvisoColdStart(false);
+        }
+      };
+      fetchCnpj();
+    } else {
+      setCnpjValido(false);
+    }
+  }, [cnpjValue, setValue, setError, clearErrors]);
 
   const onSubmit = useCallback((data: FormPJ) => {
-    if (!captchaToken || !aceitouTermos) return;
+    if (!captchaToken || !aceitouTermos || !aceitouPrivacidade || !cnpjValido) return;
     onCadastrar(data);
     setCaptchaKey((k) => k + 1);
     setCaptchaToken(null);
-  }, [captchaToken, aceitouTermos, onCadastrar]);
+  }, [captchaToken, aceitouTermos, aceitouPrivacidade, onCadastrar]);
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4" noValidate>
       <div className="grid grid-cols-2 gap-4">
-        <Field label="Razão Social" error={errors.nomeEmpresarial?.message}>
-          <input {...register('nomeEmpresarial')} placeholder="Empresa Ltda." maxLength={200} required className={inputCls(!!errors.nomeEmpresarial)} />
-        </Field>
-        <Field label="Nome Fantasia" error={errors.nomeFantasia?.message}>
-          <input {...register('nomeFantasia')} placeholder="Cozinha da Nutri" maxLength={150} required className={inputCls(!!errors.nomeFantasia)} />
-        </Field>
-      </div>
-      <div className="grid grid-cols-2 gap-4">
         <Field label="CNPJ" error={errors.cnpj?.message}>
-          <input {...register('cnpj')} onChange={(e) => setValue('cnpj', maskCNPJ(e.target.value), { shouldValidate: true })} placeholder="AA.AAA.AAA/AAAA-00" maxLength={18} required className={inputCls(!!errors.cnpj)} />
+          <div className="relative">
+            <input {...register('cnpj')} onChange={(e) => setValue('cnpj', maskCNPJ(e.target.value), { shouldValidate: true })} placeholder="AA.AAA.AAA/AAAA-00" maxLength={18} required className={`${inputCls(!!errors.cnpj)} ${buscandoCnpj ? 'pr-10' : ''}`} disabled={buscandoCnpj} />
+            {buscandoCnpj && (
+              <div className="absolute top-1/2 right-3 -translate-y-1/2">
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-brand"></div>
+              </div>
+            )}
+          </div>
+          {mostrarAvisoColdStart && (
+            <p className="text-amber-600 text-xs mt-1.5 leading-relaxed font-medium animate-pulse">
+              ⚠️ O servidor pode levar até 1 minuto para inicializar (Cold Start). Por favor, aguarde...
+            </p>
+          )}
         </Field>
         <Field label="Inscrição Estadual" error={errors.inscricaoEstadual?.message}>
           <input
@@ -206,6 +281,14 @@ function FormPessoaJuridica({ onCadastrar, onVerTermos }: { onCadastrar: (data: 
         </Field>
       </div>
       <div className="grid grid-cols-2 gap-4">
+        <Field label="Razão Social" error={errors.nomeEmpresarial?.message}>
+          <input {...register('nomeEmpresarial')} placeholder="Empresa Ltda." maxLength={200} required className={inputCls(!!errors.nomeEmpresarial)} />
+        </Field>
+        <Field label="Nome Fantasia" error={errors.nomeFantasia?.message}>
+          <input {...register('nomeFantasia')} placeholder="Cozinha da Nutri" maxLength={150} required className={inputCls(!!errors.nomeFantasia)} />
+        </Field>
+      </div>
+      <div className="grid grid-cols-2 gap-4">
         <Field label="Telefone" error={errors.telefone?.message}>
           <input {...register('telefone')} onChange={(e) => setValue('telefone', maskTelefone(e.target.value), { shouldValidate: true })} placeholder="(00) 00000-0000" maxLength={15} required className={inputCls(!!errors.telefone)} />
         </Field>
@@ -221,41 +304,63 @@ function FormPessoaJuridica({ onCadastrar, onVerTermos }: { onCadastrar: (data: 
           <SenhaInput reg={register('confirmarSenha')} placeholder="Repita a senha" hasError={!!errors.confirmarSenha} required />
         </Field>
       </div>
-      <div className="flex items-start gap-2.5">
-        <input
-          id="aceitar-termos-pj"
-          type="checkbox"
-          checked={aceitouTermos}
-          onChange={(e) => setAceitouTermos(e.target.checked)}
-          className="mt-0.5 w-4 h-4 accent-teal-700 cursor-pointer"
-        />
-        <label htmlFor="aceitar-termos-pj" className="text-sm text-gray-600 cursor-pointer leading-snug">
-          Li e aceito as{' '}
-          <button
-            type="button"
-            onClick={onVerTermos}
-            className="text-brand font-semibold underline underline-offset-2 bg-transparent border-0 p-0 cursor-pointer"
-          >
-            Políticas e Termos de Uso
-          </button>
-        </label>
+      <div className="flex flex-col gap-3">
+        {/* Checkbox: Termos de Uso */}
+        <div className="flex items-start gap-2.5">
+          <input
+            id="aceitar-termos-pj"
+            type="checkbox"
+            checked={aceitouTermos}
+            onChange={(e) => setAceitouTermos(e.target.checked)}
+            className="mt-0.5 w-4 h-4 accent-teal-700 cursor-pointer"
+          />
+          <label htmlFor="aceitar-termos-pj" className="text-sm text-gray-600 cursor-pointer leading-snug">
+            Li e aceito os{' '}
+            <button
+              type="button"
+              onClick={onVerTermos}
+              className="text-brand font-semibold underline underline-offset-2 bg-transparent border-0 p-0 cursor-pointer"
+            >
+              Termos de Uso
+            </button>
+          </label>
+        </div>
+
+        {/* Checkbox: Política de Privacidade */}
+        <div className="flex items-start gap-2.5">
+          <input
+            id="aceitar-privacidade-pj"
+            type="checkbox"
+            checked={aceitouPrivacidade}
+            onChange={(e) => setAceitouPrivacidade(e.target.checked)}
+            className="mt-0.5 w-4 h-4 accent-teal-700 cursor-pointer"
+          />
+          <label htmlFor="aceitar-privacidade-pj" className="text-sm text-gray-600 cursor-pointer leading-snug">
+            Li e aceito a{' '}
+            <button
+              type="button"
+              onClick={onVerPrivacidade}
+              className="text-brand font-semibold underline underline-offset-2 bg-transparent border-0 p-0 cursor-pointer"
+            >
+              Política de Privacidade
+            </button>
+          </label>
+        </div>
       </div>
-      <div className="flex justify-center">
-        {RECAPTCHA_SITE_KEY ? (
+      {RECAPTCHA_SITE_KEY && (
+        <div className="flex justify-center">
           <ReCAPTCHA
             key={captchaKey}
             sitekey={RECAPTCHA_SITE_KEY}
             onChange={(token: string | null) => setCaptchaToken(token)}
             onExpired={() => setCaptchaToken(null)}
           />
-        ) : (
-          <p className="text-xs text-red-500">VITE_RECAPTCHA_SITE_KEY não configurada.</p>
-        )}
-      </div>
+        </div>
+      )}
       <button
         type="submit"
-        disabled={!captchaToken || !aceitouTermos}
-        className={`w-full bg-brand text-white py-3 px-6 rounded-lg border-0 text-base font-semibold mt-1 transition-opacity ${!captchaToken || !aceitouTermos ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+        disabled={!captchaToken || !aceitouTermos || !aceitouPrivacidade || !cnpjValido}
+        className={`w-full bg-brand text-white py-3 px-6 rounded-lg border-0 text-base font-semibold mt-1 transition-opacity ${!captchaToken || !aceitouTermos || !aceitouPrivacidade || !cnpjValido ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
       >
         Cadastrar
       </button>
@@ -267,9 +372,10 @@ interface RegisterProps {
   onJaTemConta?: () => void;
   onCadastroSucesso?: (dados: FormPJ, tipo: 'pj') => void;
   onVerTermos?: () => void;
+  onVerPrivacidade?: () => void;
 }
 
-export function Register({ onJaTemConta, onCadastroSucesso, onVerTermos }: RegisterProps) {
+export function Register({ onJaTemConta, onCadastroSucesso, onVerTermos, onVerPrivacidade }: RegisterProps) {
   const handleCadastrar = (data: FormPJ) => {
     if (onCadastroSucesso) onCadastroSucesso(data, 'pj');
     else console.log('Cadastro PJ:', data);
@@ -297,7 +403,11 @@ export function Register({ onJaTemConta, onCadastroSucesso, onVerTermos }: Regis
 
             </div>
 
-            <FormPessoaJuridica onCadastrar={handleCadastrar} onVerTermos={onVerTermos} />
+            <FormPessoaJuridica 
+              onCadastrar={handleCadastrar} 
+              onVerTermos={onVerTermos}
+              onVerPrivacidade={onVerPrivacidade}
+            />
 
            {/*  <p className="text-center text-sm text-gray-500 mt-5">
               Já possui uma conta?{' '}

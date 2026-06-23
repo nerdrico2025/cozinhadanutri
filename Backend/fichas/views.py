@@ -1,0 +1,391 @@
+from decimal import Decimal
+from django.shortcuts import get_object_or_404
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework.permissions import IsAuthenticated
+from .services import calcular_lupas
+from .serializers import FichaTecnicaSerializer
+
+from .models import (
+    Etiqueta,
+    FichaTecnica,
+    IngredienteFichaTecnica,
+    ConfiguracaoEtiqueta,
+)
+
+from .serializers import (
+    EtiquetaSerializer,
+    TabelaNutricionalSerializer,
+    RotuloSerializer,
+    ConfiguracaoEtiquetaSerializer
+)
+
+
+class TabelaNutricionalView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, id):
+
+        ficha = get_object_or_404(FichaTecnica, id=id)
+
+        # validar dono da ficha
+        if ficha.usuario != request.user:
+            return Response(
+                {"erro": "Acesso negado"},
+                status=403
+            )
+
+        ingredientes = IngredienteFichaTecnica.objects.filter(
+            ficha=ficha
+        )
+
+        dados = {
+            "gorduras_totais": Decimal('0'),
+            "energia_kcal": Decimal('0'),
+            "proteinas": Decimal('0'),
+            "gorduras_saturadas": Decimal('0'),
+            "carboidratos": Decimal('0'),
+            "acucares_totais": Decimal('0'),
+            "acucares_adicionados": Decimal('0'),
+            "fibra_alimentar": Decimal('0'),
+            "sodio": Decimal('0'),
+        }
+
+        for ingrediente in ingredientes:
+
+            alimento = ingrediente.alimento
+            quantidade = ingrediente.quantidade
+
+            fator = quantidade / Decimal('100')
+
+            dados["gorduras_totais"] += (
+                alimento.gorduras_totais or 0
+            ) * fator
+
+            dados["energia_kcal"] += (
+                alimento.energia_kcal or 0
+            ) * fator
+
+            dados["proteinas"] += (
+                alimento.proteinas or 0
+            ) * fator
+
+            dados["gorduras_saturadas"] += (
+                alimento.gorduras_saturadas or 0
+            ) * fator
+
+            dados["carboidratos"] += (
+                alimento.carboidratos or 0
+            ) * fator
+
+            dados["acucares_totais"] += (
+                alimento.acucares_totais or 0
+            ) * fator
+
+            dados["acucares_adicionados"] += (
+                alimento.acucares_adicionados or 0
+            ) * fator
+
+            dados["fibra_alimentar"] += (
+                alimento.fibra_alimentar or 0
+            ) * fator
+
+            dados["sodio"] += (
+                alimento.sodio or 0
+            ) * fator
+
+        serializer = TabelaNutricionalSerializer(dados)
+
+        return Response(serializer.data)
+
+
+class RotuloView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, id):
+
+        ficha = get_object_or_404(FichaTecnica, id=id)
+
+        # validar dono da ficha
+        if ficha.usuario != request.user:
+            return Response(
+                {"erro": "Acesso negado"},
+                status=403
+            )
+
+        empresa = request.user.empresa
+
+        if not empresa or not empresa.plano:
+            return Response(
+                {"erro": "Você precisa de um plano ativo para acessar esta funcionalidade."},
+                status=403
+            )
+        limite_rotulo = empresa.plano.limite_rotulo
+        if limite_rotulo is not None:
+            total_rotulos = Etiqueta.objects.filter(ficha__usuario=request.user).count()
+
+            if total_rotulos >= limite_rotulo:
+                return Response(
+                    {"erro": "Limite de rótulos do plano atingido. Por favor, atualize seu plano para criar mais rótulos."},
+                    status=403
+                )
+
+        ingredientes = IngredienteFichaTecnica.objects.filter(
+            ficha=ficha
+        )
+    
+        tabela = {
+            "gorduras_totais": Decimal('0'),
+            "energia_kcal": Decimal('0'),
+            "proteinas": Decimal('0'),
+            "gorduras_saturadas": Decimal('0'),
+            "carboidratos": Decimal('0'),
+            "acucares_totais": Decimal('0'),
+            "acucares_adicionados": Decimal('0'),
+            "fibra_alimentar": Decimal('0'),
+            "sodio": Decimal('0'),
+        }
+
+        lista_ingredientes = []
+
+        for ingrediente in ingredientes:
+
+            alimento = ingrediente.alimento
+            quantidade = ingrediente.quantidade
+
+            lista_ingredientes.append(
+                alimento.descricao
+            )
+
+            fator = quantidade / Decimal('100')
+
+            tabela["gorduras_totais"] += (
+                alimento.gorduras_totais or 0
+            ) * fator
+
+            tabela["energia_kcal"] += (
+                alimento.energia_kcal or 0
+            ) * fator
+
+            tabela["proteinas"] += (
+                alimento.proteinas or 0
+            ) * fator
+
+            tabela["gorduras_saturadas"] += (
+                alimento.gorduras_saturadas or 0
+            ) * fator
+
+            tabela["carboidratos"] += (
+                alimento.carboidratos or 0
+            ) * fator
+
+            tabela["acucares_totais"] += (
+                alimento.acucares_totais or 0
+            ) * fator
+
+            tabela["acucares_adicionados"] += (
+                alimento.acucares_adicionados or 0
+            ) * fator
+
+            tabela["fibra_alimentar"] += (
+                alimento.fibra_alimentar or 0
+            ) * fator
+
+            tabela["sodio"] += (
+                alimento.sodio or 0
+            ) * fator
+
+        lupas = calcular_lupas(tabela)
+
+        dados = {
+            "nome_produto": ficha.nome,
+            "porcao": "100g",
+            "ingredientes": lista_ingredientes,
+            "tabela_nutricional": tabela,
+            "lupas": lupas
+        }
+
+        serializer = RotuloSerializer(dados)
+
+        return Response(serializer.data)
+
+
+class ConfiguracaoEtiquetaView(APIView):
+
+    permission_classes = [IsAuthenticated]
+
+    def put(self, request, id):
+
+        ficha = get_object_or_404(
+            FichaTecnica,
+            id=id
+        )
+
+        if ficha.usuario != request.user:
+            return Response(
+                {"erro": "Acesso negado"},
+                status=403
+            )
+
+        configuracao, created = (
+            ConfiguracaoEtiqueta.objects.get_or_create(
+                ficha=ficha
+            )
+        )
+
+        serializer = ConfiguracaoEtiquetaSerializer(
+            configuracao,
+            data=request.data,
+            partial=True
+        )
+
+        serializer.is_valid(raise_exception=True)
+
+        serializer.save()
+
+        return Response(serializer.data)
+
+
+class EtiquetaView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, id):
+
+        etiqueta = get_object_or_404(Etiqueta, id=id)
+
+        if etiqueta.ficha.usuario != request.user:
+            return Response(
+                {"erro": "Acesso negado"},
+                status=403
+            )
+
+        serializer = EtiquetaSerializer(etiqueta)
+
+        return Response(serializer.data)
+
+    def patch(self, request, id):
+
+        etiqueta = get_object_or_404(Etiqueta, id=id)
+
+        if etiqueta.ficha.usuario != request.user:
+            return Response(
+                {"erro": "Acesso negado"},
+                status=403
+            )
+
+        serializer = EtiquetaSerializer(
+            etiqueta,
+            data=request.data,
+            partial=True
+        )
+
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+
+        return Response(
+            serializer.errors,
+            status=400
+        )
+
+class FichaTecnicaCreateView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+
+        empresa = request.user.empresa
+
+        if empresa and empresa.plano:
+
+            limite = empresa.plano.limite_receitas
+
+            if limite is not None:
+
+                total_fichas = FichaTecnica.objects.filter(
+                    usuario=request.user
+                ).count()
+
+                if total_fichas >= limite:
+                    return Response(
+                        {
+                            "erro": "Limite de fichas atingido."
+                        },
+                        status=403
+                    )
+
+        serializer = FichaTecnicaSerializer(
+            data=request.data
+        )
+
+        serializer.is_valid(raise_exception=True)
+
+        serializer.save(
+            usuario=request.user
+        )
+
+        return Response(
+            serializer.data,
+            status=201
+        )
+class FichaTecnicaListView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+
+        fichas = FichaTecnica.objects.filter(
+            usuario=request.user
+        )
+
+        serializer = FichaTecnicaSerializer(
+            fichas,
+            many=True
+        )
+
+        return Response(serializer.data)
+
+class FichaTecnicaDetailView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, id):
+
+        ficha = get_object_or_404(
+            FichaTecnica,
+            id=id,
+            usuario=request.user
+        )
+
+        serializer = FichaTecnicaSerializer(ficha)
+
+        return Response(serializer.data)
+
+    def patch(self, request, id):
+
+        ficha = get_object_or_404(
+            FichaTecnica,
+            id=id,
+            usuario=request.user
+        )
+
+        serializer = FichaTecnicaSerializer(
+            ficha,
+            data=request.data,
+            partial=True
+        )
+
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+
+        return Response(serializer.data)
+
+    def delete(self, request, id):
+
+        ficha = get_object_or_404(
+            FichaTecnica,
+            id=id,
+            usuario=request.user
+        )
+
+        ficha.delete()
+
+        return Response(status=204)
+    

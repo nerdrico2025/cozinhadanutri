@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   CreditCard,
   Check,
@@ -12,8 +12,9 @@ import {
   QrCode,
   ChevronDown,
 } from 'lucide-react';
-import { criarPreferencia, PlanoId, MetodoPagamento } from '../services/mercadoPagoApi';
+import { criarPagamento, PlanoId, MetodoPagamento } from '../services/asaasApi';
 import { UsuarioLogado } from '../types';
+import { trocarPlano, MAP_PLANO_FRONTEND_TO_DB } from '../services/planService';
 
 interface Plano {
   id: PlanoId;
@@ -31,36 +32,20 @@ const planos: Plano[] = [
   {
     id: 'profissional',
     nome: 'Profissional',
-    valorMensal: 29.9,
-    valorAnualMes: 24.17,
-    totalAnual: 290,
-    economiaMensal: 5.73,
+    valorMensal: 97,
+    valorAnualMes: 79,
+    totalAnual: 948,
+    economiaMensal: 18,
     destaque: true,
     icon: Zap,
     recursos: [
-      'Receitas ilimitadas',
-      'Ingredientes ilimitados',
-      'Precificação avançada',
-      'Exportar rótulos em PDF',
-      'Histórico de receitas',
-      'Suporte prioritário',
-    ],
-  },
-  {
-    id: 'empresarial',
-    nome: 'Empresarial',
-    valorMensal: 79.9,
-    valorAnualMes: 65.83,
-    totalAnual: 790,
-    economiaMensal: 14.07,
-    destaque: false,
-    icon: Building2,
-    recursos: [
-      'Tudo do Profissional',
-      'Múltiplos usuários',
-      'Relatórios gerenciais',
-      'API de integração',
-      'Onboarding dedicado',
+      'Até 60 receitas',
+      'Rótulo nutricional ANVISA',
+      'Etiqueta personalizável',
+      'Exportação PDF e Excel',
+      'Relatório de custo e margem',
+      'Suporte por WhatsApp',
+      'Comunidade Exclusiva',
     ],
   },
 ];
@@ -80,12 +65,23 @@ function formatarMoeda(valor: number) {
 }
 
 export function Payments({ usuario, planoPreSelecionado, onVoltar, onLogin }: PaymentsProps): JSX.Element {
-  const [planoSelecionado, setPlanoSelecionado] = useState<PlanoId | null>(planoPreSelecionado ?? null);
+  const [planoSelecionado, setPlanoSelecionado] = useState<PlanoId | null>(planoPreSelecionado ?? 'profissional');
   const [cicloAnual, setCicloAnual] = useState(false);
   const [metodoPagamento, setMetodoPagamento] = useState<MetodoPagamento | null>(null);
   const [parcelas, setParcelas] = useState(1);
+  const [cpf, setCpf] = useState(usuario?.empresa?.cnpj || '');
   const [carregando, setCarregando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
+  const [checkoutUrl, setCheckoutUrl] = useState<string | null>(null);
+  const [pixQrCode, setPixQrCode] = useState<string | null>(null);
+  const [pixCopyPaste, setPixCopyPaste] = useState<string | null>(null);
+
+  useEffect(() => {
+    // Se o usuário alterar opções, resetamos os dados de checkout
+    setCheckoutUrl(null);
+    setPixQrCode(null);
+    setPixCopyPaste(null);
+  }, [planoSelecionado, cicloAnual, metodoPagamento, parcelas]);
 
   const planoAtual = planos.find((p) => p.id === planoSelecionado);
 
@@ -95,29 +91,60 @@ export function Payments({ usuario, planoPreSelecionado, onVoltar, onLogin }: Pa
   const valorFinal = metodoPagamento === 'pix' ? valorBase * (1 - DESCONTO_PIX) : valorBase;
   const valorParcela = valorFinal / parcelas;
 
-  const podePagar = !!planoAtual && !!metodoPagamento;
+  const podePagar = !!planoAtual && !!metodoPagamento && cpf.replace(/\D/g, '').length >= 11;
 
   const handleAssinar = async () => {
-    if (!planoAtual || !metodoPagamento) return;
+    if (!planoAtual || !metodoPagamento || !cpf) return;
     if (!usuario) { onLogin?.(); return; }
 
     setCarregando(true);
     setErro(null);
+    setCheckoutUrl(null);
+    setPixQrCode(null);
+    setPixCopyPaste(null);
 
     try {
-      const resposta = await criarPreferencia({
-        planoId: planoAtual.id,
-        planoNome: planoAtual.nome,
+      const resposta = await criarPagamento({
+        nome: usuario.nome || usuario.empresa?.razao_social || 'Cliente',
+        email: usuario.email,
+        cpf: cpf.replace(/\D/g, ''),
         valor: valorFinal,
-        usuarioEmail: usuario.email,
-        usuarioNome: usuario.nome,
-        metodoPagamento,
-        parcelas: metodoPagamento === 'cartao' ? parcelas : undefined,
+        metodoPagamento: metodoPagamento,
       });
 
-      const isSandbox = import.meta.env.DEV;
-      const url = isSandbox ? resposta.sandboxInitPoint : resposta.initPoint;
-      window.location.href = url;
+      if (resposta.checkoutUrl) {
+        setCheckoutUrl(resposta.checkoutUrl);
+        // Redireciona imediatamente para o Asaas se for link
+        window.location.href = resposta.checkoutUrl;
+      } else if (resposta.pixQrCode && resposta.pixCopyPaste) {
+        setPixQrCode(resposta.pixQrCode);
+        setPixCopyPaste(resposta.pixCopyPaste);
+      }
+      
+      // Atualiza o plano localmente e no banco de dados para fins de simulação/teste local
+      const dbPlanoId = MAP_PLANO_FRONTEND_TO_DB[planoAtual.id];
+      if (dbPlanoId) {
+        await trocarPlano(dbPlanoId);
+        
+        try {
+          const historicoSalvo = localStorage.getItem('payment_history');
+          const historico = historicoSalvo ? JSON.parse(historicoSalvo) : [];
+          const novoPgto = {
+            id: resposta.paymentId || `REC-${Math.floor(10000000 + Math.random() * 90000000)}-${metodoPagamento === 'pix' ? 'MP' : 'CC'}`,
+            data: new Date().toLocaleDateString('pt-BR'),
+            plano: `Plano ${planoAtual.nome}${cicloAnual ? ' (Anual)' : ' (Mensal)'}`,
+            valor: formatarMoeda(valorFinal),
+            metodo: metodoPagamento === 'pix' ? 'PIX' : 'Cartão de Crédito',
+            status: 'Concluído'
+          };
+          historico.unshift(novoPgto);
+          localStorage.setItem('payment_history', JSON.stringify(historico));
+        } catch (e) {
+          console.error('Erro ao salvar no histórico de pagamentos', e);
+        }
+
+        window.dispatchEvent(new Event('session_updated'));
+      }
     } catch (err) {
       setErro(
         err instanceof Error ? err.message : 'Erro ao iniciar o pagamento. Tente novamente.'
@@ -142,7 +169,7 @@ export function Payments({ usuario, planoPreSelecionado, onVoltar, onLogin }: Pa
         ) : <div />}
         <p className="text-xs text-gray-400 flex items-center gap-1.5">
           <ShieldCheck size={12} className="text-[#04585a]" />
-          Pagamento seguro via Mercado Pago
+          Pagamento seguro via Asaas
         </p>
       </div>
 
@@ -331,6 +358,20 @@ export function Payments({ usuario, planoPreSelecionado, onVoltar, onLogin }: Pa
                   </div>
                 </div>
               )}
+              {/* CPF / CNPJ */}
+              <div className="flex flex-col gap-1.5 mt-4">
+                <label htmlFor="cpf" className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                  CPF ou CNPJ para faturamento
+                </label>
+                <input
+                  id="cpf"
+                  type="text"
+                  value={cpf}
+                  onChange={(e) => setCpf(e.target.value)}
+                  placeholder="000.000.000-00"
+                  className="w-full rounded-xl border-2 border-gray-200 bg-white px-4 py-2.5 text-sm text-gray-800 focus:outline-none focus:border-[#04585a] transition"
+                />
+              </div>
             </div>
           </div>
 
@@ -389,37 +430,67 @@ export function Payments({ usuario, planoPreSelecionado, onVoltar, onLogin }: Pa
                       </div>
                     )}
 
-                    {/* Botão */}
-                    <button
-                      type="button"
-                      onClick={handleAssinar}
-                      disabled={carregando || !podePagar}
-                      className={`flex items-center justify-center gap-2 w-full py-3.5 rounded-xl text-sm font-bold transition ${
-                        carregando || !podePagar
-                          ? 'bg-white/20 text-white/40 cursor-not-allowed'
-                          : 'bg-white text-[#04585a] hover:bg-gray-100 cursor-pointer'
-                      }`}
-                    >
-                      {carregando ? (
-                        <><Loader2 size={15} className="animate-spin" /> Processando...</>
-                      ) : metodoPagamento === 'pix' ? (
-                        <><QrCode size={15} /> Pagar com PIX</>
-                      ) : metodoPagamento === 'cartao' ? (
-                        <><CreditCard size={15} /> Pagar com cartão</>
-                      ) : (
-                        'Selecione como pagar'
-                      )}
-                    </button>
+                    {/* Botão de pagamento Asaas */}
+                    {!checkoutUrl && !pixQrCode ? (
+                      <button
+                        type="button"
+                        onClick={handleAssinar}
+                        disabled={carregando || !podePagar}
+                        className={`flex items-center justify-center gap-2 w-full py-3.5 rounded-xl text-sm font-bold transition ${
+                          carregando || !podePagar
+                            ? 'bg-white/20 text-white/40 cursor-not-allowed'
+                            : 'bg-white text-[#04585a] hover:bg-gray-100 cursor-pointer'
+                        }`}
+                      >
+                        {carregando ? (
+                          <><Loader2 size={15} className="animate-spin" /> Processando...</>
+                        ) : metodoPagamento === 'pix' ? (
+                          <><QrCode size={15} /> Pagar com PIX</>
+                        ) : metodoPagamento === 'cartao' ? (
+                          <><CreditCard size={15} /> Pagar com cartão</>
+                        ) : (
+                          'Selecione como pagar'
+                        )}
+                      </button>
+                    ) : pixQrCode ? (
+                      <div className="mt-2 w-full bg-white rounded-xl p-4 flex flex-col items-center">
+                        <p className="text-center text-sm text-[#04585a] font-bold mb-2">Escaneie o QR Code</p>
+                        <img src={`data:image/png;base64,${pixQrCode}`} alt="QR Code PIX" className="w-48 h-48 mb-4 object-contain" />
+                        <div className="w-full flex flex-col gap-2">
+                          <p className="text-xs text-gray-500 font-semibold text-center">Ou copie e cole o código abaixo:</p>
+                          <input 
+                            type="text" 
+                            value={pixCopyPaste ?? ''} 
+                            readOnly 
+                            className="w-full px-3 py-2 border rounded-lg text-xs outline-none text-gray-700 bg-gray-50"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (pixCopyPaste) navigator.clipboard.writeText(pixCopyPaste);
+                              alert("Código copiado!");
+                            }}
+                            className="w-full bg-[#04585a] text-white py-2 rounded-lg text-sm font-semibold hover:bg-[#034042] transition"
+                          >
+                            Copiar Código
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="mt-2 w-full text-center">
+                        <p className="text-sm text-white/80">Redirecionando para o pagamento seguro...</p>
+                      </div>
+                    )}
 
-                    {/* Link MP */}
+                    {/* Link Asaas */}
                     <a
-                      href="https://www.mercadopago.com.br/seguranca"
+                      href="https://www.asaas.com"
                       target="_blank"
                       rel="noopener noreferrer"
                       className="flex items-center justify-center gap-1.5 text-xs text-white/40 hover:text-white/70 transition"
                     >
                       <ExternalLink size={10} />
-                      Checkout seguro — Mercado Pago
+                      Checkout seguro — Asaas
                     </a>
                   </>
                 ) : (

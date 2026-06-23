@@ -2,7 +2,7 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Eye, EyeOff, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Eye, EyeOff, AlertCircle, Tag, FileText, MessageCircle, TrendingUp } from 'lucide-react';
 import ReCAPTCHA from 'react-google-recaptcha';
 
 // ── Segurança ─────────────────────────────────────────────────────────────────
@@ -48,169 +48,72 @@ interface LoginProps {
   onEsqueciSenha?: () => void;
 }
 
-interface SlideImage {
-  src: string;
-  alt: string;
-  style: React.CSSProperties;
-}
-
-interface Slide {
-  key: string;
-  bgClass: string;
-  images: SlideImage[];
-  title: string;
-  description: string;
-}
-
-const slides: Slide[] = [
-  {
-    key: 'receitas',
-    bgClass: 'slide-bg-receitas',
-    images: [
-      { src: '/login_img1.svg', alt: 'Receita principal', style: { width: 340, height: 340, borderRadius: '20px', transform: 'translate(-16px, 32px) rotate(-12deg)', zIndex: 1 } },
-      { src: '/login_img2.svg', alt: 'Rótulo',            style: { width: 230, height: 230, borderRadius: '20px', transform: 'translate(140px, -130px) rotate(10deg)', zIndex: 2 } },
-      { src: '/login_img3.svg', alt: 'Anvisa',            style: { width: 185, height: 185, borderRadius: '20px', transform: 'translate(-138px, -125px) rotate(6deg)', zIndex: 3 } },
-    ],
-    title: 'Crie Receitas Incríveis',
-    description: 'Monte e gerencie receitas com cálculo nutricional automático baseado na tabela TACO.',
-  },
-  {
-    key: 'rotulo',
-    bgClass: 'slide-bg-rotulo',
-    images: [
-      { src: '/login_img4.svg', alt: 'Rótulo principal',  style: { width: 340, height: 340, borderRadius: '20px', transform: 'translate(16px, 28px) rotate(8deg)',    zIndex: 1 } },
-      { src: '/login_img5.svg', alt: 'Receita',           style: { width: 220, height: 220, borderRadius: '20px', transform: 'translate(-148px, -125px) rotate(-14deg)', zIndex: 2 } },
-      { src: '/login_img7.svg', alt: 'Anvisa',            style: { width: 192, height: 192, borderRadius: '20px', transform: 'translate(138px, -138px) rotate(-8deg)', zIndex: 3 } },
-    ],
-    title: 'Rótulo Nutricional',
-    description: 'Gere rótulos nutricionais completos em conformidade com as normas da ANVISA.',
-  },
-  {
-    key: 'anvisa',
-    bgClass: 'slide-bg-anvisa',
-    images: [
-      { src: '/login_img8.svg', alt: 'Anvisa principal',  style: { width: 340, height: 340, borderRadius: '20px', transform: 'translate(0px, 26px) rotate(-6deg)', zIndex: 1 } },
-    ],
-    title: 'Conformidade ANVISA',
-    description: 'Todos os dados seguem os padrões exigidos pela Agência Nacional de Vigilância Sanitária.',
-  },
-  {
-    key: 'precificacao',
-    bgClass: 'slide-bg-precificacao',
-    images: [
-      { src: '/login_img9.svg',  alt: 'Precificação principal', style: { width: 340, height: 340, borderRadius: '20px', transform: 'translate(-12px, 30px) rotate(-8deg)',  zIndex: 1 } },
-      { src: '/login_img10.svg', alt: 'Custo',                  style: { width: 220, height: 220, borderRadius: '20px', transform: 'translate(140px, -132px) rotate(12deg)', zIndex: 2 } },
-      { src: '/login_img11.svg', alt: 'Lucro',                  style: { width: 192, height: 192, borderRadius: '20px', transform: 'translate(-135px, -130px) rotate(-9deg)', zIndex: 3 } },
-    ],
-    title: 'Precificação Inteligente',
-    description: 'Calcule automaticamente o custo de produção e defina preços com margem de lucro ideal para o seu negócio.',
-  },
+// ── Painel decorativo direito ─────────────────────────────────────────────────
+const beneficios = [
+  { icon: Tag, titulo: 'Sugestão de preço de venda', desc: 'Calcule automaticamente o valor ideal para seus produtos.' },
+  { icon: FileText, titulo: 'Tabela nutricional ANVISA', desc: 'Gere rótulos precisos e totalmente dentro das normas.' },
+  { icon: MessageCircle, titulo: 'Suporte por WhatsApp', desc: 'Tire suas dúvidas rapidamente de forma humanizada.' },
+  { icon: TrendingUp, titulo: 'Relatório de custo e margem', desc: 'Acompanhe a lucratividade e o custo de produção de perto.' },
 ];
 
-function Carousel() {
-  const [current, setCurrent] = useState(0);
-  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-
-  const next = useCallback(() => setCurrent((c) => (c + 1) % slides.length), []);
-  const prev = useCallback(() => setCurrent((c) => (c - 1 + slides.length) % slides.length), []);
-
-  const resetTimer = useCallback((fn: () => void) => {
-    if (timerRef.current) clearInterval(timerRef.current);
-    fn();
-    timerRef.current = setInterval(next, 4000);
-  }, [next]);
-
-  useEffect(() => {
-    timerRef.current = setInterval(next, 4000);
-    return () => { if (timerRef.current) clearInterval(timerRef.current); };
-  }, [next]);
-
-  const slide = slides[current];
-
+function PainelDireito() {
   return (
-    <div className={`relative flex flex-col items-center justify-center h-full w-full overflow-hidden select-none transition-all duration-500 ${slide.bgClass}`}>
+    <div className="relative hidden md:flex md:w-1/2 flex-col items-center justify-center overflow-hidden select-none slide-bg-receitas">
       {/* Blobs decorativos de fundo */}
       <div className="carousel-blob-bg-1" />
       <div className="carousel-blob-bg-2" />
       <div className="carousel-blob-bg-3" />
 
-      {/* Conteúdo principal */}
-      <div className="carousel-content-wrapper">
-      <div key={slide.key} className="fade-slide-in relative z-10 flex flex-col items-center justify-center gap-7 px-10">
-        {/* Blob arredondado com trio de imagens desalinhadas */}
-        <div className="carousel-blob-main" style={{ position: 'relative', overflow: 'visible' }}>
-          {slide.images.map((img) => (
+      <div className="relative z-10 flex flex-col items-center px-10 gap-6 w-full text-center overflow-y-auto py-8">
+        <div className="fade-slide-in flex flex-col gap-4 w-full max-w-xs">
+
+          <div className="mb-2 text-center w-full">
+            <p className="text-white/60 text-[10px] font-bold uppercase tracking-widest mb-1">Bem-vindo(a) à</p>
+            <h2 className="text-white text-2xl font-bold leading-snug">Cozinha da Nutri</h2>
+          </div>
+
+          {beneficios.map(({ icon: Icon, titulo, desc }) => (
             <div
-              key={img.src}
-              style={{
-                position: 'absolute',
-                overflow: 'hidden',
-                filter: 'drop-shadow(0 6px 14px rgba(0,0,0,0.25))',
-                ...img.style,
-              }}
+              key={titulo}
+              className="bg-white/15 backdrop-blur-sm rounded-2xl p-4 flex items-start gap-3 text-left border border-white/20 transition-transform hover:-translate-y-0.5"
+              style={{ boxShadow: '0 4px 20px rgba(0,0,0,0.12)' }}
             >
-              <img
-                src={img.src}
-                alt={img.alt}
-                style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
-              />
+              <div className="bg-white/20 rounded-xl p-2 shrink-0">
+                <Icon size={20} className="text-white" />
+              </div>
+              <div>
+                <p className="text-white font-semibold text-sm">{titulo}</p>
+                <p className="text-white/75 text-xs mt-0.5 leading-relaxed">{desc}</p>
+              </div>
             </div>
           ))}
         </div>
-
-        {/* Caption */}
-        <div className="text-center px-6 py-4 rounded-2xl" style={{ background: 'rgba(0,0,0,0.22)', backdropFilter: 'blur(6px)' }}>
-          <h2 className="text-white text-3xl font-extrabold mb-2 drop-shadow-lg tracking-tight">{slide.title}</h2>
-          <p className="text-white text-base font-medium leading-relaxed drop-shadow">{slide.description}</p>
-        </div>
-      </div>
-      </div>
-
-      {/* Arrows */}
-      <button
-        type="button"
-        onClick={() => resetTimer(prev)}
-        className="absolute left-3 top-1/2 -translate-y-1/2 bg-white/20 hover:bg-white/35 text-white rounded-full p-1.5 border-0 cursor-pointer transition-colors z-20"
-        aria-label="Slide anterior"
-      >
-        <ChevronLeft size={18} />
-      </button>
-      <button
-        type="button"
-        onClick={() => resetTimer(next)}
-        className="absolute right-3 top-1/2 -translate-y-1/2 bg-white/20 hover:bg-white/35 text-white rounded-full p-1.5 border-0 cursor-pointer transition-colors z-20"
-        aria-label="Próximo slide"
-      >
-        <ChevronRight size={18} />
-      </button>
-
-      {/* Dots */}
-      <div className="absolute bottom-8 flex gap-2 z-20">
-        {slides.map((s, i) => (
-          <button
-            key={s.key}
-            type="button"
-            onClick={() => resetTimer(() => setCurrent(i))}
-            className={`border-0 cursor-pointer p-0 rounded-full transition-all h-2 ${i === current ? 'w-6 bg-white' : 'w-2 bg-white/45'}`}
-            aria-label={`Ir para slide ${i + 1}`}
-          />
-        ))}
       </div>
     </div>
   );
 }
 
-const RECAPTCHA_SITE_KEY = import.meta.env.VITE_RECAPTCHA_SITE_KEY as string | undefined;
+const rawRecaptchaKey = import.meta.env.VITE_RECAPTCHA_SITE_KEY as string | undefined;
+const RECAPTCHA_SITE_KEY = (
+  rawRecaptchaKey && 
+  rawRecaptchaKey.trim() !== '' && 
+  rawRecaptchaKey.trim() !== 'sua_chave_publica_do_recaptcha' && 
+  !rawRecaptchaKey.includes('EXEMPLO') &&
+  !rawRecaptchaKey.includes('YOUR_')
+) ? rawRecaptchaKey.trim() : undefined;
 
 export function Login({ onEntrar, onCriarConta, onEsqueciSenha }: LoginProps) {
   const [mostrarSenha, setMostrarSenha] = useState(false);
-  const [captchaToken, setCaptchaToken] = useState<string | null>(!RECAPTCHA_SITE_KEY ? 'dev' : null);
+  const [captchaToken, setCaptchaToken] = useState<string | null>(
+    !RECAPTCHA_SITE_KEY ? 'dev' : null
+  );
   const [captchaKey, setCaptchaKey] = useState(0);
 
   // Proteção contra brute force (client-side — a proteção real deve estar no backend)
   const [tentativas, setTentativas] = useState(0);
   const [bloqueadoAte, setBloqueadoAte] = useState<number | null>(null);
   const [tempoRestante, setTempoRestante] = useState(0);
+  const [erroLogin, setErroLogin] = useState<string | null>(null);
 
   const estaBloqueado = bloqueadoAte !== null && Date.now() < bloqueadoAte;
 
@@ -233,6 +136,7 @@ export function Login({ onEntrar, onCriarConta, onEsqueciSenha }: LoginProps) {
 
   const onSubmit = async (data: FormLogin) => {
     if (estaBloqueado || !captchaToken) return;
+    setErroLogin(null);
 
     let sucesso = false;
     try {
@@ -243,6 +147,7 @@ export function Login({ onEntrar, onCriarConta, onEsqueciSenha }: LoginProps) {
     }
 
     if (!sucesso) {
+      setErroLogin('E-mail ou senha inválidos.');
       const proxTentativas = tentativas + 1;
       if (proxTentativas >= MAX_TENTATIVAS) {
         setTentativas(MAX_TENTATIVAS);
@@ -259,10 +164,8 @@ export function Login({ onEntrar, onCriarConta, onEsqueciSenha }: LoginProps) {
     <div className="h-screen flex flex-col overflow-hidden">
       <div className="w-full flex flex-1 min-h-0">
 
-        {/* LEFT — Carousel */}
-        <div className="hidden md:flex md:w-1/2">
-          <Carousel />
-        </div>
+        {/* LEFT — Painel decorativo */}
+        <PainelDireito />
 
         {/* RIGHT — Login card */}
         <div className="flex flex-col justify-center items-center w-full md:w-1/2 bg-gray-100 overflow-y-auto">
@@ -285,6 +188,12 @@ export function Login({ onEntrar, onCriarConta, onEsqueciSenha }: LoginProps) {
             </div>
 
             <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4" noValidate>
+              {erroLogin && (
+                <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-lg text-sm font-medium text-center flex items-center justify-center gap-2">
+                  <AlertCircle size={18} />
+                  {erroLogin}
+                </div>
+              )}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">E-mail</label>
                 <input
@@ -323,18 +232,16 @@ export function Login({ onEntrar, onCriarConta, onEsqueciSenha }: LoginProps) {
                 {errors.senha && <p className="text-red-500 text-xs mt-1">{errors.senha.message}</p>}
               </div>
 
-              <div className="flex justify-center">
-                {RECAPTCHA_SITE_KEY ? (
+              {RECAPTCHA_SITE_KEY && (
+                <div className="flex justify-center">
                   <ReCAPTCHA
                     key={captchaKey}
                     sitekey={RECAPTCHA_SITE_KEY}
                     onChange={(token: string | null) => setCaptchaToken(token)}
                     onExpired={() => setCaptchaToken(null)}
                   />
-                ) : (
-                  <p className="text-xs text-red-500">VITE_RECAPTCHA_SITE_KEY não configurada.</p>
-                )}
-              </div>
+                </div>
+              )}
 
               {estaBloqueado && (
                 <p className="text-red-500 text-xs text-center font-medium">

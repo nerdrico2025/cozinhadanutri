@@ -1,4 +1,7 @@
 import { Mail, Clock, CheckCircle, AlertCircle } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { getSupportConfig, SupportConfig } from '../services/supportService';
+import { UsuarioLogado } from '../types';
 
 /* Ícone SVG real do WhatsApp */
 function WhatsAppIcon({ size = 24, className = '' }: { size?: number; className?: string }) {
@@ -20,52 +23,76 @@ function EmailIcon({ size = 24, className = '' }: { size?: number; className?: s
   );
 }
 
-const canais = [
-  {
-    titulo: 'E-mail',
-    descricao: 'Envie sua dúvida por e-mail. Ideal para solicitações detalhadas ou questões que exigem análise mais cuidadosa.',
-    contato: 'suporte@cozinhadanutri.com.br',
-    link: 'mailto:suporte@cozinhadanutri.com.br',
-    labelLink: 'Enviar e-mail',
-    Icon: EmailIcon,
-    iconBg: 'bg-[#04585a]/10',
-    iconColor: 'text-[#04585a]',
-    accentBorder: 'border-t-[#04585a]',
-    btnClass: 'bg-[#04585a] hover:bg-[#04585a]/90 text-white',
-    prazo: 'Resposta em até 48 horas úteis',
-    PrazoIcon: Clock,
-    prazoColor: 'text-gray-400',
-  },
-  {
-    titulo: 'WhatsApp',
-    descricao: 'Prefere algo mais rápido? Fale pelo WhatsApp para dúvidas ágeis e suporte em tempo real.',
-    contato: '(21) 99924-0792',
-    link: 'https://wa.me/5521999240792?text=Ol%C3%A1!%20Preciso%20de%20suporte%20com%20a%20Cozinha%20da%20Nutri.',
-    labelLink: 'Abrir WhatsApp',
-    Icon: WhatsAppIcon,
-    iconBg: 'bg-green-50',
-    iconColor: 'text-green-600',
-    accentBorder: 'border-t-green-500',
-    btnClass: 'bg-green-500 hover:bg-green-600 text-white',
-    prazo: 'Resposta em até 4 horas úteis',
-    PrazoIcon: CheckCircle,
-    prazoColor: 'text-green-500',
-  },
-];
+interface SupportProps {
+  onNavegar?: (tela: any) => void;
+  usuario?: UsuarioLogado | null;
+}
 
-const horarios = [
-  { dia: 'Segunda a Sexta', horario: '08:00 – 18:00', ativo: true },
-  { dia: 'Sábado', horario: '09:00 – 13:00', ativo: true },
-  { dia: 'Domingo e Feriados', horario: 'Sem atendimento', ativo: false },
-];
+export function Support({ onNavegar, usuario }: SupportProps): JSX.Element {
+  const [config, setConfig] = useState<SupportConfig>(getSupportConfig());
 
-const prazos = [
-  { tipo: 'Dúvidas gerais', prazo: 'Até 24 horas úteis', Icon: CheckCircle, cor: 'text-[#04585a]', bg: 'bg-[#04585a]/10' },
-  { tipo: 'Problemas técnicos', prazo: 'Até 48 horas úteis', Icon: AlertCircle, cor: 'text-amber-600', bg: 'bg-amber-50' },
-  { tipo: 'Solicitações especiais', prazo: 'Até 5 dias úteis', Icon: Clock, cor: 'text-blue-600', bg: 'bg-blue-50' },
-];
+  useEffect(() => {
+    const handleUpdate = () => setConfig(getSupportConfig());
+    window.addEventListener('support_updated', handleUpdate);
+    return () => window.removeEventListener('support_updated', handleUpdate);
+  }, []);
 
-export function Support(): JSX.Element {
+  const isProfissional = usuario?.planoAtual === 'profissional';
+
+  const canais = [
+    {
+      titulo: 'E-mail',
+      descricao: 'Envie sua dúvida por e-mail. Ideal para solicitações detalhadas ou questões que exigem análise mais cuidadosa.',
+      contato: config.email,
+      onClick: () => {
+        if (onNavegar) onNavegar('contato');
+      },
+      labelLink: 'Enviar e-mail',
+      Icon: EmailIcon,
+      iconBg: 'bg-[#04585a]/10',
+      iconColor: 'text-[#04585a]',
+      accentBorder: 'border-t-[#04585a]',
+      btnClass: 'bg-[#04585a] hover:bg-[#04585a]/90 text-white',
+      prazo: 'Resposta em até 48 horas úteis',
+      PrazoIcon: Clock,
+      prazoColor: 'text-gray-400',
+      extraButton: undefined as { label: string; link: string } | undefined,
+    },
+    ...(isProfissional ? [
+      {
+        titulo: 'WhatsApp',
+        descricao: 'Prefere algo mais rápido? Fale pelo WhatsApp para dúvidas ágeis e suporte em tempo real.',
+        contato: config.whatsapp,
+        link: `https://wa.me/${config.whatsapp.replace(/\D/g, '')}`,
+        labelLink: 'Abrir WhatsApp',
+        Icon: WhatsAppIcon,
+        iconBg: 'bg-green-50',
+        iconColor: 'text-green-600',
+        accentBorder: 'border-t-green-500',
+        btnClass: 'bg-green-500 hover:bg-green-600 text-white',
+        prazo: 'Resposta em até 4 horas úteis',
+        PrazoIcon: CheckCircle,
+        prazoColor: 'text-green-500',
+        extraButton: {
+          label: 'Entrar na Comunidade',
+          link: '#'
+        }
+      }
+    ] : [])
+  ];
+
+  const horarios = [
+    { dia: 'Segunda a Sexta', horario: config.horarios.segSex, ativo: config.horarios.segSex !== 'Sem atendimento' },
+    { dia: 'Sábado', horario: config.horarios.sabado, ativo: config.horarios.sabado !== 'Sem atendimento' },
+    { dia: 'Domingo e Feriados', horario: config.horarios.domingoFeriado, ativo: config.horarios.domingoFeriado !== 'Sem atendimento' },
+  ];
+
+  const prazosList = [
+    { tipo: 'Dúvidas gerais', prazo: config.prazos.geral, Icon: CheckCircle, cor: 'text-[#04585a]', bg: 'bg-[#04585a]/10' },
+    { tipo: 'Problemas técnicos', prazo: config.prazos.tecnico, Icon: AlertCircle, cor: 'text-amber-600', bg: 'bg-amber-50' },
+    { tipo: 'Solicitações especiais', prazo: config.prazos.especial, Icon: Clock, cor: 'text-blue-600', bg: 'bg-blue-50' },
+  ];
+
   return (
     <div className="min-h-[80vh] bg-gray-50 py-16 px-4">
 
@@ -83,7 +110,7 @@ export function Support(): JSX.Element {
       </div>
 
       {/* Canais de contato */}
-      <div className="max-w-4xl mx-auto grid grid-cols-1 sm:grid-cols-2 gap-6 mb-8">
+      <div className={`max-w-4xl mx-auto grid grid-cols-1 ${canais.length === 1 ? 'sm:grid-cols-1' : 'sm:grid-cols-2'} gap-6 mb-8`}>
         {canais.map((canal) => (
           <div
             key={canal.titulo}
@@ -113,15 +140,37 @@ export function Support(): JSX.Element {
             </div>
 
             {/* Botão */}
-            <a
-              href={canal.link}
-              target="_blank"
-              rel="noopener noreferrer"
-              className={`inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl text-sm font-semibold transition-opacity hover:opacity-90 ${canal.btnClass}`}
-            >
-              <canal.Icon size={16} />
-              {canal.labelLink}
-            </a>
+            <div className="flex flex-col gap-3">
+              {canal.onClick ? (
+                <button
+                  onClick={canal.onClick}
+                  className={`inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl text-sm font-semibold transition-opacity hover:opacity-90 w-full ${canal.btnClass}`}
+                >
+                  <canal.Icon size={16} />
+                  {canal.labelLink}
+                </button>
+              ) : (
+                <a
+                  href={canal.link}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className={`inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl text-sm font-semibold transition-opacity hover:opacity-90 w-full ${canal.btnClass}`}
+                >
+                  <canal.Icon size={16} />
+                  {canal.labelLink}
+                </a>
+              )}
+              {canal.extraButton && (
+                <a
+                  href={canal.extraButton.link}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl text-sm font-semibold border-2 border-green-500 text-green-600 hover:bg-green-50 transition-colors w-full"
+                >
+                  {canal.extraButton.label}
+                </a>
+              )}
+            </div>
           </div>
         ))}
       </div>
@@ -161,7 +210,7 @@ export function Support(): JSX.Element {
             <h2 className="text-base font-bold text-gray-900">Prazos de Resposta</h2>
           </div>
           <ul className="flex flex-col gap-4">
-            {prazos.map(({ tipo, prazo, Icon, cor, bg }) => (
+            {prazosList.map(({ tipo, prazo, Icon, cor, bg }) => (
               <li key={tipo} className="flex items-center gap-4">
                 <div className={`p-2.5 rounded-xl ${bg} shrink-0`}>
                   <Icon size={18} className={cor} />

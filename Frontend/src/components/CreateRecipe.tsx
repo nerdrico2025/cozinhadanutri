@@ -4,43 +4,118 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import {
   Plus, Trash2, ChefHat, Loader2, Search, ArrowLeft,
-  UtensilsCrossed, TrendingUp, DollarSign, Flame,
-  Beef, Wheat, Droplets,
+  UtensilsCrossed, DollarSign, Flame,
+  Beef, Wheat, Droplets, Info, Activity,
+  PlusCircle, AlertCircle, PackagePlus
 } from "lucide-react";
 
-import { Receita, IngredienteReceita, DadosNutricionais } from "../types";
+import { Receita, IngredienteReceita, DadosNutricionais, Ingrediente, Unidade } from "../types";
 import {
   calcularCustosReceita,
   calcularDadosNutricionaisPorPorcao,
 } from "../utils/calculations";
-import {
-  buscarAlimentos,
-  calcularRefeicao,
-  TacoFood,
-} from "../services/tacoApi";
+import { buscarAlimentosBackend, listarAlimentos } from "../services/alimentos";
+
+const cleanNumericValue = (val: string) => {
+  let clean = val.replace(/[^0-9.,]/g, '');
+  const firstSeparatorIndex = clean.search(/[.,]/);
+  if (firstSeparatorIndex !== -1) {
+    const before = clean.slice(0, firstSeparatorIndex + 1);
+    const after = clean.slice(firstSeparatorIndex + 1).replace(/[.,]/g, '');
+    clean = before + after;
+  }
+  // Remove leading zeros (e.g. "05" -> "5"), but preserve "0.5" or "0,5"
+  if (clean.length > 1 && clean.startsWith('0') && !clean.startsWith('0.') && !clean.startsWith('0,')) {
+    clean = clean.replace(/^0+/, '');
+    if (clean === '' || clean.startsWith('.') || clean.startsWith(',')) {
+      clean = '0' + clean;
+    }
+  }
+  return clean;
+};
 
 const receitaSchema = z.object({
   nome: z.string().min(1, "Nome da receita é obrigatório"),
   descricao: z.string().optional(),
   porcoes: z.number().min(1, "Número de porções deve ser maior que zero"),
-  margemLucro: z.number().min(0),
   ingredientes: z
     .array(
       z.object({
-        tacoId: z.number().min(1, "Selecione um ingrediente"),
-        nome: z.string().min(1),
-        quantidade: z.number().min(1, "Quantidade deve ser maior que zero"),
-        preco: z.number().min(0.01, "Informe o preço"),
+        tacoId: z.number(),
+        nome: z.string(),
+        quantidade: z.any(),
+        preco: z.any().optional(),
+        unidade: z.string().optional(),
+        baseUnidade: z.string().optional(),
+        cadastrado: z.boolean().optional(),
+        precoBase: z.number().optional(),
+      })
+      .superRefine((data, ctx) => {
+        const isEmpty = data.tacoId === 0 && data.nome === "";
+        if (isEmpty) return;
+
+        if (!data.tacoId || data.tacoId < 1) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: "Selecione um ingrediente",
+            path: ["tacoId"],
+          });
+        }
+        if (!data.nome || data.nome.trim() === "") {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: "Nome é obrigatório",
+            path: ["nome"],
+          });
+        }
+        
+        const rawQtd = data.quantidade;
+        let qtdValida = false;
+        if (rawQtd !== undefined && rawQtd !== null && rawQtd !== "") {
+          const num = parseFloat(String(rawQtd).replace(',', '.'));
+          if (!isNaN(num) && num > 0) {
+            qtdValida = true;
+          }
+        }
+        if (!qtdValida) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: "Quantidade inválida",
+            path: ["quantidade"],
+          });
+        }
+
+        const rawPreco = data.preco;
+        if (rawPreco !== undefined && rawPreco !== null && rawPreco !== "") {
+          const num = parseFloat(String(rawPreco).replace(',', '.'));
+          if (isNaN(num) || num < 0) {
+            ctx.addIssue({
+              code: z.ZodIssueCode.custom,
+              message: "Informe o preço",
+              path: ["preco"],
+            });
+          }
+        }
       })
     )
-    .min(1, "Adicione pelo menos um ingrediente"),
+    .refine((items) => {
+      return items.some((i) => !(i.tacoId === 0 && i.nome === ""));
+    }, "Adicione pelo menos um ingrediente"),
 });
 
 type ReceitaForm = z.infer<typeof receitaSchema>;
 
+interface SearchResult {
+  id: string | number;
+  nome: string;
+  cadastrado: boolean;
+  preco?: number;
+  originalData: any; // Dados brutos do backend
+}
+
 interface RowSearch {
   query: string;
-  results: TacoFood[];
+  results: SearchResult[];
   loading: boolean;
   open: boolean;
 }
@@ -54,14 +129,17 @@ const emptyRow = (): RowSearch => ({
 
 interface CriarReceitaProps {
   receitaInicial?: Receita;
-  onSalvar: (receita: Receita) => void;
+  onSalvar: (receita: Receita) => Promise<boolean | void> | boolean | void;
   onCancelar: () => void;
+  onSolicitarCadastro?: (dadosIniciais: Partial<Ingrediente>, rascunho: Receita) => void;
+  ingredientes: Ingrediente[];
 }
 
 interface Calculos {
   custoTotal: number;
   custoPorPorcao: number;
   precoSugerido: number;
+  margemLucroReal: number;
   dadosNutricionaisTotais: DadosNutricionais;
   dadosNutricionaisPorPorcao: DadosNutricionais;
 }
@@ -73,7 +151,7 @@ const inputCls = (hasError?: boolean) =>
       : "border-gray-200 bg-white focus:border-brand focus:ring-1 focus:ring-brand/20"
   }`;
 
-export function CriarReceita({ receitaInicial, onSalvar, onCancelar }: CriarReceitaProps) {
+export function CriarReceita({ receitaInicial, onSalvar, onCancelar, onSolicitarCadastro, ingredientes }: CriarReceitaProps) {
   const [rowSearches, setRowSearches] = useState<RowSearch[]>(
     receitaInicial
       ? receitaInicial.ingredientes.map((i) => ({ query: i.nome, results: [], loading: false, open: false }))
@@ -82,16 +160,33 @@ export function CriarReceita({ receitaInicial, onSalvar, onCancelar }: CriarRece
   const [calculos, setCalculos] = useState<Calculos | null>(null);
   const [calculandoApi, setCalculandoApi] = useState(false);
   const [salvando, setSalvando] = useState(false);
+  const [modalCadastro, setModalCadastro] = useState<{ aberto: boolean; ingrediente?: SearchResult }>({ aberto: false });
   const debounceRefs = useRef<(ReturnType<typeof setTimeout> | null)[]>([]);
 
-  const { register, handleSubmit, control, formState: { errors }, watch, setValue, reset } =
+  const { register, handleSubmit, control, formState: { errors }, watch, setValue, reset, getValues } =
     useForm<ReceitaForm>({
       resolver: zodResolver(receitaSchema),
-      defaultValues: receitaInicial ?? {
-        porcoes: 1,
-        margemLucro: 200,
-        ingredientes: [{ tacoId: 0, nome: "", quantidade: 0, preco: 0 }],
-      },
+      defaultValues: receitaInicial
+        ? {
+            ...receitaInicial,
+            ingredientes: receitaInicial.ingredientes.map((i) => {
+              const baseIng = ingredientes.find((ing) => String(ing.id) === String(i.tacoId));
+              return {
+                tacoId: i.tacoId,
+                nome: i.nome,
+                quantidade: i.quantidade,
+                preco: i.preco,
+                unidade: i.unidade,
+                baseUnidade: baseIng?.unidade || i.baseUnidade || 'g',
+                cadastrado: !!baseIng,
+                precoBase: baseIng?.preco || i.preco || 0,
+              };
+            }),
+          }
+        : {
+            porcoes: 1,
+            ingredientes: [{ tacoId: 0, nome: "", quantidade: "", preco: "", unidade: "g", baseUnidade: "g", cadastrado: false, precoBase: 0 }],
+          },
     });
 
   const { fields, append, remove } = useFieldArray({ control, name: "ingredientes" });
@@ -105,24 +200,84 @@ export function CriarReceita({ receitaInicial, onSalvar, onCancelar }: CriarRece
 
   const watchedIngredientes = watch("ingredientes");
   const watchedPorcoes = watch("porcoes");
-  const watchedMargemLucro = watch("margemLucro");
+
+  const executarCalculos = useCallback(() => {
+    const currentValues = getValues();
+    const porcoesVal = currentValues.porcoes ?? 1;
+    const margemLucroVal = 0;
+    const ingredientesList = currentValues.ingredientes ?? [];
+
+    const validos = ingredientesList.filter((i) => {
+      const qtd = parseFloat(String(i.quantidade).replace(',', '.'));
+      const p = parseFloat(String(i.precoBase || i.preco || 0).replace(',', '.'));
+      return i && i.tacoId && !isNaN(qtd) && qtd > 0 && !isNaN(p) && p >= 0;
+    });
+    if (validos.length === 0 || porcoesVal <= 0) {
+      setCalculos(null);
+      return;
+    }
+
+    const custos = calcularCustosReceita(
+      validos.map(v => {
+        const baseUn = v.cadastrado ? v.baseUnidade : v.unidade;
+        return { 
+          quantidade: parseFloat(String(v.quantidade).replace(',', '.')), 
+          preco: parseFloat(String(v.preco).replace(',', '.')), 
+          unidade: v.unidade, 
+          baseUnidade: baseUn
+        };
+      }), 
+      porcoesVal, 
+      margemLucroVal
+    );
+
+    const totais: DadosNutricionais = {
+      calorias: 0, proteinas: 0, carboidratos: 0, gorduras: 0,
+      acucares_totais: 0, acucares_adicionados: 0, gorduras_saturadas: 0,
+      gorduras_trans: 0, fibras: 0, sodio: 0, vitaminas: 0, minerais: 0
+    };
+
+    validos.forEach((item) => {
+      // 1. Procurar na lista de ingredientes cadastrados (prop)
+      let ingredienteCompleto = ingredientes.find(ing => String(ing.id) === String(item.tacoId));
+
+      // 2. Se não achar, procurar nos resultados de pesquisa temporários do rowSearches
+      if (!ingredienteCompleto) {
+        const searchResult = rowSearches
+          .flatMap(rs => rs.results)
+          .find(r => String(r.id) === String(item.tacoId));
+        ingredienteCompleto = searchResult?.originalData as Ingrediente | undefined;
+      }
+      
+      if (ingredienteCompleto?.dadosNutricionais) {
+        const qtd = parseFloat(String(item.quantidade).replace(',', '.'));
+        let proporcao = qtd / 100;
+        if (item.unidade === 'kg' || item.unidade === 'l') {
+          proporcao = qtd * 10;
+        } else if (item.unidade === 'unidade' || item.unidade === 'un') {
+          proporcao = qtd;
+        }
+
+        Object.keys(totais).forEach((key) => {
+          const k = key as keyof DadosNutricionais;
+          const valor = ingredienteCompleto.dadosNutricionais[k];
+          if (typeof valor === 'number') {
+            totais[k] += valor * proporcao;
+          }
+        });
+      }
+    });
+
+    setCalculos({ 
+      ...custos, 
+      dadosNutricionaisTotais: totais, 
+      dadosNutricionaisPorPorcao: calcularDadosNutricionaisPorPorcao(totais, porcoesVal) 
+    });
+  }, [rowSearches, getValues, ingredientes]);
 
   useEffect(() => {
-    const validos = watchedIngredientes.filter(
-      (i) => i.tacoId > 0 && i.quantidade > 0 && i.preco > 0
-    );
-    if (validos.length === 0 || watchedPorcoes <= 0) { setCalculos(null); return; }
-
-    const custos = calcularCustosReceita(validos as IngredienteReceita[], watchedPorcoes, watchedMargemLucro);
-    setCalculandoApi(true);
-    calcularRefeicao(validos.map((i) => ({ id: i.tacoId, grams: i.quantidade })))
-      .then((resp) => {
-        const t = resp.totals.macros;
-        const totais: DadosNutricionais = { calorias: t.kcal, proteinas: t.protein, carboidratos: t.carbohydrate, gorduras: t.lipids };
-        setCalculos({ ...custos, dadosNutricionaisTotais: totais, dadosNutricionaisPorPorcao: calcularDadosNutricionaisPorPorcao(totais, watchedPorcoes) });
-      })
-      .finally(() => setCalculandoApi(false));
-  }, [watchedIngredientes, watchedPorcoes, watchedMargemLucro]);
+    executarCalculos();
+  }, [watchedIngredientes, watchedPorcoes, executarCalculos]);
 
   const updateRow = useCallback((index: number, patch: Partial<RowSearch>) => {
     setRowSearches((prev) => prev.map((r, i) => (i === index ? { ...r, ...patch } : r)));
@@ -135,40 +290,173 @@ export function CriarReceita({ receitaInicial, onSalvar, onCancelar }: CriarRece
     debounceRefs.current[index] = setTimeout(async () => {
       updateRow(index, { loading: true });
       try {
-        const results = await buscarAlimentos(value);
-        updateRow(index, { results, open: results.length > 0, loading: false });
-      } catch { updateRow(index, { loading: false }); }
-    }, 350);
+        const results = await buscarAlimentosBackend(value);
+
+        const parseTacoVal = (val: any) => parseFloat(String(val || '0').replace(',', '.')) || 0;
+        
+        const combined: SearchResult[] = results.map((item: any) => {
+          const ingrediente: Ingrediente = {
+            id: String(item.id),
+            tacoId: item.numero,
+            nome: item.descricao,
+            unidade: item.unidade_medida === 'un' ? 'unidade' : (item.unidade_medida || 'g'),
+            preco: item.preco !== null ? parseFloat(item.preco) : 0,
+            dadosNutricionais: {
+              calorias: parseTacoVal(item.energia_kcal),
+              proteinas: parseTacoVal(item.proteina),
+              carboidratos: parseTacoVal(item.carboidrato),
+              gorduras: parseTacoVal(item.lipideos),
+              acucares_totais: parseTacoVal(item.acucares_totais),
+              acucares_adicionados: parseTacoVal(item.acucares_adicionados),
+              gorduras_saturadas: parseTacoVal(item.saturados),
+              gorduras_trans: parseTacoVal(item.AG18_1t) + parseTacoVal(item.AG18_2t),
+              fibras: parseTacoVal(item.fibra_alimentar),
+              sodio: parseTacoVal(item.sodio),
+              vitaminas: parseTacoVal(item.vitaminas),
+              minerais: parseTacoVal(item.minerais),
+            }
+          };
+
+          return {
+            id: String(item.id),
+            nome: item.descricao,
+            cadastrado: item.preco !== null && item.preco !== undefined,
+            preco: item.preco !== null ? parseFloat(item.preco) : undefined,
+            originalData: ingrediente
+          };
+        });
+
+        if (combined.length === 0) {
+          updateRow(index, { results: [], open: false, loading: false });
+          return;
+        }
+
+        updateRow(index, { results: combined, open: true, loading: false });
+      } catch (err) { 
+        console.error("Erro na busca:", err);
+        updateRow(index, { loading: false }); 
+      }
+    }, 600);
   };
 
-  const handleSelectAlimento = (index: number, alimento: TacoFood) => {
-    setValue(`ingredientes.${index}.tacoId`, alimento.id, { shouldValidate: true });
-    setValue(`ingredientes.${index}.nome`, alimento.description, { shouldValidate: true });
-    updateRow(index, { query: alimento.description, results: [], open: false });
+  const handleSelectAlimento = (index: number, result: SearchResult) => {
+    if (!result.cadastrado) {
+      setModalCadastro({ aberto: true, ingrediente: result });
+      return;
+    }
+
+    const unidade = (result.originalData as Ingrediente).unidade || 'g';
+
+    setValue(`ingredientes.${index}.tacoId`, Number(result.id), { shouldValidate: true });
+    setValue(`ingredientes.${index}.nome`, result.nome, { shouldValidate: true });
+    setValue(`ingredientes.${index}.preco`, result.preco || 0.00, { shouldValidate: true });
+    setValue(`ingredientes.${index}.precoBase`, result.preco || 0.00, { shouldValidate: true });
+    setValue(`ingredientes.${index}.unidade`, unidade, { shouldValidate: true });
+    setValue(`ingredientes.${index}.baseUnidade`, unidade, { shouldValidate: true });
+    setValue(`ingredientes.${index}.cadastrado`, result.cadastrado, { shouldValidate: true });
+    updateRow(index, { query: result.nome, results: [result], open: false });
+  };
+
+  const handleConfirmarRedirecionamento = () => {
+    const result = modalCadastro.ingrediente;
+    if (result && onSolicitarCadastro) {
+      const currentData = getValues();
+      const rascunho: Receita = {
+        id: receitaInicial?.id,
+        nome: currentData.nome,
+        descricao: currentData.descricao,
+        porcoes: currentData.porcoes,
+        margemLucro: 0,
+        ingredientes: (currentData.ingredientes || [])
+          .filter((ing) => !(ing && ing.tacoId === 0 && ing.nome === ""))
+          .map((ing) => ({
+            tacoId: ing.tacoId,
+            nome: ing.nome,
+            quantidade: parseFloat(String(ing.quantidade).replace(',', '.')),
+            preco: parseFloat(String(ing.preco).replace(',', '.')),
+            unidade: ing.unidade as Unidade,
+            baseUnidade: ing.baseUnidade as Unidade || ing.unidade as Unidade
+          })),
+        custoTotal: calculos?.custoTotal || 0,
+        custoPorPorcao: calculos?.custoPorPorcao || 0,
+        precoSugerido: calculos?.precoSugerido || 0,
+        dadosNutricionaisTotais: calculos?.dadosNutricionaisTotais || {
+          calorias: 0, proteinas: 0, carboidratos: 0, gorduras: 0,
+          acucares_totais: 0, acucares_adicionados: 0, gorduras_saturadas: 0,
+          gorduras_trans: 0, fibras: 0, sodio: 0, vitaminas: 0, minerais: 0
+        },
+        dadosNutricionaisPorPorcao: calculos?.dadosNutricionaisPorPorcao || {
+          calorias: 0, proteinas: 0, carboidratos: 0, gorduras: 0,
+          acucares_totais: 0, acucares_adicionados: 0, gorduras_saturadas: 0,
+          gorduras_trans: 0, fibras: 0, sodio: 0, vitaminas: 0, minerais: 0
+        },
+        createdAt: receitaInicial?.createdAt ?? new Date()
+      };
+      onSolicitarCadastro(result.originalData as Ingrediente, rascunho);
+    }
+    setModalCadastro({ aberto: false });
   };
 
   const onSubmit = async (data: ReceitaForm) => {
     if (!calculos) return;
     setSalvando(true);
     try {
-      const custos = calcularCustosReceita(data.ingredientes as IngredienteReceita[], data.porcoes, data.margemLucro);
-      onSalvar({
-        id: receitaInicial?.id ?? Date.now().toString(),
+      const ingredientesFiltrados = (data.ingredientes as any[]).filter(
+        i => !(i && i.tacoId === 0 && i.nome === "")
+      );
+
+      const ingredientesComNumeros = ingredientesFiltrados.map(i => {
+        const rawQtd = parseFloat(String(i.quantidade).replace(',', '.'));
+        const qtd = isNaN(rawQtd) ? 0 : rawQtd;
+        const rawPreco = parseFloat(String(i.preco).replace(',', '.'));
+        const preco = isNaN(rawPreco) ? 0 : rawPreco;
+
+        // Converter a quantidade para a unidade base antes de salvar no backend
+        const bUnidade = i.baseUnidade || i.unidade || 'g';
+        const rUnidade = i.unidade || 'g';
+        let quantidadeBase = qtd;
+        if (bUnidade === 'l' && rUnidade === 'ml') {
+          quantidadeBase = qtd / 1000;
+        } else if (bUnidade === 'ml' && rUnidade === 'l') {
+          quantidadeBase = qtd * 1000;
+        } else if (bUnidade === 'kg' && rUnidade === 'g') {
+          quantidadeBase = qtd / 1000;
+        } else if (bUnidade === 'g' && rUnidade === 'kg') {
+          quantidadeBase = qtd * 1000;
+        }
+
+        // Para ingredientes cadastrados, o preço a ser salvo é o preço base (precoBase ou preco)
+        const precoSalvar = i.cadastrado ? (i.precoBase ?? preco) : preco;
+
+        return {
+          ...i,
+          quantidade: quantidadeBase,
+          preco: precoSalvar,
+          unidade: bUnidade,
+        };
+      }) as IngredienteReceita[];
+
+      const custos = calcularCustosReceita(ingredientesComNumeros, data.porcoes, 0);
+      const sucesso = await onSalvar({
+        id: receitaInicial?.id,
         nome: data.nome,
         descricao: data.descricao,
-        ingredientes: data.ingredientes as IngredienteReceita[],
+        ingredientes: ingredientesComNumeros,
         porcoes: data.porcoes,
         custoTotal: custos.custoTotal,
         custoPorPorcao: custos.custoPorPorcao,
         precoSugerido: custos.precoSugerido,
-        margemLucro: data.margemLucro,
+        margemLucro: 0,
         dadosNutricionaisTotais: calculos.dadosNutricionaisTotais,
         dadosNutricionaisPorPorcao: calculos.dadosNutricionaisPorPorcao,
         createdAt: receitaInicial?.createdAt ?? new Date(),
       });
-      reset();
-      setRowSearches([emptyRow()]);
-      setCalculos(null);
+      
+      if (sucesso !== false) {
+        reset();
+        setRowSearches([emptyRow()]);
+        setCalculos(null);
+      }
     } finally {
       setSalvando(false);
     }
@@ -178,7 +466,7 @@ export function CriarReceita({ receitaInicial, onSalvar, onCancelar }: CriarRece
     <div className="min-h-screen bg-gray-50">
 
       {/* ── Header sticky ─────────────────────────────────────────────────── */}
-      <div className="sticky top-0 z-30 bg-white border-b border-gray-100 shadow-sm">
+      <div className="sticky top-16 z-30 bg-white border-b border-gray-100 shadow-sm">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <button
@@ -266,7 +554,7 @@ export function CriarReceita({ receitaInicial, onSalvar, onCancelar }: CriarRece
                     />
                   </div>
 
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                       <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">
                         Porções <span className="text-red-400">*</span>
@@ -278,18 +566,6 @@ export function CriarReceita({ receitaInicial, onSalvar, onCancelar }: CriarRece
                         className={inputCls(!!errors.porcoes)}
                       />
                       {errors.porcoes && <p className="text-red-500 text-xs mt-1">{errors.porcoes.message}</p>}
-                    </div>
-                    <div>
-                      <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">
-                        Margem de Lucro (%)
-                      </label>
-                      <input
-                        type="number"
-                        min={0}
-                        step={5}
-                        {...register("margemLucro", { valueAsNumber: true })}
-                        className={inputCls(!!errors.margemLucro)}
-                      />
                     </div>
                   </div>
                 </div>
@@ -305,13 +581,6 @@ export function CriarReceita({ receitaInicial, onSalvar, onCancelar }: CriarRece
                       <span className="ml-2 text-xs font-normal text-gray-400">({fields.length})</span>
                     </h2>
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => append({ tacoId: 0, nome: "", quantidade: 0, preco: 0 })}
-                    className="flex items-center gap-1.5 text-xs font-semibold text-brand bg-brand/8 hover:bg-brand/15 px-3 py-1.5 rounded-lg transition-colors focus:outline-none border-0 cursor-pointer"
-                  >
-                    <Plus size={13} /> Adicionar
-                  </button>
                 </div>
 
                 {typeof errors.ingredientes?.root?.message === "string" && (
@@ -337,7 +606,10 @@ export function CriarReceita({ receitaInicial, onSalvar, onCancelar }: CriarRece
                           {fields.length > 1 && (
                             <button
                               type="button"
-                              onClick={() => remove(index)}
+                              onClick={() => {
+                                remove(index);
+                                setRowSearches((prev) => prev.filter((_, i) => i !== index));
+                              }}
                               aria-label="Remover ingrediente"
                               className="flex items-center gap-1 text-xs text-red-400 hover:text-red-600 hover:bg-red-50 px-2 py-1 rounded-lg transition-colors border-0 bg-transparent cursor-pointer focus:outline-none"
                             >
@@ -371,15 +643,35 @@ export function CriarReceita({ receitaInicial, onSalvar, onCancelar }: CriarRece
                           )}
                           {row.open && row.results.length > 0 && (
                             <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-xl shadow-xl z-20 max-h-52 overflow-y-auto">
-                              {row.results.map((alimento) => (
+                              {row.results.map((result) => (
                                 <button
-                                  key={alimento.id}
+                                  key={result.id}
                                   type="button"
-                                  onMouseDown={() => handleSelectAlimento(index, alimento)}
-                                  className="w-full text-left px-4 py-2.5 hover:bg-brand/5 border-0 bg-transparent cursor-pointer flex items-center justify-between gap-3 border-b border-gray-50 last:border-b-0"
+                                  onMouseDown={() => handleSelectAlimento(index, result)}
+                                  className="w-full text-left px-4 py-2.5 hover:bg-brand/5 border-0 bg-transparent cursor-pointer flex items-center justify-between gap-3 border-b border-gray-50 last:border-b-0 group"
                                 >
-                                  <span className="text-sm text-gray-800 truncate">{alimento.description}</span>
-                                  <span className="text-xs text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full shrink-0">{alimento.category.name}</span>
+                                  <div className="flex flex-col min-w-0">
+                                    <span className="text-sm text-gray-800 truncate group-hover:text-brand transition-colors font-medium">
+                                      {result.nome}
+                                    </span>
+                                    {result.cadastrado && result.preco && (
+                                      <span className="text-[10px] text-gray-400">
+                                        Preço base: R$ {result.preco.toFixed(2)}
+                                      </span>
+                                    )}
+                                  </div>
+                                  
+                                  {result.cadastrado ? (
+                                    <div className="flex items-center gap-1.5 shrink-0 bg-emerald-50 text-emerald-600 px-2 py-0.5 rounded-full border border-emerald-100">
+                                      <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                                      <span className="text-[10px] font-bold uppercase tracking-tight">Cadastrado</span>
+                                    </div>
+                                  ) : (
+                                    <div className="flex items-center gap-1.5 shrink-0 bg-amber-50 text-amber-600 px-2 py-0.5 rounded-full border border-amber-100">
+                                      <PlusCircle size={10} />
+                                      <span className="text-[10px] font-bold uppercase tracking-tight">Não Cadastrado</span>
+                                    </div>
+                                  )}
                                 </button>
                               ))}
                             </div>
@@ -388,34 +680,99 @@ export function CriarReceita({ receitaInicial, onSalvar, onCancelar }: CriarRece
 
                         {/* Quantidade e Preço */}
                         <div className="grid grid-cols-2 gap-3">
-                          <div>
-                            <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">
-                              Quantidade (g)
-                            </label>
-                            <input
-                              type="number"
-                              min={1}
-                              {...register(`ingredientes.${index}.quantidade`, { valueAsNumber: true })}
-                              placeholder="0"
-                              className={inputCls(!!errosIng?.quantidade)}
-                            />
-                            {errosIng?.quantidade && (
-                              <p className="text-red-500 text-xs mt-1">{errosIng.quantidade.message}</p>
-                            )}
+                          <div className="flex gap-2">
+                            <div className="w-24 shrink-0">
+                              <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">
+                                Unidade
+                              </label>
+                              <select
+                                {...register(`ingredientes.${index}.unidade`)}
+                                className="w-full px-3 py-2.5 border border-gray-200 bg-gray-50 rounded-lg text-sm outline-none box-border transition-colors focus:border-brand focus:ring-1 focus:ring-brand/20 font-semibold text-gray-700 cursor-pointer appearance-none text-center"
+                              >
+                                {(() => {
+                                  const base = watchedIngredientes[index]?.baseUnidade || watchedIngredientes[index]?.unidade || 'g';
+                                  if (base === 'l' || base === 'ml') {
+                                    return (
+                                      <>
+                                        <option value="ml">ml</option>
+                                        <option value="l">l</option>
+                                      </>
+                                    );
+                                  } else if (base === 'kg' || base === 'g') {
+                                    return (
+                                      <>
+                                        <option value="g">g</option>
+                                        <option value="kg">kg</option>
+                                      </>
+                                    );
+                                  } else {
+                                    return <option value={base}>{base === 'unidade' ? 'UN' : base}</option>;
+                                  }
+                                })()}
+                              </select>
+                            </div>
+                            <div className="flex-1">
+                              <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">
+                                Quantidade
+                              </label>
+                              <input
+                                type="text"
+                                inputMode="decimal"
+                                {...register(`ingredientes.${index}.quantidade`, {
+                                  onChange: (e) => {
+                                    e.target.value = cleanNumericValue(e.target.value);
+                                  }
+                                })}
+                                placeholder="0"
+                                className={`${inputCls(!!errosIng?.quantidade)} w-full`}
+                              />
+                              {errosIng?.quantidade?.message && typeof errosIng.quantidade.message === 'string' && (
+                                <p className="text-red-500 text-xs mt-1">{errosIng.quantidade.message}</p>
+                              )}
+                            </div>
                           </div>
                           <div>
                             <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">
-                              Preço / 100g (R$)
+                              {watchedIngredientes[index]?.cadastrado ? 'Custo (R$)' : `Preço / ${['g', 'ml'].includes(watchedIngredientes[index]?.baseUnidade || watchedIngredientes[index]?.unidade || 'g') ? '100' : ''}${['unidade', 'un'].includes(watchedIngredientes[index]?.baseUnidade || watchedIngredientes[index]?.unidade || '') ? 'UN' : (watchedIngredientes[index]?.baseUnidade || watchedIngredientes[index]?.unidade || 'g')} (R$)`}
                             </label>
-                            <input
-                              type="number"
-                              min={0.01}
-                              step={0.01}
-                              {...register(`ingredientes.${index}.preco`, { valueAsNumber: true })}
-                              placeholder="0,00"
-                              className={inputCls(!!errosIng?.preco)}
-                            />
-                            {errosIng?.preco && (
+                            <div className="relative">
+                              <DollarSign size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                              {watchedIngredientes[index]?.cadastrado ? (
+                                <div className={`${inputCls(false)} pl-8 bg-emerald-50 text-emerald-700 font-bold flex items-center h-[42px]`}>
+                                  {(() => {
+                                    const ing = watchedIngredientes[index];
+                                    const rawQtd = parseFloat(String(ing?.quantidade || 0).replace(',', '.'));
+                                    const qtd = isNaN(rawQtd) ? 0 : rawQtd;
+                                    let bUnidade = ing?.baseUnidade || ing?.unidade || 'g';
+                                    if (bUnidade === 'un') bUnidade = 'unidade';
+                                    let rUnidade = ing?.unidade || 'g';
+                                    if (rUnidade === 'un') rUnidade = 'unidade';
+                                    let qtdConvertida = qtd;
+                                    if (bUnidade === 'l' && rUnidade === 'ml') qtdConvertida = qtd / 1000;
+                                    else if (bUnidade === 'ml' && rUnidade === 'l') qtdConvertida = qtd * 1000;
+                                    else if (bUnidade === 'kg' && rUnidade === 'g') qtdConvertida = qtd / 1000;
+                                    else if (bUnidade === 'g' && rUnidade === 'kg') qtdConvertida = qtd * 1000;
+                                    const fator = (bUnidade === 'kg' || bUnidade === 'l' || bUnidade === 'unidade') ? qtdConvertida : (qtdConvertida / 100);
+                                    const rawPBase = parseFloat(String(ing?.precoBase || 0).replace(',', '.'));
+                                    const pBase = isNaN(rawPBase) ? 0 : rawPBase;
+                                    return (fator * pBase).toFixed(2);
+                                  })()}
+                                </div>
+                              ) : (
+                                <input
+                                  type="text"
+                                  inputMode="decimal"
+                                  {...register(`ingredientes.${index}.preco`, {
+                                    onChange: (e) => {
+                                      e.target.value = cleanNumericValue(e.target.value);
+                                    }
+                                  })}
+                                  placeholder="0,00"
+                                  className={`${inputCls(!!errosIng?.preco)} pl-8`}
+                                />
+                              )}
+                            </div>
+                            {errosIng?.preco?.message && typeof errosIng.preco.message === 'string' && (
                               <p className="text-red-500 text-xs mt-1">{errosIng.preco.message}</p>
                             )}
                           </div>
@@ -424,6 +781,12 @@ export function CriarReceita({ receitaInicial, onSalvar, onCancelar }: CriarRece
                         {/* Hidden fields */}
                         <input type="hidden" {...register(`ingredientes.${index}.tacoId`, { valueAsNumber: true })} />
                         <input type="hidden" {...register(`ingredientes.${index}.nome`)} />
+                        <input type="hidden" {...register(`ingredientes.${index}.baseUnidade`)} />
+                        <input type="hidden" {...register(`ingredientes.${index}.cadastrado`)} />
+                        <input type="hidden" {...register(`ingredientes.${index}.precoBase`)} />
+                        {watchedIngredientes[index]?.cadastrado && (
+                          <input type="hidden" {...register(`ingredientes.${index}.preco`)} />
+                        )}
                       </div>
                     );
                   })}
@@ -433,8 +796,11 @@ export function CriarReceita({ receitaInicial, onSalvar, onCancelar }: CriarRece
                 <div className="px-5 py-3 border-t border-dashed border-gray-100">
                   <button
                     type="button"
-                    onClick={() => append({ tacoId: 0, nome: "", quantidade: 0, preco: 0 })}
-                    className="w-full flex items-center justify-center gap-2 text-sm text-gray-400 hover:text-brand hover:bg-brand/5 py-2 rounded-lg transition-colors border-0 bg-transparent cursor-pointer focus:outline-none"
+                    onClick={() => {
+                      append({ tacoId: 0, nome: "", quantidade: "", preco: "", unidade: "g", baseUnidade: "g", cadastrado: false, precoBase: 0 });
+                      setRowSearches((prev) => [...prev, emptyRow()]);
+                    }}
+                    className="w-full flex items-center justify-center gap-2 text-sm text-white bg-emerald-600 hover:bg-emerald-700 py-2.5 rounded-xl border-0 transition-colors cursor-pointer focus:outline-none font-bold shadow-sm"
                   >
                     <Plus size={14} />
                     Adicionar ingrediente
@@ -467,38 +833,46 @@ export function CriarReceita({ receitaInicial, onSalvar, onCancelar }: CriarRece
             {/* ── Coluna lateral — resumo sticky ───────────────────────── */}
             <div className="w-full lg:w-72 xl:w-80 shrink-0 lg:sticky lg:top-20 flex flex-col gap-4">
 
-              {/* Card: financeiro */}
+               {/* Card: financeiro */}
               <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-                <div className="px-5 py-4 border-b border-gray-50 flex items-center justify-between">
-                  <p className="text-sm font-semibold text-gray-800">Resumo Financeiro</p>
-                  {calculandoApi && (
-                    <Loader2 size={14} className="animate-spin text-brand" />
-                  )}
+                <div className="px-5 py-4 border-b border-gray-50 bg-gray-50/50 flex items-center justify-between">
+                  <p className="text-sm font-bold text-gray-800">Resumo Financeiro</p>
+                  <button
+                    type="button"
+                    onClick={() => executarCalculos()}
+                    className="flex items-center gap-1 px-2.5 py-1 text-xs font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg hover:bg-emerald-100 transition cursor-pointer"
+                  >
+                    Atualizar
+                  </button>
                 </div>
 
                 {calculos ? (
-                  <div className="p-4 flex flex-col gap-3">
-                    {[
-                      { label: "Custo Total", value: `R$ ${calculos.custoTotal?.toFixed(2)}`, Icon: DollarSign, bg: "bg-blue-50", color: "text-blue-600" },
-                      { label: "Custo por Porção", value: `R$ ${calculos.custoPorPorcao?.toFixed(2)}`, Icon: TrendingUp, bg: "bg-purple-50", color: "text-purple-600" },
-                      { label: "Preço Sugerido", value: `R$ ${calculos.precoSugerido?.toFixed(2)}`, Icon: DollarSign, bg: "bg-green-50", color: "text-green-600" },
-                    ].map(({ label, value, Icon, bg, color }) => (
-                      <div key={label} className="flex items-center gap-3">
-                        <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${bg}`}>
-                          <Icon size={16} className={color} />
-                        </div>
-                        <div className="min-w-0">
-                          <p className="text-xs text-gray-400">{label}</p>
-                          <p className={`text-sm font-bold ${color}`}>{value}</p>
-                        </div>
+                  <div className="p-5 flex flex-col gap-4">
+                    <div className="grid grid-cols-2 gap-3 mb-2">
+                      <div className="bg-gray-50 p-3 rounded-xl border border-gray-100">
+                        <p className="text-[10px] text-gray-400 uppercase font-bold tracking-wider mb-1">Ingredientes</p>
+                        <p className="text-lg font-black text-gray-700">
+                          {(watchedIngredientes || []).filter((i) => !(i && i.tacoId === 0 && i.nome === "")).length}
+                        </p>
                       </div>
-                    ))}
+                      <div className="bg-blue-50/30 p-3 rounded-xl border border-blue-100/50">
+                        <p className="text-[10px] text-blue-400 uppercase font-bold tracking-wider mb-1">Custo Total</p>
+                        <p className="text-lg font-black text-blue-600">R$ {calculos.custoTotal.toFixed(2)}</p>
+                      </div>
+                    </div>
+
+                   {/*  <div className="space-y-3">
+                      <div className="flex items-center justify-between py-2 border-t border-gray-100 pt-3 mt-1">
+                        <span className="text-sm text-gray-600 font-bold">Custo por Porção</span>
+                        <span className="text-lg font-black text-gray-800">R$ {calculos.custoPorPorcao.toFixed(2)}</span>
+                      </div>
+                    </div> */}
                   </div>
                 ) : (
                   <div className="px-5 py-8 text-center">
                     <DollarSign size={28} className="text-gray-200 mx-auto mb-2" />
                     <p className="text-xs text-gray-400 leading-relaxed">
-                      Adicione ingredientes com quantidade e preço para ver o resumo.
+                      Adicione ingredientes para ver o resumo financeiro detalhado.
                     </p>
                   </div>
                 )}
@@ -506,48 +880,61 @@ export function CriarReceita({ receitaInicial, onSalvar, onCancelar }: CriarRece
 
               {/* Card: nutricional */}
               <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-                <div className="px-5 py-4 border-b border-gray-50">
-                  <p className="text-sm font-semibold text-gray-800">Informação Nutricional</p>
-                  <p className="text-xs text-gray-400 mt-0.5">por porção</p>
+                <div className="px-5 py-4 border-b border-gray-50 bg-gray-50/50 flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-bold text-gray-800">Prévia Nutricional</p>
+                    <p className="text-[10px] text-gray-400 uppercase font-medium tracking-tight">Valores médios por porção</p>
+                  </div>
+                  <Info size={14} className="text-gray-300" />
                 </div>
 
                 {calculos ? (
                   <div className="p-4 flex flex-col gap-3">
-                    {/* Calorias — destaque */}
-                    <div className="bg-brand-orange/8 rounded-xl p-3 flex items-center gap-3">
-                      <div className="w-9 h-9 rounded-xl bg-brand-orange/15 flex items-center justify-center shrink-0">
-                        <Flame size={17} className="text-brand-orange" />
+                    <div className="bg-orange-50/50 rounded-xl p-3 flex items-center justify-between border border-orange-100/50">
+                      <div className="flex items-center gap-2">
+                        <Flame size={16} className="text-orange-500" />
+                        <span className="text-xs font-bold text-gray-600">Energia</span>
                       </div>
-                      <div>
-                        <p className="text-xs text-brand-orange/70">Calorias</p>
-                        <p className="text-base font-bold text-brand-orange">
-                          {calculos.dadosNutricionaisPorPorcao?.calorias?.toFixed(0)} kcal
-                        </p>
-                      </div>
+                      <span className="text-sm font-black text-orange-600">
+                        {calculos.dadosNutricionaisPorPorcao.calorias.toFixed(0)} kcal
+                      </span>
                     </div>
 
-                    {/* Macros */}
-                    {[
-                      { label: "Proteínas", value: `${calculos.dadosNutricionaisPorPorcao?.proteinas?.toFixed(1)}g`, Icon: Beef, color: "text-rose-500", bg: "bg-rose-50" },
-                      { label: "Carboidratos", value: `${calculos.dadosNutricionaisPorPorcao?.carboidratos?.toFixed(1)}g`, Icon: Wheat, color: "text-amber-500", bg: "bg-amber-50" },
-                      { label: "Gorduras", value: `${calculos.dadosNutricionaisPorPorcao?.gorduras?.toFixed(1)}g`, Icon: Droplets, color: "text-sky-500", bg: "bg-sky-50" },
-                    ].map(({ label, value, Icon, color, bg }) => (
-                      <div key={label} className="flex items-center gap-3">
-                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${bg}`}>
-                          <Icon size={14} className={color} />
+                    <div className="grid grid-cols-1 gap-2">
+                      {[
+                        { label: "Carboidratos", value: calculos.dadosNutricionaisPorPorcao.carboidratos, unit: "g", Icon: Wheat, color: "text-amber-500", bg: "bg-amber-50" },
+                        { label: "Açúcares Totais", value: calculos.dadosNutricionaisPorPorcao.acucares_totais || 0, unit: "g", Icon: Wheat, color: "text-amber-600", bg: "bg-amber-50" },
+                        { label: "Açúc. Adicionados", value: calculos.dadosNutricionaisPorPorcao.acucares_adicionados || 0, unit: "g", Icon: Wheat, color: "text-amber-700", bg: "bg-amber-50" },
+                        { label: "Proteínas", value: calculos.dadosNutricionaisPorPorcao.proteinas, unit: "g", Icon: Beef, color: "text-rose-500", bg: "bg-rose-50" },
+                        { label: "Gorduras Totais", value: calculos.dadosNutricionaisPorPorcao.gorduras, unit: "g", Icon: Droplets, color: "text-sky-500", bg: "bg-sky-50" },
+                        { label: "Gord. Saturadas", value: calculos.dadosNutricionaisPorPorcao.gorduras_saturadas || 0, unit: "g", Icon: Droplets, color: "text-sky-600", bg: "bg-sky-50" },
+                        { label: "Gorduras Trans", value: calculos.dadosNutricionaisPorPorcao.gorduras_trans || 0, unit: "g", Icon: Droplets, color: "text-sky-700", bg: "bg-sky-50" },
+                        { label: "Fibras Alimentares", value: calculos.dadosNutricionaisPorPorcao.fibras, unit: "g", Icon: Wheat, color: "text-emerald-500", bg: "bg-emerald-50" },
+                        { label: "Sódio", value: calculos.dadosNutricionaisPorPorcao.sodio, unit: "mg", Icon: PackagePlus, color: "text-gray-500", bg: "bg-gray-100" },
+                        { label: "Vitaminas", value: calculos.dadosNutricionaisPorPorcao.vitaminas || 0, unit: "g", Icon: PackagePlus, color: "text-purple-500", bg: "bg-purple-50" },
+                        { label: "Minerais", value: calculos.dadosNutricionaisPorPorcao.minerais || 0, unit: "g", Icon: PackagePlus, color: "text-indigo-500", bg: "bg-indigo-50" },
+                      ].map(({ label, value, unit, Icon, color, bg }) => (
+                        <div key={label} className="flex items-center justify-between px-3 py-2 rounded-lg hover:bg-gray-50 transition-colors">
+                          <div className="flex items-center gap-2">
+                            <div className={`p-1 rounded-md ${bg}`}>
+                              <Icon size={12} className={color} />
+                            </div>
+                            <span className="text-[11px] font-medium text-gray-500">{label}</span>
+                          </div>
+                          <span className="text-xs font-bold text-gray-700">{value.toFixed(1)}{unit}</span>
                         </div>
-                        <div className="flex-1 flex items-center justify-between">
-                          <p className="text-xs text-gray-500">{label}</p>
-                          <p className={`text-sm font-semibold ${color}`}>{value}</p>
-                        </div>
-                      </div>
-                    ))}
+                      ))}
+                    </div>
+
+                    <p className="text-[9px] text-gray-400 text-center italic mt-2">
+                      Valores aproximados baseados nos ingredientes informados.
+                    </p>
                   </div>
                 ) : (
                   <div className="px-5 py-8 text-center">
                     <Flame size={28} className="text-gray-200 mx-auto mb-2" />
                     <p className="text-xs text-gray-400 leading-relaxed">
-                      Os dados nutricionais aparecem automaticamente conforme os ingredientes são preenchidos.
+                      Preencha os ingredientes para gerar a prévia nutricional.
                     </p>
                   </div>
                 )}
@@ -557,6 +944,39 @@ export function CriarReceita({ receitaInicial, onSalvar, onCancelar }: CriarRece
           </div>
         </form>
       </div>
+
+      {/* Modal Cadastro de Ingrediente não cadastrado */}
+      {modalCadastro.aberto && modalCadastro.ingrediente && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-2xl p-6 max-w-sm w-full shadow-2xl animate-in fade-in zoom-in-95 duration-200">
+            <div className="flex items-center justify-center w-12 h-12 rounded-full bg-amber-100 mb-4 mx-auto">
+              <AlertCircle className="text-amber-600" size={24} />
+            </div>
+            <h3 className="text-lg font-bold text-gray-800 text-center mb-2">
+              Ingrediente não cadastrado
+            </h3>
+            <p className="text-sm text-gray-600 text-center mb-6">
+              O ingrediente <strong>"{modalCadastro.ingrediente.nome}"</strong> ainda não possui preço ou unidade cadastrados. Deseja cadastrar agora?
+            </p>
+            <div className="flex gap-3">
+              <button
+                type="button"
+                onClick={() => setModalCadastro({ aberto: false })}
+                className="flex-1 py-2.5 rounded-xl border border-gray-200 text-sm font-medium text-gray-600 bg-white hover:bg-gray-50 transition-colors focus:outline-none cursor-pointer"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmarRedirecionamento}
+                className="flex-1 py-2.5 rounded-xl bg-brand text-white text-sm font-bold hover:brightness-110 transition-colors focus:outline-none cursor-pointer border-0"
+              >
+                Sim, Cadastrar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

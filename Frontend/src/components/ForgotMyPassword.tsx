@@ -58,12 +58,11 @@ type Etapa = 'email' | 'codigo' | 'senha' | 'sucesso';
 
 export interface ForgotMyPasswordProps {
   onVoltar?: () => void;
-  /** Deve enviar o e-mail com o código; retorne true se ok, false se falhou */
-  onEnviarEmail?: (email: string) => Promise<boolean> | boolean;
-  /** Deve validar o código; retorne true se válido */
-  onVerificarCodigo?: (email: string, codigo: string) => Promise<boolean> | boolean;
-  /** Deve redefinir a senha; retorne true se ok */
-  onRedefinirSenha?: (email: string, codigo: string, novaSenha: string) => Promise<boolean> | boolean;
+  /** Função unificada para reset de senha:
+   * - Apenas email: solicita código
+   * - Email + código + novaSenha: redefine a senha
+   */
+  onResetPassword?: (email: string, codigo?: string, novaSenha?: string) => Promise<boolean>;
 }
 
 // ── Helpers visuais ───────────────────────────────────────────────────────────
@@ -133,7 +132,6 @@ function PainelDireito({ etapa }: { etapa: Etapa }) {
   const idxAtual = ordemEtapas.indexOf(etapa);
   return (
     <div className="relative hidden md:flex md:w-1/2 flex-col items-center justify-center overflow-hidden select-none slide-bg-anvisa">
-      {/* Blobs decorativos de fundo — mesma identidade do carrossel de Login */}
       <div className="carousel-blob-bg-1" />
       <div className="carousel-blob-bg-2" />
       <div className="carousel-blob-bg-3" />
@@ -334,9 +332,7 @@ function EtapaSucesso({ onVoltar }: { onVoltar?: () => void }) {
 // ── Componente principal ──────────────────────────────────────────────────────
 export function ForgotMyPassword({
   onVoltar,
-  onEnviarEmail,
-  onVerificarCodigo,
-  onRedefinirSenha,
+  onResetPassword,
 }: ForgotMyPasswordProps) {
   const [etapa, setEtapa] = useState<Etapa>('email');
   const [email, setEmail] = useState('');
@@ -345,7 +341,8 @@ export function ForgotMyPassword({
 
   const handleEnviarEmail = async (emailDigitado: string) => {
     setErro(null);
-    const ok = onEnviarEmail ? await onEnviarEmail(emailDigitado) : true;
+    // Primeira chamada: apenas email para solicitar código
+    const ok = onResetPassword ? await onResetPassword(emailDigitado) : true;
     if (ok) {
       setEmail(emailDigitado);
       setEtapa('codigo');
@@ -356,24 +353,22 @@ export function ForgotMyPassword({
 
   const handleVerificarCodigo = async (codigoDigitado: string) => {
     setErro(null);
-    const ok = onVerificarCodigo ? await onVerificarCodigo(email, codigoDigitado) : true;
-    if (ok) {
-      setCodigo(codigoDigitado);
-      setEtapa('senha');
-    } else {
-      setErro('Código inválido ou expirado. Verifique e tente novamente.');
-    }
+    // Segunda chamada: verificar código (ainda não redefine a senha)
+    // Por enquanto, apenas armazena o código e avança
+    setCodigo(codigoDigitado);
+    setEtapa('senha');
   };
 
   const handleReenviar = async () => {
     setErro(null);
-    const ok = onEnviarEmail ? await onEnviarEmail(email) : true;
+    const ok = onResetPassword ? await onResetPassword(email) : true;
     if (!ok) setErro('Não foi possível reenviar o código. Tente novamente.');
   };
 
   const handleRedefinirSenha = async (novaSenha: string) => {
     setErro(null);
-    const ok = onRedefinirSenha ? await onRedefinirSenha(email, codigo, novaSenha) : true;
+    // Terceira chamada: email + código + nova senha
+    const ok = onResetPassword ? await onResetPassword(email, codigo, novaSenha) : true;
     if (ok) {
       setEtapa('sucesso');
     } else {

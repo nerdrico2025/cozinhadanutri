@@ -1,85 +1,139 @@
+import api from './api';
 import { UsuarioLogado } from '../types';
 
-const STORAGE_KEY = 'cdn_usuarios';
-const SESSION_KEY = 'cdn_sessao';
-
-interface UsuarioSessao extends UsuarioLogado {
-  senha: string;
-}
-
-const usuariosFixos: UsuarioSessao[] = [
-  { id: 'admin', nome: 'Administrador', email: 'admin@cozinhadanutri.com', senha: '12345678', role: 'admin' },
-];
-
-function carregarUsuarios(): UsuarioSessao[] {
+export const login = async (email: string, senha: string): Promise<UsuarioLogado | null> => {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    const salvos: UsuarioSessao[] = raw ? JSON.parse(raw) : [];
-    return [...usuariosFixos, ...salvos];
-  } catch {
-    return [...usuariosFixos];
+    const response = await api.post('/api/login/', { email, password: senha });
+    const { access, refresh } = response.data;
+    
+    // Salva os tokens no localStorage
+    if (access) localStorage.setItem('access_token', access);
+    if (refresh) localStorage.setItem('refresh_token', refresh);
+    
+    // Após o login, busca o perfil completo
+    return await getSessao();
+  } catch (error) {
+    console.error('Erro no login', error);
+    return null;
   }
-}
+};
 
-function salvarUsuario(novo: UsuarioSessao): void {
+export const registrar = async (
+  dados: { email: string; senha: string; nomeEmpresarial?: string; nomeFantasia?: string; cnpj?: string; inscricaoEstadual?: string; telefone?: string },
+  _tipo: 'pf' | 'pj'
+): Promise<{ sucesso: boolean; erro?: string; usuario?: UsuarioLogado }> => {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    const salvos: UsuarioSessao[] = raw ? JSON.parse(raw) : [];
-    salvos.push(novo);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(salvos));
-  } catch {
-    // se localStorage não estiver disponível, ignora
+    const payload = {
+      email: dados.email,
+      password: dados.senha,
+      username: dados.email.split('@')[0] + Math.floor(Math.random() * 1000),
+      razao_social: dados.nomeEmpresarial || dados.nomeFantasia || 'User',
+      nome_fantasia: dados.nomeFantasia || 'User',
+      cnpj: (dados.cnpj || '00000000000000').replace(/\D/g, '').slice(0, 14),
+      inscricao_estadual: dados.inscricaoEstadual || '',
+      telefone: dados.telefone || ''
+    };
+    
+    const response = await api.post('/api/register/', payload);
+    return { sucesso: true, usuario: response.data };
+  } catch (error) {
+    console.error('Erro no registro', error);
+    let msg = 'Erro ao cadastrar';
+    // @ts-expect-error - error.response existe em erros de axios
+    if (error.response?.data) {
+      // @ts-expect-error - error.response existe em erros de axios
+       const errors = Object.values(error.response.data);
+       if (errors.length > 0 && Array.isArray(errors[0])) {
+           msg = errors[0][0] as string;
+       }
+    }
+    return { sucesso: false, erro: msg };
   }
-}
+};
 
-export function login(email: string, senha: string): UsuarioLogado | null {
-  const usuarios = carregarUsuarios();
-  const encontrado = usuarios.find((u) => u.email === email && u.senha === senha);
-  if (!encontrado) return null;
-  const { senha: _s1, ...logado } = encontrado;
-  void _s1;
+export const getSessao = async (): Promise<UsuarioLogado | null> => {
   try {
-    localStorage.setItem(SESSION_KEY, JSON.stringify(logado));
-  } catch {
-    // ignora
-  }
-  return logado;
-}
+    const response = await api.get('/api/profile/');
+    const user = response.data;
+/*     console.log('DADOS DO PERFIL RECEBIDOS:', user); */
+    let planoAtual: 'gratis' | 'profissional' = 'gratis';
+    const planoId = user.empresa?.plano;
+    if (planoId === 2) {
+      planoAtual = 'profissional';
+    }
 
-export function registrar(
-  dados: { email: string; senha: string; nomeCompleto?: string; nomeFantasia?: string },
-  tipo: 'pf' | 'pj'
-): { sucesso: false; erro: string } | { sucesso: true; usuario: UsuarioLogado } {
-  const usuarios = carregarUsuarios();
-  if (usuarios.some((u) => u.email === dados.email)) {
-    return { sucesso: false, erro: 'Este e-mail já está cadastrado.' };
-  }
-  const nome = tipo === 'pf' ? (dados.nomeCompleto ?? 'Usuário') : (dados.nomeFantasia ?? 'Usuário');
-  const novo: UsuarioSessao = { id: String(Date.now()), nome, email: dados.email, senha: dados.senha, role: 'user' };
-  salvarUsuario(novo);
-  const { senha: _s2, ...logado } = novo;
-  void _s2;
-  try {
-    localStorage.setItem(SESSION_KEY, JSON.stringify(logado));
-  } catch {
-    // ignora
-  }
-  return { sucesso: true, usuario: logado };
-}
-
-export function getSessao(): UsuarioLogado | null {
-  try {
-    const raw = localStorage.getItem(SESSION_KEY);
-    return raw ? (JSON.parse(raw) as UsuarioLogado) : null;
+    return {
+      id: user.id.toString(),
+      nome: user.empresa?.nome_fantasia || user.username,
+      email: user.email,
+      role: user.is_superuser ? 'admin' : 'user',
+      planoAtual: planoAtual,
+      empresa: user.empresa,
+    };
   } catch {
     return null;
   }
-}
+};
 
-export function encerrarSessao(): void {
+export const encerrarSessao = async (): Promise<void> => {
   try {
-    localStorage.removeItem(SESSION_KEY);
+    await api.post('/api/logout/');
   } catch {
-    // ignora
+    console.error('Erro no logout');
+  } finally {
+    localStorage.removeItem('access_token');
+    localStorage.removeItem('refresh_token');
   }
-}
+};
+
+export const atualizarPerfil = async (dados: any): Promise<boolean> => {
+  try {
+    const payload: any = {
+      email: dados.email,
+      username: dados.email.split('@')[0],
+      empresa: {
+        razao_social: dados.nomeEmpresarial,
+        nome_fantasia: dados.nomeFantasia,
+        inscricao_estadual: dados.inscricaoEstadual,
+        telefone: dados.telefone,
+        cnpj: dados.cnpj || ''
+      }
+    };
+    
+    if (dados.novaSenha) {
+      payload.password = dados.novaSenha;
+    }
+
+    await api.patch('/api/profile/update/', payload);
+    return true;
+  } catch (error) {
+    // @ts-expect-error - error.response existe em erros de axios
+    console.error('Erro ao atualizar perfil:', error.response?.data || error.message);
+    return false;
+  }
+};
+
+export const resetPassword = async (email: string, codigo?: string, novaSenha?: string): Promise<boolean> => {
+  try {
+    const payload: any = { email };
+    if (codigo && novaSenha) {
+      payload.codigo = codigo;
+      payload.nova_senha = novaSenha;
+    }
+    await api.post('/api/password-reset/', payload);
+    return true;
+  } catch {
+    console.error('Erro na recuperação de senha');
+    return false;
+  }
+};
+
+export const apagarConta = async (): Promise<boolean> => {
+  try {
+    await api.delete('/api/delete/');
+    return true;
+  } catch {
+    console.error('Erro ao apagar conta');
+    return false;
+  }
+};
