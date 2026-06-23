@@ -16,6 +16,24 @@ import {
 } from "../utils/calculations";
 import { buscarAlimentosBackend, listarAlimentos } from "../services/alimentos";
 
+const cleanNumericValue = (val: string) => {
+  let clean = val.replace(/[^0-9.,]/g, '');
+  const firstSeparatorIndex = clean.search(/[.,]/);
+  if (firstSeparatorIndex !== -1) {
+    const before = clean.slice(0, firstSeparatorIndex + 1);
+    const after = clean.slice(firstSeparatorIndex + 1).replace(/[.,]/g, '');
+    clean = before + after;
+  }
+  // Remove leading zeros (e.g. "05" -> "5"), but preserve "0.5" or "0,5"
+  if (clean.length > 1 && clean.startsWith('0') && !clean.startsWith('0.') && !clean.startsWith('0,')) {
+    clean = clean.replace(/^0+/, '');
+    if (clean === '' || clean.startsWith('.') || clean.startsWith(',')) {
+      clean = '0' + clean;
+    }
+  }
+  return clean;
+};
+
 const receitaSchema = z.object({
   nome: z.string().min(1, "Nome da receita é obrigatório"),
   descricao: z.string().optional(),
@@ -167,7 +185,7 @@ export function CriarReceita({ receitaInicial, onSalvar, onCancelar, onSolicitar
           }
         : {
             porcoes: 1,
-            ingredientes: [{ tacoId: 0, nome: "", quantidade: 0, preco: 0, unidade: "g", baseUnidade: "g", cadastrado: false, precoBase: 0 }],
+            ingredientes: [{ tacoId: 0, nome: "", quantidade: "", preco: "", unidade: "g", baseUnidade: "g", cadastrado: false, precoBase: 0 }],
           },
     });
 
@@ -700,7 +718,11 @@ export function CriarReceita({ receitaInicial, onSalvar, onCancelar, onSolicitar
                               <input
                                 type="text"
                                 inputMode="decimal"
-                                {...register(`ingredientes.${index}.quantidade`)}
+                                {...register(`ingredientes.${index}.quantidade`, {
+                                  onChange: (e) => {
+                                    e.target.value = cleanNumericValue(e.target.value);
+                                  }
+                                })}
                                 placeholder="0"
                                 className={`${inputCls(!!errosIng?.quantidade)} w-full`}
                               />
@@ -740,7 +762,11 @@ export function CriarReceita({ receitaInicial, onSalvar, onCancelar, onSolicitar
                                 <input
                                   type="text"
                                   inputMode="decimal"
-                                  {...register(`ingredientes.${index}.preco`)}
+                                  {...register(`ingredientes.${index}.preco`, {
+                                    onChange: (e) => {
+                                      e.target.value = cleanNumericValue(e.target.value);
+                                    }
+                                  })}
                                   placeholder="0,00"
                                   className={`${inputCls(!!errosIng?.preco)} pl-8`}
                                 />
@@ -771,7 +797,7 @@ export function CriarReceita({ receitaInicial, onSalvar, onCancelar, onSolicitar
                   <button
                     type="button"
                     onClick={() => {
-                      append({ tacoId: 0, nome: "", quantidade: 0, preco: 0, unidade: "g", baseUnidade: "g", cadastrado: false, precoBase: 0 });
+                      append({ tacoId: 0, nome: "", quantidade: "", preco: "", unidade: "g", baseUnidade: "g", cadastrado: false, precoBase: 0 });
                       setRowSearches((prev) => [...prev, emptyRow()]);
                     }}
                     className="w-full flex items-center justify-center gap-2 text-sm text-white bg-emerald-600 hover:bg-emerald-700 py-2.5 rounded-xl border-0 transition-colors cursor-pointer focus:outline-none font-bold shadow-sm"

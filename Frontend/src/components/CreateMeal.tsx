@@ -64,6 +64,12 @@ export function CreateMeal({
   const [salvando, setSalvando] = useState(false);
   const [calculos, setCalculos] = useState<CalculosRefeicao | null>(null);
 
+  const impedirTeclasNaoNumericas = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (['e', 'E', '+', '-'].includes(e.key)) {
+      e.preventDefault();
+    }
+  };
+
   // Novos Estados para a Calculadora de Rateio
   const [producaoMarmitas, setProducaoMarmitas] = useState<number>(() => {
     if (refeicaoInicial?.producaoMarmitas) return refeicaoInicial.producaoMarmitas;
@@ -259,7 +265,7 @@ export function CreateMeal({
             nome: refeicaoInicial.nome,
             descricao: refeicaoInicial.descricao,
             custoOperacional: refeicaoInicial.custoOperacional || 0,
-            margemLucro: refeicaoInicial.margemLucro || 0,
+            margemLucro: refeicaoInicial.margemLucro !== undefined ? refeicaoInicial.margemLucro : undefined,
             dataValidade: refeicaoInicial.dataValidade || "",
             validadeDias: refeicaoInicial.validadeDias || 3,
             receitas: refeicaoInicial.receitas.map((r) => ({
@@ -272,7 +278,7 @@ export function CreateMeal({
             nome: "",
             descricao: "",
             custoOperacional: 0,
-            margemLucro: 0,
+            margemLucro: undefined,
             dataValidade: "",
             validadeDias: 3,
             receitas: [{ receitaId: "", quantidadeUtilizada: 1, unidadeMedida: "porcoes" as const }],
@@ -516,23 +522,26 @@ export function CreateMeal({
     if (!calculos) return;
     setSalvando(true);
     try {
-      const receitasMapeadas: ReceitaRefeicao[] = data.receitas.map((item: any) => {
-        const receitaInfo = receitasDisponiveis.find((r) => r.id === item.receitaId)!;
-        const porcoes = obterPorcoesEquivalentes(
-          receitaInfo, 
-          item.quantidadeUtilizada, 
-          item.unidadeMedida
-        );
-        return {
-          receitaId: item.receitaId,
-          nome: receitaInfo.nome,
-          porcoesUtilizadas: porcoes,
-          quantidadeUtilizada: item.quantidadeUtilizada,
-          unidadeMedida: item.unidadeMedida,
-          custoPorPorcao: receitaInfo.custoPorPorcao,
-          dadosNutricionaisPorPorcao: receitaInfo.dadosNutricionaisPorPorcao,
-        };
-      });
+      const receitasMapeadas: ReceitaRefeicao[] = data.receitas
+        .map((item: any) => {
+          const receitaInfo = receitasDisponiveis.find((r) => r.id === item.receitaId);
+          if (!receitaInfo) return null;
+          const porcoes = obterPorcoesEquivalentes(
+            receitaInfo, 
+            item.quantidadeUtilizada, 
+            item.unidadeMedida
+          );
+          return {
+            receitaId: item.receitaId,
+            nome: receitaInfo.nome,
+            porcoesUtilizadas: porcoes,
+            quantidadeUtilizada: item.quantidadeUtilizada,
+            unidadeMedida: item.unidadeMedida,
+            custoPorPorcao: receitaInfo.custoPorPorcao,
+            dadosNutricionaisPorPorcao: receitaInfo.dadosNutricionaisPorPorcao,
+          };
+        })
+        .filter((r: ReceitaRefeicao | null): r is ReceitaRefeicao => r !== null);
 
       let valorEmbalagem = 0;
       embalagensSelecionadas.forEach((emb) => {
@@ -1262,6 +1271,7 @@ export function CreateMeal({
                           min={0}
                           step="0.1"
                           {...register("margemLucro", { valueAsNumber: true })}
+                          onKeyDown={impedirTeclasNaoNumericas}
                           placeholder="Ex: 100"
                           className={`${inputCls(!!errors.margemLucro)} pr-8`}
                         />

@@ -9,12 +9,12 @@ type TelaAtiva =
 
 interface PostRegisterPlansProps {
   onNavegar: (tela: TelaAtiva) => void;
-  onAssinarPlano: (planoId: 'profissional' | 'empresarial') => void;
+  onAssinarPlano: (planoId: 'profissional') => void;
   usuario: UsuarioLogado | null;
 }
 
 const planos: { 
-  id: 'gratis' | 'profissional' | 'empresarial'; 
+  id: 'gratis' | 'profissional'; 
   nome: string; 
   precoMensal: string; 
   precoAnual: string; 
@@ -59,23 +59,6 @@ const planos: {
       'Suporte prioritário',
     ],
   },
-  {
-    id: 'empresarial',
-    nome: 'Empresarial',
-    precoMensal: 'R$ 79',
-    precoAnual: 'R$ 66',
-    totalAnual: 'R$ 790 / ano',
-    economia: 'Economize R$ 158',
-    periodo: '/ mês',
-    destaque: false,
-    recursos: [
-      'Tudo do Profissional',
-      'Múltiplos usuários',
-      'Relatórios gerenciais',
-      'API de integração',
-      'Onboarding dedicado',
-    ],
-  },
 ];
 
 export function PostRegisterPlans({ onNavegar, onAssinarPlano, usuario }: PostRegisterPlansProps) {
@@ -107,7 +90,7 @@ export function PostRegisterPlans({ onNavegar, onAssinarPlano, usuario }: PostRe
             handleClick = () => onNavegar('dashboard');
           } else {
             labelBotao = 'Assinar agora';
-            handleClick = () => onAssinarPlano(plano.id as 'profissional' | 'empresarial');
+            handleClick = () => onAssinarPlano(plano.id as 'profissional');
           }
 
           return (

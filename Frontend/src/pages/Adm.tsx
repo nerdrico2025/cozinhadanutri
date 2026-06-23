@@ -20,7 +20,7 @@ import {
   SupportConfig, FAQEntry 
 } from '../services/supportService';
 
-type Plano = 'Grátis' | 'Profissional' | 'Empresarial';
+type Plano = 'Grátis' | 'Profissional';
 type Status = 'ativo' | 'inativo';
 type Aba = 'visao-geral' | 'usuarios' | 'planos' | 'atividades' | 'faturamento' | 'conversao' | 'suporte';
 
@@ -83,7 +83,6 @@ const TIPO_ATIVIDADE: Record<string, { label: string; cls: string; Icon: React.E
 const PLANO_CONFIG: Record<Plano, { cor: string; borda: string; fundo: string; Icon: React.ElementType; badge: string }> = {
   'Grátis':       { cor: 'text-gray-600',   borda: 'border-gray-300',   fundo: 'bg-gray-50',   Icon: Star,  badge: 'bg-gray-100 text-gray-600'    },
   'Profissional': { cor: 'text-teal-700',   borda: 'border-teal-400',   fundo: 'bg-teal-50',   Icon: Zap,   badge: 'bg-teal-100 text-teal-700'    },
-  'Empresarial':  { cor: 'text-purple-700', borda: 'border-purple-400', fundo: 'bg-purple-50', Icon: Crown, badge: 'bg-purple-100 text-purple-700' },
 };
 
 const ABAS: { id: Aba; label: string; Icon: React.ElementType }[] = [
@@ -171,9 +170,7 @@ export function Adm() {
     const mapeados: Usuario[] = dados.map(u => {
       const planoId = u.empresa?.plano;
       const planoNome: Plano = 
-        String(planoId) === '1' || planoId === 'gratis' || !planoId ? 'Grátis' :
-        String(planoId) === '2' || planoId === 'profissional' ? 'Profissional' :
-        'Empresarial';
+        String(planoId) === '1' || planoId === 'gratis' || !planoId ? 'Grátis' : 'Profissional';
 
       return {
         id: u.id,
@@ -247,7 +244,7 @@ export function Adm() {
   function alternarRecurso(plano: Plano, recurso: string, pularSenha = false) {
     const acao = () => {
       const novosRecursos = planConfigs[plano].recursos.includes(recurso)
-        ? planConfigs[plano].recursos.filter(r => r !== recurso)
+        ? planConfigs[plano].recursos.filter((r: string) => r !== recurso)
         : [...planConfigs[plano].recursos, recurso];
       
       const novas = { ...planConfigs, [plano]: { ...planConfigs[plano], recursos: novosRecursos } };
@@ -293,7 +290,7 @@ export function Adm() {
     const novosMes = clientes.filter(u => parseDate(u.cadastro) >= TRINTA_DIAS_ATRAS).length;
     const pagantes = clientes.filter(u => u.plano !== 'Grátis' && u.status === 'ativo').length;
     const conversao = clientes.length > 0 ? Math.round((pagantes / clientes.length) * 100) : 0;
-    const porPlano  = (['Grátis', 'Profissional', 'Empresarial'] as Plano[]).reduce(
+    const porPlano  = (['Grátis', 'Profissional'] as Plano[]).reduce(
       (acc, p) => ({ ...acc, [p]: clientes.filter(u => u.plano === p).length }),
       {} as Record<Plano, number>,
     );
@@ -470,7 +467,6 @@ export function Adm() {
               <option value="Todos">Todos os planos</option>
               <option value="Grátis">Grátis</option>
               <option value="Profissional">Profissional</option>
-              <option value="Empresarial">Empresarial</option>
             </select>
             <select
               value={filtroStatus}
@@ -546,7 +542,6 @@ export function Adm() {
                       >
                         <option value="Grátis">Grátis</option>
                         <option value="Profissional">Profissional</option>
-                        <option value="Empresarial">Empresarial</option>
                       </select>
 
                       {/* Ações */}
@@ -581,8 +576,8 @@ export function Adm() {
 
       {/* ── Planos ── */}
       {aba === 'planos' && (
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
-          {(['Grátis', 'Profissional', 'Empresarial'] as Plano[]).map(plano => {
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+          {(['Grátis', 'Profissional'] as Plano[]).map(plano => {
             const cfg      = PLANO_CONFIG[plano];
             const config   = planConfigs[plano];
             const count    = kpis.porPlano[plano];
@@ -633,7 +628,7 @@ export function Adm() {
                 {/* Benefícios com Checkbox */}
                 <div className="space-y-2">
                   <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3">Benefícios</p>
-                  {config.recursos.map((rec, i) => (
+                  {config.recursos.map((rec: string, i: number) => (
                     <div key={i} className="flex items-center gap-2 group">
                       <div 
                         onClick={() => alternarRecurso(plano, rec)}
@@ -838,7 +833,7 @@ export function Adm() {
               </h3>
               
               <div className="flex flex-col gap-5">
-                {(['Profissional', 'Empresarial'] as Plano[]).map(p => {
+                {(['Profissional'] as Plano[]).map(p => {
                   const valor = usuarios.filter(u => u.plano === p && u.status === 'ativo' && u.email !== 'admin@cozinhadanutri.com').length * planConfigs[p].mensal;
                   const pct = kpis.mrr > 0 ? (valor / kpis.mrr) * 100 : 0;
                   const cfg = PLANO_CONFIG[p];
@@ -958,15 +953,15 @@ export function Adm() {
                 <div className="bg-white p-6 rounded-3xl border border-gray-200 shadow-sm flex-1">
                    <h3 className="text-sm font-bold text-gray-700 mb-6 uppercase tracking-widest">Performance de Planos</h3>
                    <div className="grid grid-cols-2 gap-4">
+                      <div className="p-4 rounded-2xl bg-gray-50/50 border border-gray-100">
+                         <p className="text-[10px] font-bold text-gray-500 uppercase mb-1">Grátis</p>
+                         <p className="text-2xl font-black text-gray-700">{kpis.porPlano['Grátis']}</p>
+                         <p className="text-[10px] text-gray-500 mt-2">Ticket Médio: R$ 0,00</p>
+                      </div>
                       <div className="p-4 rounded-2xl bg-orange-50/50 border border-orange-100">
                          <p className="text-[10px] font-bold text-orange-600 uppercase mb-1">Profissional</p>
                          <p className="text-2xl font-black text-orange-800">{kpis.porPlano['Profissional']}</p>
                          <p className="text-[10px] text-orange-600 mt-2">Ticket Médio: R$ 49,00</p>
-                      </div>
-                      <div className="p-4 rounded-2xl bg-teal-50/50 border border-teal-100">
-                         <p className="text-[10px] font-bold text-teal-600 uppercase mb-1">Empresarial</p>
-                         <p className="text-2xl font-black text-teal-800">{kpis.porPlano['Empresarial']}</p>
-                         <p className="text-[10px] text-teal-600 mt-2">Ticket Médio: R$ 99,00</p>
                       </div>
                    </div>
 
@@ -974,12 +969,32 @@ export function Adm() {
                       <h4 className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-4">Eficiência de Upsell</h4>
                       <div className="flex items-center gap-4">
                          <div className="flex-1 h-3 bg-gray-100 rounded-full overflow-hidden flex">
-                            <div className="h-full bg-orange-500" style={{ width: kpis.mrr > 0 ? '70%' : '0%' }} />
-                            <div className="h-full bg-teal-600" style={{ width: kpis.mrr > 0 ? '30%' : '0%' }} />
+                            {(() => {
+                              const total = kpis.totalClientes;
+                              const gratisCount = kpis.porPlano['Grátis'] || 0;
+                              const profCount = kpis.porPlano['Profissional'] || 0;
+                              const gratisPct = total > 0 ? (gratisCount / total) * 100 : 100;
+                              const profPct = total > 0 ? (profCount / total) * 100 : 0;
+                              return (
+                                <>
+                                  <div className="h-full bg-gray-300" style={{ width: `${gratisPct}%` }} />
+                                  <div className="h-full bg-orange-500" style={{ width: `${profPct}%` }} />
+                                </>
+                              );
+                            })()}
                          </div>
-                         <span className="text-xs font-bold text-gray-800">{kpis.totalClientes > 0 ? '70/30' : '0/0'}</span>
+                         <span className="text-xs font-bold text-gray-800">
+                           {(() => {
+                             const total = kpis.totalClientes;
+                             const gratisCount = kpis.porPlano['Grátis'] || 0;
+                             const profCount = kpis.porPlano['Profissional'] || 0;
+                             const gratisPct = total > 0 ? Math.round((gratisCount / total) * 100) : 100;
+                             const profPct = total > 0 ? Math.round((profCount / total) * 100) : 0;
+                             return `${gratisPct}/${profPct}`;
+                           })()}
+                         </span>
                       </div>
-                      <p className="text-[10px] text-gray-400 mt-2">Proporção Profissional vs Empresarial</p>
+                      <p className="text-[10px] text-gray-400 mt-2">Proporção Grátis vs Profissional</p>
                    </div>
                 </div>
 

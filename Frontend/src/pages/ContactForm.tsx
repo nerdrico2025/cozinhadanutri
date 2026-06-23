@@ -22,10 +22,21 @@ interface ContactFormProps {
   onCancelar: () => void;
 }
 
+const rawRecaptchaKey = import.meta.env.VITE_RECAPTCHA_SITE_KEY as string | undefined;
+const RECAPTCHA_SITE_KEY = (
+  rawRecaptchaKey && 
+  rawRecaptchaKey.trim() !== '' && 
+  rawRecaptchaKey.trim() !== 'sua_chave_publica_do_recaptcha' && 
+  !rawRecaptchaKey.includes('EXEMPLO') &&
+  !rawRecaptchaKey.includes('YOUR_')
+) ? rawRecaptchaKey.trim() : undefined;
+
 export function ContactForm({ onCancelar }: ContactFormProps): JSX.Element {
   const [arquivo, setArquivo] = useState<File | null>(null);
   const [arquivoErro, setArquivoErro] = useState<string>('');
-  const [recaptchaToken, setRecaptchaToken] = useState<string | null>(null);
+  const [recaptchaToken, setRecaptchaToken] = useState<string | null>(
+    !RECAPTCHA_SITE_KEY ? 'dev' : null
+  );
   const [enviando, setEnviando] = useState(false);
   const [sucesso, setSucesso] = useState(false);
   const [erroEnvio, setErroEnvio] = useState<string>('');
@@ -67,7 +78,7 @@ export function ContactForm({ onCancelar }: ContactFormProps): JSX.Element {
   };
 
   const onSubmit = async (data: FormData) => {
-    if (!recaptchaToken) {
+    if (RECAPTCHA_SITE_KEY && !recaptchaToken) {
       setErroEnvio('Por favor, confirme que você não é um robô.');
       return;
     }
@@ -78,7 +89,7 @@ export function ContactForm({ onCancelar }: ContactFormProps): JSX.Element {
       formData.append('nome', data.nome);
       formData.append('email', data.email);
       formData.append('mensagem', data.mensagem);
-      formData.append('recaptcha', recaptchaToken);
+      formData.append('recaptcha', recaptchaToken || '');
       if (arquivo) formData.append('foto', arquivo);
 
       // TODO: substituir pelo endpoint real
@@ -89,11 +100,11 @@ export function ContactForm({ onCancelar }: ContactFormProps): JSX.Element {
       reset();
       setArquivo(null);
       recaptchaRef.current?.reset();
-      setRecaptchaToken(null);
+      setRecaptchaToken(!RECAPTCHA_SITE_KEY ? 'dev' : null);
     } catch {
       setErroEnvio('Erro ao enviar mensagem. Tente novamente mais tarde.');
       recaptchaRef.current?.reset();
-      setRecaptchaToken(null);
+      setRecaptchaToken(!RECAPTCHA_SITE_KEY ? 'dev' : null);
     } finally {
       setEnviando(false);
     }
@@ -255,17 +266,16 @@ export function ContactForm({ onCancelar }: ContactFormProps): JSX.Element {
           </div> */}
 
           {/* reCAPTCHA */}
-          <div className="flex flex-col gap-1.5">
-            <ReCAPTCHA
-              ref={recaptchaRef}
-              sitekey={
-                (import.meta.env.VITE_RECAPTCHA_SITE_KEY as string) ??
-                '6LeIxAcTAAAAAJcZVRqyHh71UMIEGNQ_MXjiZKhI'
-              }
-              onChange={(token) => setRecaptchaToken(token)}
-              onExpired={() => setRecaptchaToken(null)}
-            />
-          </div>
+          {RECAPTCHA_SITE_KEY && (
+            <div className="flex flex-col gap-1.5">
+              <ReCAPTCHA
+                ref={recaptchaRef}
+                sitekey={RECAPTCHA_SITE_KEY}
+                onChange={(token) => setRecaptchaToken(token)}
+                onExpired={() => setRecaptchaToken(null)}
+              />
+            </div>
+          )}
 
           {/* Erro de envio */}
           {erroEnvio && (

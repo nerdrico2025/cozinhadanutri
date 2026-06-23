@@ -93,7 +93,14 @@ function PainelDireito() {
   );
 }
 
-const RECAPTCHA_SITE_KEY = import.meta.env.VITE_RECAPTCHA_SITE_KEY as string | undefined;
+const rawRecaptchaKey = import.meta.env.VITE_RECAPTCHA_SITE_KEY as string | undefined;
+const RECAPTCHA_SITE_KEY = (
+  rawRecaptchaKey && 
+  rawRecaptchaKey.trim() !== '' && 
+  rawRecaptchaKey.trim() !== 'sua_chave_publica_do_recaptcha' && 
+  !rawRecaptchaKey.includes('EXEMPLO') &&
+  !rawRecaptchaKey.includes('YOUR_')
+) ? rawRecaptchaKey.trim() : undefined;
 
 export function Login({ onEntrar, onCriarConta, onEsqueciSenha }: LoginProps) {
   const [mostrarSenha, setMostrarSenha] = useState(false);
@@ -225,18 +232,16 @@ export function Login({ onEntrar, onCriarConta, onEsqueciSenha }: LoginProps) {
                 {errors.senha && <p className="text-red-500 text-xs mt-1">{errors.senha.message}</p>}
               </div>
 
-              <div className="flex justify-center">
-                {RECAPTCHA_SITE_KEY ? (
+              {RECAPTCHA_SITE_KEY && (
+                <div className="flex justify-center">
                   <ReCAPTCHA
                     key={captchaKey}
                     sitekey={RECAPTCHA_SITE_KEY}
                     onChange={(token: string | null) => setCaptchaToken(token)}
                     onExpired={() => setCaptchaToken(null)}
                   />
-                ) : (
-                  <p className="text-xs text-red-500">VITE_RECAPTCHA_SITE_KEY não configurada.</p>
-                )}
-              </div>
+                </div>
+              )}
 
               {estaBloqueado && (
                 <p className="text-red-500 text-xs text-center font-medium">

@@ -160,7 +160,14 @@ function PainelDireito() {
   );
 }
 
-const RECAPTCHA_SITE_KEY = import.meta.env.VITE_RECAPTCHA_SITE_KEY as string | undefined;
+const rawRecaptchaKey = import.meta.env.VITE_RECAPTCHA_SITE_KEY as string | undefined;
+const RECAPTCHA_SITE_KEY = (
+  rawRecaptchaKey && 
+  rawRecaptchaKey.trim() !== '' && 
+  rawRecaptchaKey.trim() !== 'sua_chave_publica_do_recaptcha' && 
+  !rawRecaptchaKey.includes('EXEMPLO') &&
+  !rawRecaptchaKey.includes('YOUR_')
+) ? rawRecaptchaKey.trim() : undefined;
 
 function FormPessoaJuridica({ onCadastrar, onVerTermos, onVerPrivacidade }: { onCadastrar: (data: FormPJ) => void; onVerTermos?: () => void; onVerPrivacidade?: () => void }) {
   const [captchaToken, setCaptchaToken] = useState<string | null>(
@@ -171,6 +178,7 @@ function FormPessoaJuridica({ onCadastrar, onVerTermos, onVerPrivacidade }: { on
   const [aceitouPrivacidade, setAceitouPrivacidade] = useState(false);
   const [buscandoCnpj, setBuscandoCnpj] = useState(false);
   const [cnpjValido, setCnpjValido] = useState(false);
+  const [mostrarAvisoColdStart, setMostrarAvisoColdStart] = useState(false);
   const { register, handleSubmit, setValue, watch, setError, clearErrors, formState: { errors } } = useForm<FormPJ>({ resolver: zodResolver(schemaPJ) });
 
   const cnpjValue = watch('cnpj');
@@ -182,6 +190,12 @@ function FormPessoaJuridica({ onCadastrar, onVerTermos, onVerPrivacidade }: { on
         setBuscandoCnpj(true);
         setCnpjValido(false);
         clearErrors('cnpj');
+        setMostrarAvisoColdStart(false);
+
+        const timer = setTimeout(() => {
+          setMostrarAvisoColdStart(true);
+        }, 3000);
+
         try {
           const apiUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
           const res = await fetch(`${apiUrl}/api/cnpj/${rawCnpj}/`, {
@@ -214,7 +228,9 @@ function FormPessoaJuridica({ onCadastrar, onVerTermos, onVerPrivacidade }: { on
           console.error('Erro ao buscar CNPJ da ReceitaWS:', error);
           setError('cnpj', { type: 'manual', message: 'Erro de conexão ao buscar CNPJ' });
         } finally {
+          clearTimeout(timer);
           setBuscandoCnpj(false);
+          setMostrarAvisoColdStart(false);
         }
       };
       fetchCnpj();
@@ -242,6 +258,11 @@ function FormPessoaJuridica({ onCadastrar, onVerTermos, onVerPrivacidade }: { on
               </div>
             )}
           </div>
+          {mostrarAvisoColdStart && (
+            <p className="text-amber-600 text-xs mt-1.5 leading-relaxed font-medium animate-pulse">
+              ⚠️ O servidor pode levar até 1 minuto para inicializar (Cold Start). Por favor, aguarde...
+            </p>
+          )}
         </Field>
         <Field label="Inscrição Estadual" error={errors.inscricaoEstadual?.message}>
           <input
@@ -326,18 +347,16 @@ function FormPessoaJuridica({ onCadastrar, onVerTermos, onVerPrivacidade }: { on
           </label>
         </div>
       </div>
-      <div className="flex justify-center">
-        {RECAPTCHA_SITE_KEY ? (
+      {RECAPTCHA_SITE_KEY && (
+        <div className="flex justify-center">
           <ReCAPTCHA
             key={captchaKey}
             sitekey={RECAPTCHA_SITE_KEY}
             onChange={(token: string | null) => setCaptchaToken(token)}
             onExpired={() => setCaptchaToken(null)}
           />
-        ) : (
-          <p className="text-xs text-red-500">VITE_RECAPTCHA_SITE_KEY não configurada.</p>
-        )}
-      </div>
+        </div>
+      )}
       <button
         type="submit"
         disabled={!captchaToken || !aceitouTermos || !aceitouPrivacidade || !cnpjValido}

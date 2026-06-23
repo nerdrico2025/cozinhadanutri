@@ -14,6 +14,16 @@ import os
 from pathlib import Path
 from dotenv import load_dotenv
 
+try:
+    import dj_database_url
+except ImportError:
+    dj_database_url = None
+
+try:
+    import whitenoise
+except ImportError:
+    whitenoise = None
+
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -56,9 +66,10 @@ MP_ACCESS_TOKEN = os.environ.get('MP_ACCESS_TOKEN')
 # (Now being loaded from .env above)
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = os.environ.get('DEBUG', 'True').lower() == 'true'
 
-ALLOWED_HOSTS = []
+allowed_hosts_env = os.environ.get('ALLOWED_HOSTS', '')
+ALLOWED_HOSTS = [host.strip() for host in allowed_hosts_env.split(',') if host.strip()] if allowed_hosts_env else []
 
 
 # Application definition
@@ -88,6 +99,9 @@ MIDDLEWARE = [
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
+
+if whitenoise:
+    MIDDLEWARE.insert(1, 'whitenoise.middleware.WhiteNoiseMiddleware')
 
 from datetime import timedelta
 
@@ -140,13 +154,28 @@ SIMPLE_JWT = {
     'TOKEN_TYPE_CLAIM': 'token_type',
 }
 
+CORS_ALLOW_CREDENTIALS = True
+
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:5173",
     "http://127.0.0.1:5173",
     "http://localhost:5174",
     "http://127.0.0.1:5174",
 ]
-CORS_ALLOW_CREDENTIALS = True
+
+frontend_url_env = os.environ.get('FRONTEND_URL')
+if frontend_url_env:
+    for url in frontend_url_env.split(','):
+        url = url.strip()
+        if url:
+            if not url.startswith('http://') and not url.startswith('https://'):
+                url = 'https://' + url
+            if url not in CORS_ALLOWED_ORIGINS:
+                CORS_ALLOWED_ORIGINS.append(url)
+
+CORS_ALLOWED_ORIGIN_REGEXES = [
+    r"^https://.*\.vercel\.app$",
+]
 
 ROOT_URLCONF = 'cozinhadanutri.urls'
 
@@ -171,12 +200,17 @@ WSGI_APPLICATION = 'cozinhadanutri.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/6.0/ref/settings/#databases
 
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+if os.environ.get('DATABASE_URL') and dj_database_url:
+    DATABASES = {
+        'default': dj_database_url.config(default=os.environ.get('DATABASE_URL'))
     }
-}
+else:
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': BASE_DIR / 'db.sqlite3',
+        }
+    }
 
 
 # Password validation
@@ -215,6 +249,26 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/6.0/howto/static-files/
 
 STATIC_URL = 'static/'
+STATIC_ROOT = BASE_DIR / 'staticfiles'
+
+if whitenoise:
+    STORAGES = {
+        "default": {
+            "BACKEND": "django.core.files.storage.FileSystemStorage",
+        },
+        "staticfiles": {
+            "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
+        },
+    }
+else:
+    STORAGES = {
+        "default": {
+            "BACKEND": "django.core.files.storage.FileSystemStorage",
+        },
+        "staticfiles": {
+            "BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage",
+        },
+    }
 
 
 load_dotenv()

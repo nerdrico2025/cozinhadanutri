@@ -154,25 +154,30 @@ export function Dashboard({ receitas, totalIngredientes, usuario, onNavegar }: D
 
       {/* Propaganda Banner for Free Plan */}
       {(!usuario?.planoAtual || usuario?.planoAtual === 'gratis') && (
-        <div className="relative overflow-hidden bg-slate-900 rounded-2xl p-6 shadow-sm border border-slate-800 flex flex-col md:flex-row items-start md:items-center justify-between gap-6 animate-fadeIn">
+        <div className="relative overflow-hidden bg-gradient-to-r from-orange-600 to-amber-500 rounded-2xl p-6 shadow-sm border border-orange-500/20 flex flex-col md:flex-row items-start md:items-center justify-between gap-6 animate-fadeIn">
+          {/* Subtle background decoration */}
+          <div className="absolute right-0 top-0 translate-x-12 -translate-y-12 opacity-10 text-white pointer-events-none">
+            <Crown size={180} />
+          </div>
+          
           <div className="relative z-10 flex items-start sm:items-center gap-5">
-            <div className="bg-slate-800/80 rounded-xl p-3 border border-slate-700/50 shadow-sm shrink-0">
-              <Crown size={24} className="text-amber-400" />
+            <div className="bg-white/20 rounded-xl p-3 border border-white/20 shadow-sm shrink-0">
+              <Crown size={24} className="text-white" />
             </div>
             <div>
               <h3 className="text-[17px] font-semibold text-white tracking-tight">Eleve sua operação com o Plano Profissional</h3>
-              <p className="text-[13px] text-slate-400 max-w-2xl leading-relaxed mt-1.5">
-                Atualmente você está no plano <strong className="text-slate-200 font-medium">Grátis</strong> (limite de 5 receitas). Faça o upgrade para criar até <strong className="text-slate-200 font-medium">60 receitas</strong>, gerar etiquetas personalizáveis, exportar relatórios e ter suporte prioritário.
+              <p className="text-[13px] text-orange-50/90 max-w-2xl leading-relaxed mt-1.5">
+                Atualmente você está no plano <strong className="text-white font-bold">Grátis</strong> (limite de 5 receitas). Faça o upgrade para criar até <strong className="text-white font-bold">60 receitas</strong>, gerar etiquetas personalizáveis, exportar relatórios e ter suporte prioritário.
               </p>
             </div>
           </div>
           <button
             type="button"
             onClick={() => onNavegar('pagamento')}
-            className="relative z-10 w-full md:w-auto flex items-center justify-center gap-2 bg-white text-slate-900 text-sm font-semibold px-5 py-2.5 rounded-lg hover:bg-slate-50 transition-colors cursor-pointer shrink-0 border-0 shadow-sm"
+            className="relative z-10 w-full md:w-auto flex items-center justify-center gap-2 bg-white text-orange-700 text-sm font-semibold px-5 py-2.5 rounded-lg hover:bg-orange-50 transition-colors cursor-pointer shrink-0 border-0 shadow-sm"
           >
             Fazer Upgrade
-            <ArrowUpRight size={16} className="text-slate-500" />
+            <ArrowUpRight size={16} className="text-orange-600" />
           </button>
         </div>
       )}

@@ -235,7 +235,7 @@ export function CadastroIngrediente({ ingredienteInicial, onSalvar, onCancelar, 
       reset({
         nome: '',
         unidade: 'g',
-        preco: 0,
+        preco: undefined,
         calorias: 0,
         proteinas: 0,
         carboidratos: 0,
@@ -273,6 +273,12 @@ export function CadastroIngrediente({ ingredienteInicial, onSalvar, onCancelar, 
       setValue('unidade', (itemEstoqueVinculado.unidade === 'un' ? 'unidade' : itemEstoqueVinculado.unidade) as 'g' | 'kg' | 'ml' | 'l' | 'unidade');
     }
   }, [itemEstoqueVinculado, setValue, ingredienteInicial]);
+
+  const impedirTeclasNaoNumericas = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (['e', 'E', '+', '-'].includes(e.key)) {
+      e.preventDefault();
+    }
+  };
 
   const buscarSugestoes = (nome: string) => {
     if (nome.length < 2) { setSugestoesTaco([]); setMostrarSugestoes(false); return; }
@@ -571,6 +577,7 @@ export function CadastroIngrediente({ ingredienteInicial, onSalvar, onCancelar, 
                       <input 
                         type="number" min={0.01} step="any" required
                         value={estoqueQuantidade} onChange={e => handleQuantidadeChange(e.target.value)}
+                        onKeyDown={impedirTeclasNaoNumericas}
                         placeholder="Ex: 5" className={inputCls(false)}
                       />
                     </div>
@@ -587,6 +594,7 @@ export function CadastroIngrediente({ ingredienteInicial, onSalvar, onCancelar, 
                         step="0.01"
                         min={0.01}
                         {...register('preco', { valueAsNumber: true })}
+                        onKeyDown={impedirTeclasNaoNumericas}
                         placeholder="0,00"
                         className={`${inputCls(!!errors.preco)} pl-8`}
                       />
@@ -628,6 +636,7 @@ export function CadastroIngrediente({ ingredienteInicial, onSalvar, onCancelar, 
                             <input 
                               type="number" min={0} step="0.01"
                               value={estoqueValorTotal} onChange={e => handleValorTotalChange(e.target.value)}
+                              onKeyDown={impedirTeclasNaoNumericas}
                               placeholder="Ex: 25.60" className={`${inputCls(false)} pl-8`}
                             />
                           </div>

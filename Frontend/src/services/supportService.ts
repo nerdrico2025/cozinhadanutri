@@ -81,7 +81,7 @@ const DEFAULT_FAQ: FAQEntry[] = [
     id: '7',
     categoria: 'Rótulo',
     pergunta: 'Posso exportar o rótulo em PDF?',
-    resposta: 'Sim, nos planos Profissional e Empresarial você pode exportar o rótulo gerado em formato PDF com alta resolução, pronto para impressão e uso em embalagens.',
+    resposta: 'Sim, no plano Profissional você pode exportar o rótulo gerado em formato PDF com alta resolução, pronto para impressão e uso em embalagens.',
   },
   {
     id: '8',
@@ -101,7 +101,7 @@ const DEFAULT_FAQ: FAQEntry[] = [
     id: '10',
     categoria: 'Receitas',
     pergunta: 'Quantos cadastros de receita são permitidos no plano Grátis?',
-    resposta: 'No plano Grátis você pode cadastrar até 5 receitas. Para receitas ilimitadas, faça upgrade para o plano Profissional ou Empresarial.',
+    resposta: 'No plano Grátis você pode cadastrar até 5 receitas. Para receitas ilimitadas, faça upgrade para o plano Profissional.',
   },
   {
     id: '11',
@@ -191,7 +191,7 @@ const DEFAULT_FAQ: FAQEntry[] = [
     id: '24',
     categoria: 'Dados',
     pergunta: 'Posso exportar minhas receitas?',
-    resposta: 'Nos planos pagos é possível exportar receitas em PDF, incluindo ficha técnica completa com ingredientes, quantidades, custos e rótulo nutricional. O plano Empresarial também oferece exportação via API.',
+    resposta: 'No plano Profissional é possível exportar receitas em PDF, incluindo ficha técnica completa com ingredientes, quantidades, custos e rótulo nutricional.',
   },
 
   // Assinatura

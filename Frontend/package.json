@@ -7,10 +7,12 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "start": "serve -s dist -p ${PORT:-3000}"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",
+    "serve": "^14.2.4",
     "axios": "^1.16.1",
     "lucide-react": "^1.8.0",
     "react": "^18.3.1",

@@ -85,7 +85,7 @@ const getTelaFromHash = (): TelaAtiva => {
 function App() {
   const [telaAtiva, setTelaAtivaState] = useState<TelaAtiva>(getTelaFromHash);
   const [usuario, setUsuario] = useState<UsuarioLogado | null>(null);
-  const [planoPreSelecionado, setPlanoPreSelecionado] = useState<'profissional' | 'empresarial' | undefined>(undefined);
+  const [planoPreSelecionado, setPlanoPreSelecionado] = useState<'profissional' | undefined>(undefined);
   const [receitas, setReceitas] = useState<Receita[]>([]);
   const [ingredientes, setIngredientes] = useState<Ingrediente[]>([]);
   const [refeicoes, setRefeicoes] = useState<Refeicao[]>(() => {
@@ -103,7 +103,7 @@ function App() {
   const [ingredienteEmEdicao, setIngredienteEmEdicao] = useState<Ingrediente | undefined>(undefined);
   const [rascunhoReceita, setRascunhoReceita] = useState<Receita | undefined>(undefined);
   const [carregandoSessao, setCarregandoSessao] = useState(true);
-  const [planoSelecionado, setPlanoSelecionado] = useState<'profissional' | 'empresarial' | undefined>(undefined);
+  const [planoSelecionado, setPlanoSelecionado] = useState<'profissional' | undefined>(undefined);
   const [modalLimiteAberto, setModalLimiteAberto] = useState(false);
 
   const publicTelas: TelaAtiva[] = ['home', 'login', 'register', 'esqueci-senha', 'faq', 'suporte', 'termos', 'privacidade', 'not-found', 'planos'];
@@ -341,7 +341,7 @@ function App() {
 
 
 
-  const handleAssinarPlano = (planoId: 'profissional' | 'empresarial') => {
+  const handleAssinarPlano = (planoId: 'profissional') => {
     setPlanoPreSelecionado(planoId);
     setTelaAtiva('pagamento');
   };
