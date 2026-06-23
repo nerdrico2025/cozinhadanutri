@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useMemo } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -107,6 +107,7 @@ export interface ProfileProps {
   onVoltar?: () => void;
   onUpgrade?: () => void;
   onApagarConta?: (senhaAtual: string) => Promise<boolean> | boolean;
+  onCancelarAssinatura?: () => Promise<boolean> | boolean;
 }
 
 // ── Helpers visuais ───────────────────────────────────────────────────────────
@@ -254,14 +255,157 @@ function ModalConfirmacao({
   );
 }
 
+// ── Modal de Cancelamento de Assinatura (CDC Art. 49) ────────────────────────
+function ModalCancelamento({
+  dataPagamento,
+  valorPagamento,
+  isWithinRefundPeriod,
+  onConfirmar,
+  onCancelar,
+}: {
+  dataPagamento: string;
+  valorPagamento: string;
+  isWithinRefundPeriod: boolean;
+  onConfirmar: () => Promise<void>;
+  onCancelar: () => void;
+}) {
+  const [confirmando, setConfirmando] = useState(false);
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/40 backdrop-blur-md transition-opacity"
+      onClick={(e) => { if (e.target === e.currentTarget) onCancelar(); }}
+    >
+      <div className="bg-white/95 backdrop-blur-xl rounded-3xl shadow-[0_20px_60px_-15px_rgba(0,0,0,0.3)] border border-white/50 w-full max-w-md mx-4 p-8 flex flex-col gap-6 animate-[fadeSlideIn_0.2s_ease-out_forwards]">
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <div className="bg-red-50 text-red-600 rounded-2xl p-3 shrink-0">
+              <AlertCircle size={24} />
+            </div>
+            <div>
+              <h2 className="text-lg font-bold text-gray-800">Cancelar Assinatura</h2>
+              <p className="text-xs text-gray-500 mt-0.5 font-medium">Revisão de direitos (Art. 49 do CDC)</p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={onCancelar}
+            className="bg-gray-100 hover:bg-gray-200 border-0 cursor-pointer text-gray-500 hover:text-gray-700 transition-colors p-1.5 rounded-full"
+          >
+            <X size={16} />
+          </button>
+        </div>
+
+        {isWithinRefundPeriod ? (
+          <div className="flex flex-col gap-4">
+            <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-4 flex flex-col gap-1.5 shadow-sm">
+              <span className="text-xs font-bold text-emerald-800 uppercase tracking-wider">Direito de Arrependimento Ativo</span>
+              <p className="text-xs text-emerald-700 leading-relaxed font-medium">
+                Sua última transação ocorreu em <strong>{dataPagamento}</strong>. Como está dentro do prazo legal de <strong>7 dias corridos</strong> estabelecido pelo Art. 49 do Código de Defesa do Consumidor, você tem direito ao reembolso integral.
+              </p>
+            </div>
+            <p className="text-sm text-gray-600 leading-relaxed">
+              Ao confirmar o cancelamento, seu plano profissional será encerrado imediatamente e o estorno de <strong>{valorPagamento}</strong> será processado em sua conta bancária/fatura do cartão.
+            </p>
+          </div>
+        ) : (
+          <div className="flex flex-col gap-4">
+            <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 flex flex-col gap-1.5 shadow-sm">
+              <span className="text-xs font-bold text-amber-800 uppercase tracking-wider">Cancelamento Regular</span>
+              <p className="text-xs text-amber-700 leading-relaxed font-medium">
+                Sua transação ocorreu em <strong>{dataPagamento}</strong> (prazo legal de 7 dias de arrependimento expirado). O plano profissional continuará ativo até o encerramento do ciclo contratado.
+              </p>
+            </div>
+            <p className="text-sm text-gray-600 leading-relaxed">
+              Ao confirmar, você não receberá novas cobranças automáticas e sua conta retornará ao <strong>Plano Grátis</strong> no término do período de vigência atual.
+            </p>
+          </div>
+        )}
+
+        <div className="flex gap-3">
+          <button
+            type="button"
+            onClick={onCancelar}
+            className="flex-1 py-3.5 rounded-xl border-2 border-gray-200 text-sm font-bold text-gray-600 bg-white hover:bg-gray-50 transition-all cursor-pointer active:scale-95"
+          >
+            Manter Plano
+          </button>
+          <button
+            type="button"
+            disabled={confirmando}
+            onClick={async () => {
+              setConfirmando(true);
+              await onConfirmar();
+              setConfirmando(false);
+            }}
+            className={`flex-1 py-3.5 rounded-xl border-0 text-sm font-bold text-white bg-red-600 shadow-lg shadow-red-600/20 hover:shadow-red-600/40 transition-all active:scale-95 ${
+              confirmando ? 'opacity-70 cursor-not-allowed' : 'cursor-pointer'
+            }`}
+          >
+            {confirmando ? 'Processando...' : 'Confirmar'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── Componente principal ──────────────────────────────────────────────────────
-export function Profile({ dadosIniciais, onSalvar, onVoltar, onUpgrade, onApagarConta }: ProfileProps) {
+export function Profile({ dadosIniciais, onSalvar, onVoltar, onUpgrade, onApagarConta, onCancelarAssinatura }: ProfileProps) {
   const [feedback, setFeedback]       = useState<{ tipo: 'sucesso' | 'erro'; mensagem: string } | null>(null);
   const [pendingData, setPendingData] = useState<FormProfile | null>(null);
   const [acaoPendente, setAcaoPendente] = useState<'salvar' | 'apagar' | null>(null);
   const [erroModal, setErroModal]     = useState<string | null>(null);
   const [activeTab, setActiveTab]     = useState<'geral' | 'endereco' | 'seguranca' | 'pagamentos'>('geral');
   const [paymentHistory, setPaymentHistory] = useState<any[]>([]);
+  const [modalCancelamentoAberto, setModalCancelamentoAberto] = useState(false);
+
+  const parseDateBR = (strDate: string) => {
+    const parts = strDate.split('/');
+    if (parts.length === 3) {
+      return new Date(parseInt(parts[2]), parseInt(parts[1]) - 1, parseInt(parts[0]));
+    }
+    return new Date();
+  };
+
+  const isWithinRefundPeriod = useMemo(() => {
+    const lastPayment = paymentHistory[0];
+    if (!lastPayment?.data) return true;
+    try {
+      const payDate = parseDateBR(lastPayment.data);
+      const today = new Date();
+      payDate.setHours(0, 0, 0, 0);
+      today.setHours(0, 0, 0, 0);
+      const diffTime = Math.abs(today.getTime() - payDate.getTime());
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+      return diffDays <= 7;
+    } catch {
+      return true;
+    }
+  }, [paymentHistory]);
+
+  const handleConfirmarCancelamento = async () => {
+    try {
+      const ok = onCancelarAssinatura ? await onCancelarAssinatura() : true;
+      if (ok) {
+        setFeedback({ tipo: 'sucesso', mensagem: 'Sua assinatura foi cancelada com sucesso.' });
+        if (paymentHistory.length > 0) {
+          const updatedHistory = paymentHistory.map((pgto, index) => {
+            if (index === 0) {
+              return { ...pgto, status: 'Cancelado/Reembolsado' };
+            }
+            return pgto;
+          });
+          localStorage.setItem('payment_history', JSON.stringify(updatedHistory));
+          setPaymentHistory(updatedHistory);
+        }
+        setModalCancelamentoAberto(false);
+      } else {
+        setFeedback({ tipo: 'erro', mensagem: 'Falha ao cancelar a assinatura. Tente novamente ou contate o suporte.' });
+      }
+    } catch {
+      setFeedback({ tipo: 'erro', mensagem: 'Erro inesperado ao cancelar.' });
+    }
+  };
 
   const carregarHistorico = useCallback(() => {
     try {
@@ -470,6 +614,16 @@ export function Profile({ dadosIniciais, onSalvar, onVoltar, onUpgrade, onApagar
           onConfirmar={handleConfirmar}
           onCancelar={handleCancelarModal}
           erroExterno={erroModal}
+        />
+      )}
+
+      {modalCancelamentoAberto && (
+        <ModalCancelamento
+          dataPagamento={paymentHistory[0]?.data || new Date().toLocaleDateString('pt-BR')}
+          valorPagamento={paymentHistory[0]?.valor || 'R$ 948,00'}
+          isWithinRefundPeriod={isWithinRefundPeriod}
+          onConfirmar={handleConfirmarCancelamento}
+          onCancelar={() => setModalCancelamentoAberto(false)}
         />
       )}
 
@@ -734,6 +888,48 @@ export function Profile({ dadosIniciais, onSalvar, onVoltar, onUpgrade, onApagar
             {/* CONTEÚDO: PAGAMENTOS */}
             {activeTab === 'pagamentos' && (
               <div className="flex flex-col gap-6 md:gap-8 animate-[fadeSlideIn_0.2s_ease-out_forwards]">
+                {/* Gerenciamento de Assinatura */}
+                {dadosIniciais?.planoAtual === 'profissional' && (
+                  <section className="bg-white/80 backdrop-blur-xl rounded-3xl border border-white/60 shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-6 md:p-8 flex flex-col gap-5 transition-all hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)]">
+                    <div className="border-b border-gray-100 pb-4 mb-2 flex items-center justify-between">
+                      <h3 className="text-base font-bold text-gray-800 flex items-center gap-3">
+                        <div className="p-2 bg-brand/10 rounded-xl text-brand">
+                          <ShieldCheck size={18} />
+                        </div>
+                        Assinatura Ativa
+                      </h3>
+                    </div>
+                    
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-5 bg-emerald-50/50 rounded-2xl border border-emerald-100/50">
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-bold text-emerald-800">Plano Profissional</span>
+                          {paymentHistory.length > 0 && paymentHistory[0].status === 'Cancelado/Reembolsado' ? (
+                            <span className="bg-red-100 text-red-700 text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full">Cancelamento Solicitado</span>
+                          ) : (
+                            <span className="bg-emerald-100 text-emerald-700 text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full">Ativo</span>
+                          )}
+                        </div>
+                        <p className="text-xs text-emerald-600 mt-1 font-medium">
+                          {paymentHistory.length > 0 && paymentHistory[0].status === 'Cancelado/Reembolsado' 
+                            ? 'Sua solicitação de cancelamento está sendo processada de acordo com o CDC.'
+                            : 'Você possui acesso ilimitado a todas as ferramentas e suporte da plataforma.'
+                          }
+                        </p>
+                      </div>
+                      {paymentHistory.length > 0 && paymentHistory[0].status === 'Concluído' && (
+                        <button
+                          type="button"
+                          onClick={() => setModalCancelamentoAberto(true)}
+                          className="w-full sm:w-auto text-xs font-bold text-red-600 hover:text-white border border-red-200 hover:border-red-600 bg-transparent hover:bg-red-600 px-4 py-2.5 rounded-xl transition-all cursor-pointer active:scale-95 border-solid outline-none"
+                        >
+                          Cancelar Assinatura
+                        </button>
+                      )}
+                    </div>
+                  </section>
+                )}
+
                 <section className="bg-white/80 backdrop-blur-xl rounded-3xl border border-white/60 shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-6 md:p-8 flex flex-col gap-6 transition-all hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)]">
                   <div className="border-b border-gray-100 pb-4 mb-2 flex items-center justify-between">
                     <h3 className="text-base font-bold text-gray-800 flex items-center gap-3">

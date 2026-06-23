@@ -31,6 +31,7 @@ import { UsuarioLogado, Receita, Ingrediente, Refeicao } from './types';
 import { login, registrar, getSessao, encerrarSessao, atualizarPerfil, resetPassword, apagarConta } from './services/auth';
 import { listarAlimentos, salvarAlimento, excluirAlimento } from './services/alimentos';
 import { salvarReceita, excluirReceita, listarReceitas } from './services/receitas';
+import { trocarPlano } from './services/planService';
 import { calcularCustosReceita, calcularNutrientesTotais, calcularDadosNutricionaisPorPorcao } from './utils/calculations';
 import { Footer } from './components/Footer';
 import ConfiguracaoVisual from './pages/configuracaovisual/edicaodinamicadecampos';
@@ -809,6 +810,21 @@ function App() {
                 return true;
               } else {
                 alert("Erro ao apagar a conta. Tente novamente.");
+                return false;
+              }
+            }}
+            onCancelarAssinatura={async () => {
+              try {
+                // Altera o plano para gratis (id 1)
+                const res = await trocarPlano(1);
+                if (res) {
+                  const novaSessao = await getSessao();
+                  if (novaSessao) setUsuario(novaSessao);
+                  return true;
+                }
+                return false;
+              } catch (e) {
+                console.error(e);
                 return false;
               }
             }}
