@@ -7,7 +7,7 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['favicon.png', 'logo.svg', 'logo_white.svg', 'marmita.svg', 'rotulo.svg', 'anvisa.svg'],
+      includeAssets: ['favicon.ico', 'favicon.png', 'logo.svg', 'logo_white.svg', 'marmita.svg', 'rotulo.svg', 'anvisa.svg'],
       manifest: {
         name: 'Cozinha da Nutri',
         short_name: 'CozinhaNutri',
